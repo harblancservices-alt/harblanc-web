@@ -96,7 +96,7 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
     // lost account is real work — but it is worth knowing they are there.
     supabase
       .from("crm_accounts")
-      .select("id, name, city, state, created_at")
+      .select("id, name, city, state, created_at, source")
       .is("deleted_at", null)
       .is("assigned_user_id", null),
 
@@ -156,6 +156,7 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
       // every row is an unowned company, and what it needs is an owner.
       needs: "Assign an owner",
       waitingSince: row.created_at as string,
+      source: (row.source as string | null) ?? null,
       duplicateOf: duplicates.get(row.id as string) ?? [],
     });
   }

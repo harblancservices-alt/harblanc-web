@@ -39,6 +39,17 @@ export type WorkItem = {
   /** ISO timestamp this item started waiting (its created_at). */
   waitingSince: string;
   /**
+   * crm_accounts.source, RAW — never bucketed here.
+   *
+   * Back on 2026-08-26 (Brent: "the work to assign also has to show type").
+   * It came off when the pool collapsed to one table and "type" stopped
+   * meaning which table a row came from; it means PROVENANCE, and that
+   * changes who he would hand a row to. Rendered through companyRow.ts's
+   * sourceLabel so this column and Admin -> Companies say the same words
+   * about the same company, junk values included.
+   */
+  source: string | null;
+  /**
    * Other companies already in the book that look like this one, by name.
    *
    * DERIVED AT READ TIME (admin/duplicates.ts), never stored — same call as

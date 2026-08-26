@@ -9,6 +9,7 @@ import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
 import { titleCaseWords } from "../_shell/format";
 import { assignWork, sendTask } from "./assign-actions";
 import { isDuplicateQuickTask, normalizeQuickTask } from "./quickTasks";
+import { sourceLabel } from "./companies/companyRow";
 import { addQuickTask, removeQuickTask, type QuickTask } from "./quick-task-actions";
 import type { TeamMember, ComposerContact } from "./assign-data";
 import {
@@ -243,11 +244,11 @@ export function AssignBoard({
                     )}
                   </th>
                   <th className="px-2 py-2 text-left">Company</th>
-                  {/* Was PROVENANCE (Prospects / OTR / BOL) until those
-                      funnels were retired and every row became a company.
-                      It carries the read-time duplicate flag now: mostly
-                      empty, which is the point — a column that only speaks
-                      up when something needs a person. */}
+                  {/* PROVENANCE, plus the duplicate flag. It briefly carried
+                      only the flag, after the OTR/BOL funnels were retired
+                      and "type" stopped meaning which TABLE a row came
+                      from — but it still means where the company came from,
+                      and that changes who you would hand it to. */}
                   <th className="px-2 py-2 text-left">Type</th>
                   <th className="px-2 py-2 text-left">What it needs</th>
                   <th className="px-2 py-2 text-left">Waiting</th>
@@ -299,17 +300,33 @@ export function AssignBoard({
                         )}
                       </td>
                       <td className="px-2 py-2.5">
-                        {item.duplicateOf.length > 0 && (
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          {/* Same helper Admin -> Companies uses, so the two
+                              screens say the same words about the same
+                              company. A recognised token becomes its label;
+                              free text shows VERBATIM (truncated for the
+                              column, full string on hover) rather than
+                              collapsing into "Other", which would hide the
+                              junk that needs cleaning; null reads "Not
+                              recorded". */}
                           <span
-                            // The names go in the title so "which one?" —
-                            // the first thing you ask — is one hover away
-                            // rather than a separate hunt.
-                            title={`Already in the CRM as: ${item.duplicateOf.join(", ")}`}
-                            className="inline-flex rounded-[4px] border border-warn/60 px-1.5 py-0.5 text-[11px] font-semibold text-warn"
+                            className="text-[12px] text-fg-muted"
+                            title={item.source ?? undefined}
                           >
-                            Duplicate
+                            {sourceLabel(item.source)}
                           </span>
-                        )}
+                          {item.duplicateOf.length > 0 && (
+                            <span
+                              // The names go in the title so "which one?" —
+                              // the first thing you ask — is one hover away
+                              // rather than a separate hunt.
+                              title={`Already in the CRM as: ${item.duplicateOf.join(", ")}`}
+                              className="inline-flex shrink-0 rounded-[4px] border border-warn/60 px-1.5 py-0.5 text-[11px] font-semibold text-warn"
+                            >
+                              Duplicate
+                            </span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-2 py-2.5 text-[12.5px] text-fg-muted">{item.needs}</td>
                       <td
