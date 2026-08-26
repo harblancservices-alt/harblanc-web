@@ -11,11 +11,10 @@
  *
  * What the four new stages buy, in Brent's order:
  *   qualified     — we have decided they are worth pursuing, before anyone
- *                   has reached out. This takes over `researching`'s position
- *                   in the funnel, but describes a CONCLUSION ("worth
- *                   chasing") rather than an activity ("looking into it") —
- *                   which matters because under the current model research
- *                   happens after assignment, so it is not a stage at all.
+ *                   has reached out. A CONCLUSION ("worth chasing"), not an
+ *                   activity — research happens after assignment and is a
+ *                   TASK, never a stage. Nothing arrives here automatically:
+ *                   see the forward-only note below.
  *   engaged       — they are talking back. The gap between "we called them"
  *                   and "we are quoting" used to be invisible.
  *   setup         — they said yes and are being onboarded. Won but not yet
@@ -31,13 +30,22 @@
  * TWO STAGES NOW REQUIRE A REASON. Lost and Disqualified cannot be committed
  * without one (crm_accounts.stage_loss_reason) — see STAGES_NEEDING_REASON.
  *
+ * FIVE STAGES ARE FORWARD-ONLY: Qualified, Engaged, Setup, Dormant and
+ * Disqualified. A person moves a company into one deliberately. Nothing
+ * arrives there by alias, by migration or by automation — the data remap
+ * deliberately put nothing in them, and no LEGACY_STAGE_ALIASES entry
+ * resolves to one (there is a test that says so). The reason is that each of
+ * those five asserts a judgement somebody made, and a judgement nobody made
+ * is worse than no judgement at all.
+ *
  * NO DB CONSTRAINT, BY DESIGN. lifecycle_status is plain nullable text with
  * no CHECK (verified live). normalizeStage below is the enforcement point,
  * and it funnels values from EVERY past vocabulary onto a current stage. That
- * is what lets a rename ship before its data remap — `researching` and
- * `active_customer` are still on live rows right now, because the remap is
- * held for Brent's approval, and everything renders and behaves correctly
- * regardless.
+ * is what let this vocabulary ship BEFORE its data remap ran: for a few hours
+ * `researching` and `active_customer` were still on live rows and everything
+ * rendered correctly anyway. The remap ran on 2026-08-26 (see
+ * supabase/data-migrations/20260826_stage_remap/) — the aliases stay because
+ * they are still the safety net for anything that predates it.
  *
  * 2026-08-22 rebuild (CRM_URGENCY_AUDIT.md): the old 9-value set (lead,
  * researching, contacted, prospect, in_the_door, quoted, active_customer,
@@ -120,8 +128,16 @@ export const LEGACY_STAGE_ALIASES: Record<string, LifecycleStage> = {
   in_the_door: "contacted",
   quoted: "quoting",
   customer: "active",
-  /** Retired 2026-08-26. Qualified inherits its position in the funnel. */
-  researching: "qualified",
+  /**
+   * Retired 2026-08-26. Brent's ruling on where it lands: New Lead.
+   *
+   * Not Qualified, which was the earlier proposal. Research is not a stage
+   * under this model -- it is the first task on a New Lead -- so a company
+   * that was "being researched" is a New Lead somebody is working, and
+   * Qualified is a forward-only stage a person moves a company INTO
+   * deliberately. Nothing should arrive there by migration.
+   */
+  researching: "new_lead",
   /** Retired 2026-08-26. A pure rename. */
   active_customer: "active",
   // "inactive" was a second terminal state alongside "lost" in the old model.

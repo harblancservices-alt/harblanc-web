@@ -463,35 +463,19 @@ export async function assignAccount(
     meta: { from: currentOwner, to: targetUserId },
   });
 
-  // Claim-only stage advance. Never runs on a reassign. This was one of two
-  // copies (claimAiLead held the other) until the Prospects queue was
-  // retired on 2026-08-26; it is now the only one.
-  const priorStage = normalizeStage(account.lifecycle_status as string | null);
-  if (currentOwner === null && targetUserId !== null && priorStage === "new_lead") {
-    const { error: stageError } = await supabase
-      .from("crm_accounts")
-      .update({ lifecycle_status: "qualified" })
-      .eq("id", accountId);
-
-    if (!stageError) {
-      await logActivity(supabase, {
-        orgId: user.orgId,
-        userId: user.id,
-        accountId,
-        kind: CRM_ACTIVITY.lifecycleChanged,
-        summary: `Stage changed: ${stageLabel(priorStage)} → ${stageLabel("qualified")}`,
-        meta: { from: priorStage, to: "qualified" },
-      });
-
-      await fireStageEntryTask(supabase, {
-        orgId: user.orgId,
-        actorUserId: user.id,
-        accountId,
-        ownerUserId: targetUserId,
-        stage: "qualified",
-      });
-    }
-  }
+  // NO STAGE ADVANCE ON ASSIGNMENT (Brent, 2026-08-26): "the company should
+  // land into the sales agents inbox as new lead/research".
+  //
+  // Claiming a company used to advance new_lead -> researching (later
+  // qualified) automatically. That is now wrong twice over. It contradicts
+  // the rule directly -- a company handed to an agent is supposed to BE a
+  // New Lead in their inbox, not something already moved on. And it would
+  // have quietly undone the stage remap one company at a time, since every
+  // assignment nudged a row out of New Lead the moment somebody picked it up.
+  //
+  // Research is not a stage under this model; it is the first TASK on a New
+  // Lead, and assignCompanies creates it. Stage only moves when a person
+  // presses a stage button.
 
   revalidateAccount(accountId);
   // Admin → Overview's assign pool is keyed on assigned_user_id IS NULL, so

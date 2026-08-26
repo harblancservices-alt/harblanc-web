@@ -1,84 +1,99 @@
 import { describe, expect, it } from "vitest";
-import {
-  assignmentTaskSpec,
-  batchTaskSpec,
-} from "./assignmentTask";
+import { assignmentTaskSpec, assignmentTaskTable, batchTaskSpec } from "./assignmentTask";
+import { LIFECYCLE_STAGES } from "../../accounts/lifecycle";
 import { TASK_TYPES } from "../../tasks/taskType";
 
+/**
+ * Rewritten 2026-08-26 when the spec became STAGE-first instead of
+ * source-first. The old suite asserted per-source behaviour ("sends a BOL
+ * company to party matching", "treats free-typed source as ordinary"); source
+ * no longer participates at all, so those cases could not be adapted — they
+ * were assertions about a parameter that has gone.
+ */
+
 describe("assignmentTaskSpec", () => {
-  it("sends an OTR company to research", () => {
-    expect(assignmentTaskSpec("otr", "new_lead").title).toBe("Research and qualify this company");
+  it("gives a New Lead research — Brent's rule, whatever the source", () => {
+    expect(assignmentTaskSpec("new_lead").title).toBe("Research and qualify this company");
   });
 
-  it("treats a BOL company as ordinary now that BOL Center is retired", () => {
-    // Was "Match the companies on this bill of lading", which pointed the
-    // agent at a page deleted on 2026-08-26. Provenance is still reported in
-    // the Source column; it just no longer implies a task.
-    expect(assignmentTaskSpec("bol", "new_lead").title).toBe("Make first contact");
-    expect(assignmentTaskSpec("bol", "contacted").title).toBe("Follow up with this company");
+  it("no longer tells anyone to cold-call a company nobody has researched", () => {
+    // The bug this rewrite fixed: a New Lead sourced manual/bol/null used to
+    // get "Make first contact" because only source='otr' hit the research
+    // branch. Source is not an argument any more, so it cannot recur.
+    expect(assignmentTaskSpec("new_lead").title).not.toBe("Make first contact");
   });
 
-  it("asks for first contact on an untouched company", () => {
-    expect(assignmentTaskSpec("manual", "new_lead").title).toBe("Make first contact");
-    expect(assignmentTaskSpec(null, null).title).toBe("Make first contact");
+  it("does not ask for research on a company already spoken to", () => {
+    expect(assignmentTaskSpec("contacted").title).toBe("Follow up with this company");
+    expect(assignmentTaskSpec("quoting").title).toBe("Follow up on the quote");
+    for (const stage of ["contacted", "engaged", "quoting", "setup", "active"]) {
+      expect(assignmentTaskSpec(stage).title).not.toMatch(/research/i);
+    }
   });
 
-  it("asks for a follow-up once the company has moved past new_lead", () => {
-    expect(assignmentTaskSpec("manual", "contacted").title).toBe("Follow up with this company");
-    expect(assignmentTaskSpec("manual", "quoting").title).toBe("Follow up with this company");
+  it("asks for first contact once research is done", () => {
+    expect(assignmentTaskSpec("qualified").title).toBe("Make first contact");
   });
 
-  it("lets source win over stage — an OTR entry needs research regardless", () => {
-    expect(assignmentTaskSpec("otr", "contacted").title).toBe("Research and qualify this company");
+  it("resolves legacy stored values before choosing", () => {
+    // `researching` maps to New Lead per Brent's ruling, so a row that has
+    // not been remapped yet still gets the research task.
+    expect(assignmentTaskSpec("researching").title).toBe("Research and qualify this company");
+    expect(assignmentTaskSpec("active_customer").title).toBe("Check in with this customer");
   });
 
-  it("treats free-typed source as ordinary, not as OTR", () => {
-    expect(assignmentTaskSpec("Cold Call", "new_lead").title).toBe("Make first contact");
-    expect(assignmentTaskSpec("Kermit Layman", "new_lead").title).toBe("Make first contact");
+  it("falls back to New Lead work for an unknown or missing stage", () => {
+    expect(assignmentTaskSpec(null).title).toBe("Research and qualify this company");
+    expect(assignmentTaskSpec("banana").title).toBe("Research and qualify this company");
+  });
+
+  it("covers every stage — no gaps in the map", () => {
+    for (const stage of LIFECYCLE_STAGES) {
+      expect(assignmentTaskSpec(stage).title).toBeTruthy();
+      expect(assignmentTaskSpec(stage).taskType).toBeTruthy();
+    }
+    expect(assignmentTaskTable()).toHaveLength(LIFECYCLE_STAGES.length);
   });
 
   it("only ever uses task types the rest of the CRM already knows", () => {
-    const used = [
-      assignmentTaskSpec("otr", "new_lead"),
-      assignmentTaskSpec("bol", "new_lead"),
-      assignmentTaskSpec("manual", "new_lead"),
-      assignmentTaskSpec("manual", "contacted"),
-    ].map((s) => s.taskType);
-    for (const t of used) expect(TASK_TYPES as readonly string[]).toContain(t);
+    for (const row of assignmentTaskTable()) {
+      expect(TASK_TYPES as readonly string[]).toContain(row.taskType);
+    }
   });
 
-  it("never puts a company name in the title — bulk shares one title", () => {
-    const titles = [
-      assignmentTaskSpec("otr", "new_lead"),
-      assignmentTaskSpec("bol", "new_lead"),
-      assignmentTaskSpec("manual", "new_lead"),
-      assignmentTaskSpec("manual", "contacted"),
-    ].map((s) => s.title);
-    for (const t of titles) expect(t).toMatch(/^[^{}]*$/);
+  it("never puts a company name in the title — a bulk assign shares one", () => {
+    for (const row of assignmentTaskTable()) {
+      expect(row.title).toMatch(/^[^{}]*$/);
+    }
   });
 });
 
 describe("batchTaskSpec", () => {
-  it("uses the shared spec when every company wants the same thing", () => {
-    expect(
-      batchTaskSpec([
-        { source: "otr", stage: "new_lead" },
-        { source: "otr", stage: "contacted" },
-      ]).title,
-    ).toBe("Research and qualify this company");
+  it("uses the shared spec when every company is at the same stage", () => {
+    expect(batchTaskSpec([{ stage: "contacted" }, { stage: "contacted" }]).title).toBe(
+      "Follow up with this company",
+    );
   });
 
-  it("falls back to first contact for a mixed batch", () => {
-    // Applying "Match the bill of lading" to an OTR company would be wrong.
-    expect(
-      batchTaskSpec([
-        { source: "otr", stage: "new_lead" },
-        { source: "manual", stage: "new_lead" },
-      ]).title,
-    ).toBe("Make first contact");
+  it("takes the LEAST advanced company when the batch is mixed", () => {
+    // Erring toward work that definitely has not been done: telling somebody
+    // to follow up on a company nobody has contacted implies a conversation
+    // that never happened, which is worse than a redundant research task.
+    expect(batchTaskSpec([{ stage: "quoting" }, { stage: "new_lead" }]).title).toBe(
+      "Research and qualify this company",
+    );
+    expect(batchTaskSpec([{ stage: "active" }, { stage: "contacted" }]).title).toBe(
+      "Follow up with this company",
+    );
+  });
+
+  it("is order-independent", () => {
+    const a = batchTaskSpec([{ stage: "new_lead" }, { stage: "quoting" }]).title;
+    const b = batchTaskSpec([{ stage: "quoting" }, { stage: "new_lead" }]).title;
+    expect(a).toBe(b);
   });
 
   it("handles an empty selection without throwing", () => {
-    expect(batchTaskSpec([]).title).toBe("Make first contact");
+    expect(batchTaskSpec([]).title).toBe("Research and qualify this company");
   });
 });

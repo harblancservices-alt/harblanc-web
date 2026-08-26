@@ -290,7 +290,9 @@ export async function assignCompanies(
  *
  * The spec is computed HERE from the companies being assigned rather than
  * passed in, because this board deliberately does not carry a task composer —
- * the admin picks a person and presses Assign.
+ * the admin picks a person and presses Assign. It reads their STAGE, so a
+ * company already at Contacted or Quoting gets a follow-up rather than being
+ * sent back to research.
  */
 export async function assignWork(personId: string, accountIds: string[]): Promise<AssignResult> {
   if (accountIds.length === 0) return { ok: false, error: "Nothing is selected." };
@@ -298,15 +300,14 @@ export async function assignWork(personId: string, accountIds: string[]): Promis
   const supabase = await createCrmServerClient();
   const { data: rows } = await supabase
     .from("crm_accounts")
-    .select("source, lifecycle_status")
+    .select("lifecycle_status")
     .in("id", accountIds)
     .is("deleted_at", null);
 
+  // Stage only — see assignmentTask.ts. A company at Contacted or Quoting
+  // gets a follow-up, not "go research this", which is a step already past.
   const spec = batchTaskSpec(
-    (rows ?? []).map((r) => ({
-      source: (r.source as string | null) ?? null,
-      stage: (r.lifecycle_status as string | null) ?? null,
-    })),
+    (rows ?? []).map((r) => ({ stage: (r.lifecycle_status as string | null) ?? null })),
   );
 
   const result = await assignCompanies(personId, accountIds, spec);

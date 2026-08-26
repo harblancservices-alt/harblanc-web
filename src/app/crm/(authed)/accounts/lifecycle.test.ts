@@ -103,8 +103,11 @@ describe("legacy stage values still on live rows", () => {
   // The data remap is HELD for Brent's approval, so these two raw values are
   // in the database right now. If these break, 34 companies at `researching`
   // and 1 at `active_customer` silently fall back to New Lead.
-  it("maps researching onto qualified, which took its funnel position", () => {
-    expect(normalizeStage("researching")).toBe("qualified");
+  it("maps researching onto New Lead — Brent's ruling", () => {
+    // Research is not a stage under this model, it is the first TASK on a
+    // New Lead. Qualified is forward-only: a person moves a company into it,
+    // nothing arrives there by migration or by alias.
+    expect(normalizeStage("researching")).toBe("new_lead");
   });
 
   it("maps active_customer onto active", () => {
@@ -112,9 +115,21 @@ describe("legacy stage values still on live rows", () => {
     expect(isActiveCustomerStage("active_customer")).toBe(true);
   });
 
-  it("keeps pre-remap rows out of the New Lead bucket", () => {
-    for (const raw of ["researching", "active_customer", "customer", "quoted", "inactive"]) {
+  it("keeps the non-researching legacy values out of the New Lead bucket", () => {
+    // `researching` is deliberately excluded here — it is SUPPOSED to land on
+    // New Lead now. The rest still carry real progress and must not be
+    // flattened back to the top of the funnel.
+    for (const raw of ["active_customer", "customer", "quoted", "inactive"]) {
       expect(normalizeStage(raw)).not.toBe("new_lead");
+    }
+  });
+
+  it("never routes a legacy value into a forward-only stage", () => {
+    // Qualified, Engaged, Setup and Disqualified are stages somebody chooses.
+    // No alias may deposit a company in one.
+    const forwardOnly = ["qualified", "engaged", "setup", "disqualified"];
+    for (const raw of Object.keys(LEGACY_STAGE_ALIASES)) {
+      expect(forwardOnly).not.toContain(normalizeStage(raw));
     }
   });
 

@@ -143,9 +143,10 @@ export function CompaniesBoard({
   // Set — a mutable reference the React Compiler cannot prove stable, so a
   // manual memo here makes it skip optimising this whole component. The work
   // is a filter over at most a few dozen rows; the memo bought nothing.
-  const spec = batchTaskSpec(
-    rows.filter((r) => selected.has(r.id)).map((r) => ({ source: r.source, stage: r.stage })),
-  );
+  // Stage only — `source` stopped deciding the task on 2026-08-26 (see
+  // assignmentTask.ts). Where a company came from is provenance; where it IS
+  // determines what to do next.
+  const spec = batchTaskSpec(rows.filter((r) => selected.has(r.id)).map((r) => ({ stage: r.stage })));
   const taskTitle = titleOverride ?? spec.title;
 
   // Unassigned first and loudest, then All, then one tab per agent.
