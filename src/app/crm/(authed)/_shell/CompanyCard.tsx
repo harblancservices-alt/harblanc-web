@@ -144,14 +144,20 @@ export function CompanyCard({
 
       {/* State of play */}
       <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
-        {/* Temperature — one dot, the same one the contacts table and the
-            call log use. Silent for stages with no clock. */}
-        <TemperatureDot temp={temp} />
-        {/* Silent when there is nothing to say AND nobody to say it about —
-            "Never contacted" under "Nobody to call there yet" is the same
-            fact twice. A company-level call with no contact on file still
-            shows, because that is real history. */}
+        {/* THE DOT AND ITS LABEL ARE ONE UNIT — both, or neither.
+        
+            They were separate for one commit and it showed: on a company
+            with nobody to call, the label was suppressed (because "Never
+            contacted" under "Nobody to call there yet" is the same fact
+            twice) while the dot still rendered, leaving a bare grey circle
+            with nothing beside it. A marker with no label is not a quiet
+            signal, it is a smudge.
+            
+            A company-level call with no contact on file still shows both,
+            because that is real history. */}
         {!(card.lastContactMs === null && !contact) && (
+          <span className="flex items-center gap-1.5">
+            <TemperatureDot temp={temp} />
           <span
             className={`text-[11.5px] font-bold ${
               contactStatus.freshness === "fresh"
@@ -164,6 +170,7 @@ export function CompanyCard({
             }`}
           >
             {card.lastContactMs === null ? NEVER_CONTACTED_LABEL : contactStatus.text}
+          </span>
           </span>
         )}
         {flag === "quiet" && (
