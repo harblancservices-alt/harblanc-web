@@ -17,7 +17,17 @@ import { dueAtForColumn, PLAN_COLUMNS, type PlanColumn } from "./plan";
  * the dashboard and the global Tasks page so both stay live.
  */
 
-export type ActionResult = { ok: true } | { ok: false; error: string };
+/**
+ * `reason` lets a caller branch on WHICH rule stopped it without matching on
+ * the error string. Only completeTask sets it today.
+ *   not_planned   — the task has no due date, so it was never planned
+ *   note_required — no close-out note was supplied
+ */
+export type CompleteBlockReason = "not_planned" | "note_required";
+
+export type ActionResult =
+  | { ok: true }
+  | { ok: false; error: string; reason?: CompleteBlockReason };
 
 function str(fd: FormData, key: string): string {
   return String(fd.get(key) ?? "").trim();
@@ -285,7 +295,7 @@ export async function reassignTask(
 
 /**
  * Mark a task complete: set status + completed_at and log a task_completed
- * activity — optionally carrying a completion NOTE as that activity's body,
+ * activity carrying the REQUIRED completion NOTE as that activity's body,
  * which is where "what has this person actually done" is answered. Append-only
  * by construction, so it cannot be edited away later the way a task column
  * could. See the `note` parameter.
@@ -310,12 +320,10 @@ export async function completeTask(
   /**
    * What actually happened — recorded as the task_completed activity's body.
    *
-   * OPTIONAL FOR NOW, on purpose. Brent is introducing a standard where
-   * closing a task requires a note; this is the parameter that standard will
-   * turn on, and the check will go HERE rather than in a dialog, so no caller
-   * can route around it. Until then a null body is left null: see the note in
-   * calls/actions.ts on why an absent note must stay visibly absent rather
-   * than being filled with something plausible.
+   * REQUIRED as of 2026-08-26. Enforced HERE rather than in a dialog, because
+   * this function is the single path all six completion entry points use, so
+   * no caller can route around it — a tampered request is refused the same as
+   * a careless one.
    */
   note?: string | null,
 ): Promise<ActionResult> {
@@ -324,9 +332,47 @@ export async function completeTask(
 
   const { data: task } = await supabase
     .from("crm_tasks")
-    .select("title, account_id, contact_id, status")
+    .select("title, account_id, contact_id, status, due_at")
     .eq("id", taskId)
     .maybeSingle();
+  if (!task) return { ok: false, error: "That task no longer exists." };
+
+  /**
+   * TWO STANDARDS, both enforced here (Brent, 2026-08-26).
+   *
+   * 1. YOU CANNOT CLOSE WORK YOU NEVER PLANNED. A task with no due_at was
+   *    never scheduled — it is sitting in the agent's Inbox. Dragging it onto
+   *    a day is the gesture that plans it, and that has to happen before it
+   *    can be closed, or "planned" means nothing and the Inbox becomes a
+   *    place work quietly passes through on its way to done.
+   *
+   *    Deliberately "has a date NOW" rather than "ever had one": crm_tasks
+   *    keeps no history of when a date was first set, so "ever" is not a
+   *    question the schema can answer without a new column. The stricter
+   *    reading needs no schema change and is the one Brent described.
+   *
+   * 2. YOU CANNOT CLOSE WORK WITHOUT SAYING WHAT HAPPENED. The note lands in
+   *    the task_completed activity's body, which is append-only — so "what
+   *    has this person actually done" finally has an answer beyond a count.
+   *
+   * Order matters: planning is checked first because it is the structural
+   * problem. Telling someone their note is missing, then telling them the
+   * task was never planned, is two round trips for one broken state.
+   */
+  if (!task.due_at) {
+    return {
+      ok: false,
+      reason: "not_planned",
+      error: "Plan this before closing it — drag it onto a day first.",
+    };
+  }
+  if (!note?.trim()) {
+    return {
+      ok: false,
+      reason: "note_required",
+      error: "Say what happened before closing this.",
+    };
+  }
 
   const { error } = await supabase
     .from("crm_tasks")
@@ -353,10 +399,8 @@ export async function completeTask(
       contactId,
       kind: CRM_ACTIVITY.taskCompleted,
       summary: `Task completed: ${(task?.title as string) ?? "Task"}`,
-      // The evidence. crm_activities.body already exists and logActivity
-      // already accepts it — this event simply never passed one. Trimmed to
-      // null so whitespace can't read as a note that was written.
-      body: note?.trim() || null,
+      // The evidence. Guaranteed non-empty by the guard above.
+      body: note!.trim(),
     });
   }
 

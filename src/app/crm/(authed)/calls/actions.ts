@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { syncFollowupTask } from "@/lib/crm/followupTask";
-import { completeTask } from "../tasks/actions";
+import { completeTask, planTask } from "../tasks/actions";
 import { callOutcomeLabel } from "./outcomes";
 import { centralInputToIso, titleCaseWords } from "../_shell/format";
 import { DEFAULT_LIFECYCLE } from "../accounts/lifecycle";
@@ -144,6 +144,22 @@ export async function logCall(formData: FormData): Promise<ActionResult> {
 
   const outcome = optStr(formData, "outcome");
   if (!outcome) return { ok: false, error: "Pick a call outcome." };
+
+  /**
+   * CLOSING A TASK FROM HERE NEEDS NOTES, and the check happens BEFORE any
+   * write (2026-08-26). Completing a task requires a close-out note
+   * (tasks/actions.ts::completeTask); this flow satisfies that with the
+   * call's own notes rather than prompting twice. If they are empty the whole
+   * save is refused up front — the alternative is a call that commits and
+   * then silently fails to close the task it promised to close, leaving the
+   * rep looking at a task they believe they just finished.
+   */
+  if (optStr(formData, "complete_task_id") && !optStr(formData, "summary")) {
+    return {
+      ok: false,
+      error: "Add a note about the call — closing the task needs a record of what happened.",
+    };
+  }
 
   const contactMode = str(formData, "contact_mode");
   const accountMode = str(formData, "account_mode");
@@ -394,25 +410,25 @@ export async function logCall(formData: FormData): Promise<ActionResult> {
   // creates a NEW follow-up task for the next touch, which is correct — the
   // old task is done, the next one is scheduled.
   //
-  // THE CALL'S OWN NOTES ARE THE COMPLETION NOTE (2026-08-25). Closing a task
-  // is meant to produce evidence of what happened; this path used to close one
-  // with none at all, which made it the one silent way out. `summary` is what
-  // the rep typed about the call, and it is exactly that evidence, so it rides
-  // through to the task_completed activity's body.
+  // THE CALL'S OWN NOTES ARE THE COMPLETION NOTE. Closing a task is meant to
+  // produce evidence of what happened, and `summary` is exactly that — so it
+  // rides through rather than prompting the rep a second time for something
+  // they just typed. Guaranteed non-empty by the guard at the top.
   //
-  // WHEN THE CALL HAS NO NOTES the task is still completed and the body is
-  // left NULL. Two alternatives were rejected. Refusing to complete would
-  // enforce a standard Brent has not turned on yet and would silently ignore
-  // what the rep explicitly asked for — they ticked "complete this task" and
-  // the call saved fine. Auto-filling something like "Completed via call log"
-  // would be worse: it is indistinguishable from a real note, so it would
-  // permanently poison the very signal the standard depends on. A null body is
-  // honestly missing, and `select ... from crm_activities where kind =
-  // 'task_completed' and body is null` is the exact backlog to work through on
-  // the day the rule goes live.
+  // AND THE CALL PLANS THE TASK IF NOBODY DID. completeTask also refuses work
+  // that was never planned (no due_at). An unplanned task being closed by a
+  // logged call is not a rule violation — the call IS the doing of it, today
+  // — so this dates it to today first rather than failing. That keeps the
+  // "you must plan work" rule about the PLANNING BOARD, where a person is
+  // choosing when to do something, instead of blocking a rep who has already
+  // done it.
   const completeTaskId = optStr(formData, "complete_task_id");
   if (completeTaskId) {
-    await completeTask(completeTaskId, summary);
+    const done = await completeTask(completeTaskId, summary);
+    if (!done.ok && done.reason === "not_planned") {
+      await planTask(completeTaskId, "today");
+      await completeTask(completeTaskId, summary);
+    }
   }
 
   revalidate(accountId, contactId);

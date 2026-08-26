@@ -10,7 +10,8 @@ import { normalizePriority } from "./priority";
 import { taskUrgencyBucket } from "@/lib/crm/taskUrgency";
 import { TASK_TYPE_CHIP_TONE } from "./taskType";
 import { SNOOZE_PRESETS } from "./snooze";
-import { completeTask, reopenTask, snoozeTask, deleteTask } from "./actions";
+import { reopenTask, snoozeTask, deleteTask } from "./actions";
+import { CompleteTaskDialog } from "./CompleteTaskDialog";
 import { LogCallDialog } from "../calls/LogCallDialog";
 import { Modal } from "../_shell/Modal";
 import { IconMore, IconPhone, IconMail, IconChevronDown } from "../_shell/icons";
@@ -272,6 +273,7 @@ export function TaskRow({
   const router = useRouter();
   const done = task.status === "completed";
   const [optimisticDone, setOptimisticDone] = useState(done);
+  const [closing, setClosing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -305,15 +307,24 @@ export function TaskRow({
     };
   }, [menuOpen, snoozeOpen]);
 
+  /**
+   * Ticking OPEN a task still writes straight through — reopening asks
+   * nothing of anybody. Ticking it DONE opens the close-out dialog instead,
+   * because completeTask now requires a note and a plan; there is no
+   * optimistic state to set, since the write happens in the dialog.
+   */
   function toggleDone() {
-    const next = !optimisticDone;
     setError(null);
-    setOptimisticDone(next);
+    if (!optimisticDone) {
+      setClosing(true);
+      return;
+    }
+    setOptimisticDone(false);
     startTransition(async () => {
-      const res = next ? await completeTask(task.id) : await reopenTask(task.id);
+      const res = await reopenTask(task.id);
       if (res.ok) router.refresh();
       else {
-        setOptimisticDone(!next);
+        setOptimisticDone(true);
         setError(res.error);
       }
     });
@@ -598,6 +609,20 @@ export function TaskRow({
         openEditRef.current = open;
         return null;
       }} />
+
+      {closing && (
+        <CompleteTaskDialog
+          taskId={task.id}
+          title={task.title}
+          dueAt={task.due_at}
+          onClose={() => setClosing(false)}
+          onDone={() => {
+            setClosing(false);
+            setOptimisticDone(true);
+            router.refresh();
+          }}
+        />
+      )}
 
       {confirmDelete && (
         <Modal open onClose={() => !pending && setConfirmDelete(false)} busy={pending} title="Delete task">

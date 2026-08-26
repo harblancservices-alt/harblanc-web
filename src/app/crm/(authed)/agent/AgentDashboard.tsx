@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, BTN_EDIT } from "../_shell/ui";
 import { titleCaseWords, upperCaseState } from "../_shell/format";
-import { completeTask } from "../tasks/actions";
+import { CompleteTaskDialog } from "../tasks/CompleteTaskDialog";
 import {
   activityStatus,
   companyFlag,
@@ -263,21 +263,13 @@ function Group({
 
 function TaskRow({ task, now }: { task: AgentTask; now: Date }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const [error] = useState<string | null>(null);
+  // Done no longer completes on click — it opens the shared close-out dialog,
+  // which collects the note completeTask now requires. Same component the
+  // planning board uses, so the two screens ask for the same things.
+  const [closing, setClosing] = useState(false);
+  const pending = false;
   const tint = dueTint(task.dueAt, now);
-
-  function markDone() {
-    setError(null);
-    startTransition(async () => {
-      const result = await completeTask(task.id);
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-    });
-  }
 
   return (
     <li className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0">
@@ -333,12 +325,25 @@ function TaskRow({ task, now }: { task: AgentTask; now: Date }) {
       </span>
       <button
         type="button"
-        onClick={markDone}
+        onClick={() => setClosing(true)}
         disabled={pending}
         className={`shrink-0 rounded-md px-3.5 py-1.5 text-[12.5px] font-bold transition-colors ${BTN_EDIT}`}
       >
         {pending ? "…" : "Done"}
       </button>
+
+      {closing && (
+        <CompleteTaskDialog
+          taskId={task.id}
+          title={task.title}
+          dueAt={task.dueAt}
+          onClose={() => setClosing(false)}
+          onDone={() => {
+            setClosing(false);
+            router.refresh();
+          }}
+        />
+      )}
     </li>
   );
 }

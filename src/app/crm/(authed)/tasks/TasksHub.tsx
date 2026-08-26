@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { titleCaseWords } from "../_shell/format";
 import { CONTROL, CONTROL_SIZE } from "../_shell/compactForm";
 import { BTN_PRIMARY, BTN_NEUTRAL } from "../_shell/ui";
-import { completeTask, createTask, planTask } from "./actions";
+import { createTask, planTask } from "./actions";
+import { CompleteTaskDialog } from "./CompleteTaskDialog";
 import {
   buildPlanBoard,
   dueDateInputForColumn,
@@ -57,6 +58,9 @@ export function TasksHub({
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<PlanColumn | null>(null);
   const [composing, setComposing] = useState<PlanColumn | null>(null);
+  /** The task being closed out. Completion no longer happens on the tick —
+   * it opens the dialog, which collects the note the standard requires. */
+  const [closing, setClosing] = useState<PlanTask | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -79,14 +83,7 @@ export function TasksHub({
 
   function finish(taskId: string) {
     setError(null);
-    startTransition(async () => {
-      const result = await completeTask(taskId);
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      router.refresh();
-    });
+    setClosing(byId.get(taskId) ?? null);
   }
 
   return (
@@ -198,9 +195,23 @@ export function TasksHub({
       </div>
 
       <p className="text-[12px] text-fg-subtle">
-        Drag a card between columns to reschedule it · tick the circle to complete · + adds a task
-        straight into that column.
+        Drag a card between columns to reschedule it · tick the circle to close it out · + adds a
+        task straight into that column.
       </p>
+
+      {closing && (
+        <CompleteTaskDialog
+          taskId={closing.id}
+          title={closing.title}
+          dueAt={closing.dueAt}
+          definitionOfDone={closing.definitionOfDone}
+          onClose={() => setClosing(null)}
+          onDone={() => {
+            setClosing(null);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

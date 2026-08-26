@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDateTime } from "../../../_shell/format";
 import { IconBell } from "../../../_shell/icons";
-import { completeTask } from "../../../tasks/actions";
 import { D_MONO } from "./ui";
+import { CompleteTaskDialog } from "../../../tasks/CompleteTaskDialog";
 
 /**
  * DESKTOP-ONLY "Next follow-up" banner (design handoff §Main column) — the
@@ -34,17 +34,16 @@ export function FollowUpBanner({
   notes: string | null;
   dueAt: string;
 }) {
-  const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Opens the shared close-out dialog rather than completing outright —
+  // completeTask requires a note and a plan, and this banner has neither to
+  // give. Same dialog every other Done control in the CRM uses.
+  const [closing, setClosing] = useState(false);
   function markDone() {
     setError(null);
-    startTransition(async () => {
-      const res = await completeTask(taskId);
-      if (res.ok) router.refresh();
-      else setError(res.error);
-    });
+    setClosing(true);
   }
 
   return (
@@ -62,11 +61,23 @@ export function FollowUpBanner({
       <button
         type="button"
         onClick={markDone}
-        disabled={pending}
         className="shrink-0 whitespace-nowrap rounded-md border border-warn/45 bg-card px-3 py-1.5 text-[12px] font-bold text-warn transition-colors hover:bg-warn/10 disabled:opacity-60"
       >
-        {pending ? "…" : "Mark done"}
+        Mark done
       </button>
+
+      {closing && (
+        <CompleteTaskDialog
+          taskId={taskId}
+          title={title}
+          dueAt={dueAt}
+          onClose={() => setClosing(false)}
+          onDone={() => {
+            setClosing(false);
+            router.refresh();
+          }}
+        />
+      )}
     </div>
   );
 }

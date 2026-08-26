@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { CompleteTaskDialog } from "../../../tasks/CompleteTaskDialog";
 import { formatDateTime } from "../../../_shell/format";
-import { completeTask, snoozeTask } from "../../../tasks/actions";
+import { snoozeTask } from "../../../tasks/actions";
 import { SNOOZE_PRESETS } from "../../../tasks/snooze";
 import { M_BTN_SM } from "./ui";
 
@@ -40,13 +41,13 @@ export function MobileFollowUp({
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
+  // Opens the shared close-out dialog rather than completing outright —
+  // completeTask requires a note and a plan, and this banner has neither to
+  // give. Same dialog every other Done control in the CRM uses.
+  const [closing, setClosing] = useState(false);
   function markDone() {
     setError(null);
-    startTransition(async () => {
-      const res = await completeTask(taskId);
-      if (res.ok) router.refresh();
-      else setError(res.error);
-    });
+    setClosing(true);
   }
 
   function snooze(preset: string) {
@@ -103,6 +104,19 @@ export function MobileFollowUp({
             </button>
           ))}
         </div>
+      )}
+
+      {closing && (
+        <CompleteTaskDialog
+          taskId={taskId}
+          title={title}
+          dueAt={dueAt}
+          onClose={() => setClosing(false)}
+          onDone={() => {
+            setClosing(false);
+            router.refresh();
+          }}
+        />
       )}
     </div>
   );
