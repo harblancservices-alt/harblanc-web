@@ -8,7 +8,6 @@ import {
   stageWithAgeLabel,
   NEVER_CONTACTED_LABEL,
   NO_CONTACT_LABEL,
-  NO_PHONE_LABEL,
   type CompanyCardData,
 } from "./companyCardModel";
 
@@ -103,9 +102,7 @@ export function CompanyCard({
         )}
       </div>
 
-      <p className="mt-0.5 truncate text-[11.5px] text-fg-subtle">
-        {place || "No location on file"}
-      </p>
+      {place && <p className="mt-0.5 truncate text-[11.5px] text-fg-subtle">{place}</p>}
 
       {/* Where it is, and for how long */}
       {!hideStage && (
@@ -118,14 +115,24 @@ export function CompanyCard({
         </div>
       )}
 
-      {/* Who to call */}
+      {/* Who to call.
+          
+          ONE NEGATIVE LINE, NOT THREE (Brent, 2026-08-26). The card used to
+          say "No location on file", "Nobody to call there yet" AND "Never
+          contacted" — three stacked absences, which on a BOL-sourced company
+          with nothing on it was most of the card, and worse at the 216px
+          pipeline column width.
+          
+          Now: a missing location is simply not drawn, and the two remaining
+          negatives collapse into each other. If there is nobody to call, that
+          one line stands for both — you cannot have a last-contact date with
+          a person who is not on file, and where a company-level call exists
+          the temperature line below still shows it. */}
       <div className="mt-2 border-t border-line pt-2">
         {contact ? (
           <>
             <p className="truncate text-[12px] font-semibold text-fg">{contact}</p>
-            <p className="truncate text-[11.5px] text-fg-muted">
-              {phone ? formatPhone(phone) : NO_PHONE_LABEL}
-            </p>
+            {phone && <p className="truncate text-[11.5px] text-fg-muted">{formatPhone(phone)}</p>}
           </>
         ) : (
           <p className="text-[11.5px] italic text-fg-subtle">{NO_CONTACT_LABEL}</p>
@@ -134,19 +141,25 @@ export function CompanyCard({
 
       {/* State of play */}
       <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-        <span
-          className={`text-[11.5px] font-bold ${
-            contactStatus.freshness === "fresh"
-              ? "text-ok"
-              : contactStatus.freshness === "aging"
-                ? "text-warn"
-                : contactStatus.freshness === "cold"
-                  ? "text-bad"
-                  : "text-fg-subtle"
-          }`}
-        >
-          {card.lastContactMs === null ? NEVER_CONTACTED_LABEL : contactStatus.text}
-        </span>
+        {/* Silent when there is nothing to say AND nobody to say it about —
+            "Never contacted" under "Nobody to call there yet" is the same
+            fact twice. A company-level call with no contact on file still
+            shows, because that is real history. */}
+        {!(card.lastContactMs === null && !contact) && (
+          <span
+            className={`text-[11.5px] font-bold ${
+              contactStatus.freshness === "fresh"
+                ? "text-ok"
+                : contactStatus.freshness === "aging"
+                  ? "text-warn"
+                  : contactStatus.freshness === "cold"
+                    ? "text-bad"
+                    : "text-fg-subtle"
+            }`}
+          >
+            {card.lastContactMs === null ? NEVER_CONTACTED_LABEL : contactStatus.text}
+          </span>
+        )}
         {flag === "quiet" && (
           <span className="rounded-[3px] border border-warn/60 px-1.5 py-px text-[10.5px] font-semibold text-warn">
             quiet

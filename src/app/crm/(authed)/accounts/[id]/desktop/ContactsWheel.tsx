@@ -60,10 +60,16 @@ export function ContactsWheel({
         />
       </div>
 
+      {/* NO INNER SCROLLER (2026-08-26). The list below was max-h-[280px]
+          with overflow-y-auto, which made a scroll region inside a page that
+          already scrolls: you got ~2.5 people and a second scrollbar to find
+          the rest. Defensible when the profile was a fixed two-column layout
+          with tabs; the page is one scroll now, so the list grows and the
+          page handles it. */}
       {contacts.length === 0 ? (
         <p className="py-3 text-[12px] text-fg-muted">No contacts yet.</p>
       ) : (
-        <div className="flex max-h-[280px] snap-y snap-mandatory flex-col gap-2 overflow-y-auto pr-0.5">
+        <div className="flex flex-col gap-2">
           {contacts.map((c) => (
             <div
               key={c.id}
