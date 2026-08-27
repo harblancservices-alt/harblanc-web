@@ -65,26 +65,26 @@ export function RecordTabs({
   shipmentCount: number;
 }) {
   return (
-    <section id="company-record" className="border border-graphite bg-card">
+    <section id="company-record" className="border border-line-strong bg-card">
       {/* The dark bar carries the number and the title, exactly like the
           other three panels — this is panel 04 and it has to look like a
           peer of 01/02/03, not a different kind of thing. */}
-      <div className="flex flex-wrap items-center gap-2 bg-graphite px-3 py-2">
-        <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[2px] bg-white text-[10px] font-bold text-graphite crm-num">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-inset px-3 py-2">
+        <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[2px] bg-fg text-[10px] font-bold text-white crm-num">
           04
         </span>
-        <Micro className="text-white">The record</Micro>
+        <Micro className="text-fg">The record</Micro>
         {tab === "know" && (
-          <span className="ml-auto hidden text-[11.5px] text-white/55 xl:block">
+          <span className="ml-auto hidden text-[11.5px] text-fg-subtle xl:block">
             Shipper record — carrier fields (MC, DOT, insurance, safety) don&apos;t render here
           </span>
         )}
       </div>
 
-      {/* The tabs sit BELOW the bar on white, not inside it. SegmentedTabs
-          is built for a light surface — its inactive chip is an accent
-          outline on --card — and dropping it onto graphite would have meant
-          restyling the one component every tab row in the CRM shares. */}
+      {/* The tabs sit BELOW the header strip on white, not inside it.
+          SegmentedTabs is built for a light surface — its inactive chip is
+          an accent outline on --card — so it wants a plain card background
+          under it rather than the tinted strip above. */}
       <div className="border-b border-line px-3 py-2">
         <SegmentedTabs
           ariaLabel="Company record"

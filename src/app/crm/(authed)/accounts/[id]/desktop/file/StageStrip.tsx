@@ -73,7 +73,7 @@ export function StageStrip({
   }
 
   return (
-    <div className="border-b border-graphite bg-card">
+    <div className="border-b border-line-strong bg-card">
       <div className="flex items-stretch">
         {/* The row's own label, not a cell — it is what the ten cells are. */}
         <div className="w-[112px] shrink-0 px-4 py-2.5">

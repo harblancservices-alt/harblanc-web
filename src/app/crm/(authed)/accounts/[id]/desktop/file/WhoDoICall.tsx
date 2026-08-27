@@ -132,7 +132,7 @@ export function WhoDoICall({
               <button
                 type="button"
                 onClick={open}
-                className="text-[12px] font-bold text-white/80 hover:text-white hover:underline"
+                className="text-[12px] font-bold text-accent hover:underline"
               >
                 + person
               </button>
