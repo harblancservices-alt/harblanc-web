@@ -151,7 +151,19 @@ export function BolViewer({
   }
 
   return (
-    <div className="relative h-full min-h-[680px] bg-inset">
+    /* HEIGHT TRACKS THE VIEWPORT, and this is the whole of Brent's "it
+       didnt fit to my screen" on a bigger monitor. It was a flat 680px: on
+       a 1256-tall screen that left ~400px of dead grey below the panel
+       while the portrait document was CLIPPED inside its box. Nothing was
+       capping the width — the shell has no max-width and this page already
+       ran edge to edge — the page simply never grew downward.
+
+       calc() rather than flex-fill because the panel is not in a
+       full-height flex chain; 300px is the chrome above and below it
+       (header band + folder tabs + stage strip + card header + the
+       "All fields" footer + the page's own padding). The min keeps it
+       usable on a laptop, where the calc would go small. */
+    <div className="relative h-[calc(100vh-300px)] min-h-[520px] bg-inset">
       {resolved?.url ? (
         <iframe
           // Remount per document so the viewer resets to page one rather

@@ -41,7 +41,13 @@ function Field({ label, value }: { label: string; value: string | null }) {
       <span className="w-[92px] shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
         {label}
       </span>
-      <span className="min-w-0 flex-1 whitespace-pre-wrap text-[12.5px] text-fg">{value}</span>
+      {/* max-w in CH, not px: letting Notes run the full width of a
+          1000px+ column produces a 200-character line nobody can track back
+          to the start of. The cap is on the VALUE, not the row, so the
+          label column stays aligned. */}
+      <span className="min-w-0 flex-1 whitespace-pre-wrap text-[12.5px] text-fg max-w-[80ch]">
+        {value}
+      </span>
     </div>
   );
 }

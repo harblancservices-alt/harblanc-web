@@ -139,7 +139,14 @@ export function WhatWeKnow({
       {/* Two halves: the document on the left, what was read off it — and
           then what we know beyond it — on the right. `items-stretch` so the
           viewer's own column fills the taller side rather than floating. */}
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-stretch">
+      {/* The DOCUMENT takes the extra width on a wide monitor, not the
+          fields. A BOL is portrait, so the viewer's useful width is roughly
+          0.77x its height — give it more and the browser fits by height and
+          letterboxes the rest in grey. The fields need far less: they are
+          label-plus-value rows whose longest line is capped for readability
+          anyway. Even so 1.25fr, not 2fr — past that the document is all
+          letterbox and the fields are a thin strip miles away. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-stretch xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         {/* ══ LEFT: the bill of lading itself, no chrome ═══════════
             The only line is the divider between the halves, and it belongs
             to this grid rather than to the viewer. */}

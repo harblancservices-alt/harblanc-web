@@ -65,7 +65,16 @@ export function HeaderTabs<K extends string>({
   return (
     // -mb-px pulls the row onto the boundary so the active tab's white and
     // the surface below share an edge instead of stacking two.
-    <div role="tablist" aria-label={ariaLabel} className="-mb-px flex items-end gap-1.5">
+    /* CENTRED (Brent). Centred in the FULL band, and the usual "optical vs
+       mathematical" question does not arise here: the tabs sit on their own
+       row beneath the name and the stat blocks, so there is nothing else on
+       the row to be heavier than them. There is no gap to be optically
+       centred within — the row is the gap. */
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className="-mb-px flex items-end justify-center gap-1.5"
+    >
       {items.map((item) => {
         const isActive = item.key === active;
         return (
