@@ -8,6 +8,7 @@ import { SourcePill } from "../_shell/SourcePill";
 import { ContactDialog } from "../accounts/[id]/ContactDialog";
 import { fillCompanyGap } from "../accounts/[id]/details-actions";
 import { GAP_REASON, type CompletenessGap, type GapKind } from "./completeness";
+import { GapChip, GapChipInput, GapChipRow } from "../_shell/gapChip";
 
 /**
  * GAPS TO FILL — structure A, "company first".
@@ -61,12 +62,9 @@ const INLINE: Partial<Record<GapKind, { placeholder: string; label: string }>> =
   address: { placeholder: "Street address", label: "Address" },
 };
 
-const CHIP =
-  "rounded-md border px-2.5 py-1 text-[12px] font-semibold transition-colors";
-const CHIP_OPTIONAL = `${CHIP} border-accent/45 bg-card text-accent hover:border-accent hover:bg-accent-bg`;
-// The one distinction. Red means "you cannot start" here, the same way it
-// means late on a task — not a second tier, one chip in a different colour.
-const CHIP_BLOCKING = `${CHIP} border-bad/50 bg-bad-bg text-bad hover:border-bad`;
+// The chip treatment itself now lives in _shell/gapChip.tsx, shared with
+// the company file's panel — see that module for the two rules and for why
+// the two DERIVATIONS behind it stay separate.
 
 export function CompletenessList({
   gaps,
@@ -151,96 +149,72 @@ export function CompletenessList({
               <SourcePill source={entry.source} short />
             </div>
 
-            <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              {entry.gaps.map((gap) => {
-                const inline = INLINE[gap.kind];
-                const cls = gap.blocking ? CHIP_BLOCKING : CHIP_OPTIONAL;
+            <div className="mt-2">
+              <GapChipRow>
+                {entry.gaps.map((gap) => {
+                  const inline = INLINE[gap.kind];
 
-                // The one gap that is a real form, not a field.
-                if (!inline) {
-                  return (
-                    <ContactDialog
-                      key={gap.id}
-                      accountId={gap.companyId}
-                      // This list is where the missing-company bug bit: several
-                      // companies stacked, chips that look alike, and a dialog
-                      // that named none of them.
-                      companyName={titleCaseWords(entry.name)}
-                      mode="create"
-                      trigger={(open) => (
-                        <button
-                          type="button"
-                          onClick={open}
-                          title={
-                            gap.blocking
-                              ? "Nothing can happen here until somebody is on file to call"
-                              : GAP_REASON[gap.kind]
-                          }
-                          className={cls}
-                        >
-                          {gap.label}
-                        </button>
-                      )}
-                    />
-                  );
-                }
+                  // The one gap that is a real form, not a field.
+                  if (!inline) {
+                    return (
+                      <ContactDialog
+                        key={gap.id}
+                        accountId={gap.companyId}
+                        // This list is where the missing-company bug bit:
+                        // several companies stacked, chips that look alike,
+                        // and a dialog that named none of them.
+                        companyName={titleCaseWords(entry.name)}
+                        mode="create"
+                        trigger={(open) => (
+                          <GapChip
+                            label={gap.label}
+                            title={
+                              gap.blocking
+                                ? "Nothing can happen here until somebody is on file to call"
+                                : GAP_REASON[gap.kind]
+                            }
+                            blocking={gap.blocking}
+                            onClick={open}
+                          />
+                        )}
+                      />
+                    );
+                  }
 
-                if (editing !== gap.id) {
-                  return (
-                    <button
-                      key={gap.id}
-                      type="button"
-                      onClick={() => {
-                        setEditing(gap.id);
-                        setValue("");
-                        setError(null);
-                      }}
-                      title={GAP_REASON[gap.kind]}
-                      className={cls}
-                    >
-                      {gap.label}
-                    </button>
-                  );
-                }
-
-                // The chip becomes the field, in place.
-                return (
-                  <form
-                    key={gap.id}
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      save(gap);
-                    }}
-                    className="inline-flex items-center gap-1"
-                  >
-                    <input
-                      autoFocus
-                      value={value}
-                      onChange={(e) => setValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Escape") {
-                          setEditing(null);
+                  if (editing !== gap.id) {
+                    return (
+                      <GapChip
+                        key={gap.id}
+                        label={gap.label}
+                        title={GAP_REASON[gap.kind]}
+                        blocking={gap.blocking}
+                        onClick={() => {
+                          setEditing(gap.id);
                           setValue("");
-                        }
-                      }}
-                      onBlur={() => {
-                        if (!value.trim()) setEditing(null);
+                          setError(null);
+                        }}
+                      />
+                    );
+                  }
+
+                  // The chip becomes the field, in place.
+                  return (
+                    <GapChipInput
+                      key={gap.id}
+                      value={value}
+                      onChange={setValue}
+                      onSubmit={() => save(gap)}
+                      onCancel={() => {
+                        setEditing(null);
+                        setValue("");
                       }}
                       placeholder={inline.placeholder}
-                      aria-label={`${inline.label} for ${entry.name}`}
-                      disabled={pending}
-                      className="w-[210px] rounded-md border border-accent bg-card px-2.5 py-1 text-[12px] text-fg outline-none placeholder:text-fg-subtle focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
+                      ariaLabel={`${inline.label} for ${entry.name}`}
+                      pending={pending}
                     />
-                    <button
-                      type="submit"
-                      disabled={pending || !value.trim()}
-                      className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-bold text-white disabled:opacity-50"
-                    >
-                      {pending ? "…" : "Save"}
-                    </button>
-                  </form>
-                );
-              })}
+                  );
+                })}
+              </GapChipRow>
             </div>
           </li>
         ))}

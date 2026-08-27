@@ -8,6 +8,7 @@ import { EditCompany } from "../../EditCompany";
 import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
 import type { BolFacts } from "./bolFacts";
 import type { FileGap } from "./fileGaps";
+import { GapChip, GapChipInput, GapChipRow } from "../../../../_shell/gapChip";
 import { FileCard, SectionHead, Micro } from "./chrome";
 import { BolViewer, type BolDoc } from "./BolViewer";
 import { ParsedFields } from "./ParsedFields";
@@ -241,77 +242,63 @@ export function WhatWeKnow({
               Everything this record asks for is filled in.
             </p>
           ) : (
-            visible.map((gap, i) => (
-              <div
-                key={gap.kind}
-                className="flex items-baseline gap-3 border-t border-line py-2.5 first:border-t-0"
-              >
-                <span className="w-[10px] shrink-0 text-[11px] text-fg-subtle crm-num">
-                  {i + 1}
-                </span>
-
-                <div className="min-w-0 flex-1">
-                  <span className="text-[12.5px] font-bold text-fg">{gap.label}</span>
-                  <span className="ml-2 text-[11px] text-fg-subtle">{gap.why}</span>
-                </div>
-
-                <div className="w-[160px] shrink-0">
-                  {gap.needsForm ? (
-                    <ContactDialog
-                      accountId={accountId} companyName={companyName}
-                      mode="create"
-                      trigger={(open) => (
-                        <button
-                          type="button"
-                          onClick={open}
-                          className="w-full border-b border-line-strong pb-0.5 text-left text-[12px] font-semibold text-accent hover:border-accent"
-                        >
-                          add a person
-                        </button>
-                      )}
-                    />
-                  ) : editing === gap.kind ? (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        save(gap.kind);
-                      }}
-                    >
-                      <input
-                        autoFocus
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") {
-                            setEditing(null);
-                            setValue("");
-                          }
-                        }}
-                        onBlur={() => {
-                          if (!value.trim()) setEditing(null);
-                        }}
-                        disabled={pending}
-                        placeholder={gap.placeholder ?? ""}
-                        aria-label={gap.label}
-                        className="w-full border-b border-accent bg-transparent pb-0.5 text-[12px] text-fg outline-none placeholder:text-fg-subtle disabled:opacity-60"
+            /* STRUCTURE A, the same chips the Dashboard and Tasks draw.
+               This panel used to render a numbered "1. 2." list with the
+               inputs pushed to a 160px column on the far right, so the
+               biggest gaps surface in the app was the one place Brent's
+               chosen treatment did not appear. The chip classes, the
+               inline editor and the blocking-is-red rule now come from
+               _shell/gapChip.tsx, which both surfaces import. */
+            <GapChipRow>
+              {visible.map((gap) =>
+                gap.needsForm ? (
+                  <ContactDialog
+                    key={gap.kind}
+                    accountId={accountId}
+                    companyName={companyName}
+                    mode="create"
+                    trigger={(open) => (
+                      <GapChip
+                        label={gap.label}
+                        title={
+                          gap.blocking
+                            ? "Nothing can happen here until somebody is on file to call"
+                            : gap.why
+                        }
+                        blocking={gap.blocking}
+                        onClick={open}
                       />
-                    </form>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditing(gap.kind);
-                        setValue("");
-                        setError(null);
-                      }}
-                      className="w-full border-b border-line-strong pb-0.5 text-left text-[12px] text-fg-subtle transition-colors hover:border-accent hover:text-accent"
-                    >
-                      {gap.placeholder}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))
+                    )}
+                  />
+                ) : editing === gap.kind ? (
+                  <GapChipInput
+                    key={gap.kind}
+                    value={value}
+                    onChange={setValue}
+                    onSubmit={() => save(gap.kind)}
+                    onCancel={() => {
+                      setEditing(null);
+                      setValue("");
+                    }}
+                    placeholder={gap.placeholder ?? ""}
+                    ariaLabel={gap.label}
+                    pending={pending}
+                  />
+                ) : (
+                  <GapChip
+                    key={gap.kind}
+                    label={gap.label}
+                    title={gap.why}
+                    blocking={gap.blocking}
+                    onClick={() => {
+                      setEditing(gap.kind);
+                      setValue("");
+                      setError(null);
+                    }}
+                  />
+                ),
+              )}
+            </GapChipRow>
           )}
         </div>
         </div>

@@ -85,6 +85,37 @@ describe("fileGaps", () => {
     // updateLifecycleStatus refuses exactly one thing: Lost or Disqualified
     // with no reason. Chipping a gap "BLOCKS QUALIFIED" would state a rule
     // the app does not enforce.
-    expect(JSON.stringify(fileGaps({ ...FRITZ, address: null }))).not.toMatch(/block/i);
+    //
+    // Checks the strings a REP READS, not the whole serialised object. The
+    // object now carries a `blocking` flag — that is an internal ordering
+    // and colour signal, and the distinction is the entire point of this
+    // test: a boolean the layout reads is fine, a sentence promising the
+    // app will stop you is not.
+    for (const gap of fileGaps({ ...FRITZ, address: null, industry: null })) {
+      expect(gap.label).not.toMatch(/block/i);
+      expect(gap.why).not.toMatch(/block/i);
+      expect(gap.placeholder ?? "").not.toMatch(/block/i);
+    }
+  });
+
+  it("marks the blocking gap without inventing a second opinion about which", () => {
+    // `blocking` is read straight off completeness.ts's GAP_BLOCKS_WORK.
+    // If these drift, the dashboard and the company file disagree about
+    // which gap is the one that stops you.
+    const gaps = fileGaps({ ...FRITZ, address: null, industry: null });
+    const blocking = gaps.filter((g) => g.blocking).map((g) => g.kind);
+    expect(blocking).toEqual(["contact"]);
+  });
+
+  it("sorts the blocking gap first, whatever order it was built in", () => {
+    const gaps = fileGaps({ ...FRITZ, address: null, industry: null });
+    expect(gaps[0].kind).toBe("contact");
+  });
+
+  it("never marks the two file-only gaps as blocking — they sharpen a pitch", () => {
+    const gaps = fileGaps({ ...FRITZ, currentCarrier: null, annualFreightSpend: null });
+    for (const g of gaps) {
+      if (g.kind === "carrier" || g.kind === "spend") expect(g.blocking).toBe(false);
+    }
   });
 });

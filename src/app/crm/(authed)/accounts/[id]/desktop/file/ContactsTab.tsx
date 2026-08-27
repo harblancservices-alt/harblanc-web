@@ -180,9 +180,27 @@ export function ContactsTab({
                   </span>
                 </Cell>
 
+                {/* THE JOB, THEN THE BUCKET. This column used to render
+                    `p.role ?? p.title` — the coarse role_category winning
+                    over the specific title actually on file. So Metallic's
+                    roster read "purchasing" twice while the record held
+                    "Purchasing Manager" and "Manager, Purchasing", and
+                    "owner" while the record held "Owner & President". The
+                    richer value showed on Overview and nowhere on the tab
+                    built to be the roster.
+                    Title leads; the category stays underneath as the small
+                    label, and only when it adds something the title has not
+                    already said. */}
                 <Cell>
-                  {p.role || p.title ? (
-                    <span className="text-[12px] text-fg-muted">{p.role ?? p.title}</span>
+                  {p.title || p.role ? (
+                    <span className="flex flex-col gap-0.5">
+                      <span className="text-[12px] text-fg">{p.title ?? p.role}</span>
+                      {p.title && p.role && p.role.toLowerCase() !== p.title.toLowerCase() && (
+                        <span className="text-[10px] uppercase tracking-[0.06em] text-fg-subtle">
+                          {p.role}
+                        </span>
+                      )}
+                    </span>
                   ) : (
                     <Missing label="set role" accountId={accountId} companyName={companyName} person={p} />
                   )}

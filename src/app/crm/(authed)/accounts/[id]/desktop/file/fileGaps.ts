@@ -64,6 +64,12 @@ export type FileGap = {
    * is a name, a title, a number and an email, and one text box would
    * produce bad records faster. */
   needsForm: boolean;
+  /** Nothing can happen here until this is filled — the same meaning
+   * completeness.ts's GAP_BLOCKS_WORK carries, and read from it rather
+   * than restated, so the two surfaces cannot disagree about which gap is
+   * the one that stops you. The two file-only kinds sharpen a pitch; they
+   * never block one. */
+  blocking: boolean;
 };
 
 const EXTRA: Record<"carrier" | "spend", Omit<FileGap, "kind">> = {
@@ -72,19 +78,21 @@ const EXTRA: Record<"carrier" | "spend", Omit<FileGap, "kind">> = {
     why: "you cannot pitch against nobody",
     placeholder: "who moves it today?",
     needsForm: false,
+    blocking: false,
   },
   spend: {
     label: "Freight spend per year",
     why: "tells you whether this is worth chasing",
     placeholder: "roughly, in dollars",
     needsForm: false,
+    blocking: false,
   },
 };
 
 /** The three shared gaps, reworded for a page where you already know which
  * company you are looking at. The dashboard says "Add their address"
  * because it is listing many companies; here, "their" is redundant. */
-const SHARED: Record<"contact" | "address" | "industry", Omit<FileGap, "kind">> = {
+const SHARED: Record<"contact" | "address" | "industry", Omit<FileGap, "kind" | "blocking">> = {
   contact: {
     label: "Somebody to call",
     why: "nobody is on file here yet",
@@ -127,6 +135,9 @@ export function fileGaps(company: FileGapInput): FileGap[] {
   const shared = gapsForCompany(company).map((g) => ({
     kind: g.kind as FileGapKind,
     ...SHARED[g.kind],
+    // Straight off the shared derivation — not a second opinion about
+    // which gap blocks work.
+    blocking: g.blocking,
   }));
 
   const extra: FileGap[] = [];
@@ -135,5 +146,8 @@ export function fileGaps(company: FileGapInput): FileGap[] {
     extra.push({ kind: "spend", ...EXTRA.spend });
   }
 
-  return [...shared, ...extra];
+  // Blocking first, the same rule structure A applies on the dashboard.
+  // Stable within each group, so the list does not reshuffle between
+  // renders — ask-order still holds inside a tier.
+  return [...shared, ...extra].sort((a, b) => Number(b.blocking) - Number(a.blocking));
 }
