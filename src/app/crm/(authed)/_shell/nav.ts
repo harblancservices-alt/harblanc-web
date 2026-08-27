@@ -9,6 +9,7 @@ import {
   IconFlagSolid,
   IconAdminAccount,
   IconTruck,
+  IconCamera,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -174,6 +175,12 @@ export function buildCrmNav(
         // draggable between them. Same reasoning as Companies — a destination
         // of its own, not one of Admin's internal tab sections.
         { href: "/crm/admin/tasks", label: "Tasks", Icon: IconTasks },
+        // Its sibling: the BOL scanner. A capture surface, not a reader —
+        // it photographs paperwork in bulk and stores it in batches; a
+        // separate session parses a batch afterwards. Sits here rather than
+        // in Operations because it is Brent's own bulk-intake tool, not
+        // something an agent touches during a day's calling.
+        { href: "/crm/admin/snapshot", label: "Snapshot", Icon: IconCamera },
       ],
     });
   }

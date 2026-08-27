@@ -480,3 +480,14 @@ export function IconFile(props: IconProps) {
     </svg>
   );
 }
+
+/** Snapshot — the BOL scanner under Admin Account. A camera, because that is
+ * literally what the screen is: a shutter over a sheet of paperwork. */
+export function IconCamera(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 8.5h3.5L8 6h8l1.5 2.5H21v10H3z" />
+      <circle cx="12" cy="13" r="3.25" />
+    </svg>
+  );
+}
