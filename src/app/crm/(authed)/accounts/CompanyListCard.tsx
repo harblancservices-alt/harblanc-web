@@ -6,6 +6,7 @@ import { stageLabel, stageBadgeTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
 import { temperatureOf } from "@/lib/crm/temperature";
 import { TemperatureDot } from "../_shell/TemperatureDot";
+import { CallAction } from "../_shell/mobileList";
 import { CompanyRowActions } from "./CompanyRowActions";
 import { ActiveCustomerRowActions, type ActiveCustomerActionsData } from "../customers/ActiveCustomerRowActions";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
@@ -21,6 +22,12 @@ export type CompanyCardData = {
   contactCount: number;
   lastContactMs: number | null;
   phone: string | null;
+  /** The person Call reaches — primary_contact_id where set, else the first
+   * contact by name (lib/crm/primaryContact). Null when nobody is on file. */
+  contactName?: string | null;
+  /** What Call dials: the company's number if it has one, else that
+   * person's. Null for 51 of 99 companies. */
+  callPhone?: string | null;
 };
 
 /**
@@ -79,6 +86,30 @@ export function CompanyListCard({
             {company.primaryTag.label}
           </span>
         )}
+
+        {/* WHO CALL REACHES, named. Brent: "I would want it to say the
+            primary contacts name atleast." A bare phone icon on a company
+            row does not say who answers; on 25 of 99 companies the number
+            is a person's rather than a switchboard, so the name is the
+            only thing that makes the button trustworthy before you tap. */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-[12.5px] text-fg-muted">
+            {company.contactName
+              ? company.callPhone
+                ? company.contactName
+                : `${company.contactName} — no number`
+              : "Nobody on file to call"}
+          </span>
+          <CallAction
+            phone={company.callPhone ?? null}
+            who={company.contactName ?? titleCaseWords(company.name)}
+            emptyReason={
+              company.contactName
+                ? `No number on file for ${company.contactName}`
+                : `Nobody is on file at ${titleCaseWords(company.name)} yet`
+            }
+          />
+        </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-fg-subtle">
           <span>

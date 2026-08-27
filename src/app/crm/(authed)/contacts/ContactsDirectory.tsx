@@ -242,7 +242,11 @@ export function ContactsDirectory({
   return (
     <div className="space-y-4">
       <Card className="space-y-2.5 p-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        {/* STICKY ON A PHONE. Search is the interface on a 390px screen —
+            the moment it scrolls off, 67 contacts are unusable again. Only
+            this row pins, not the filter pills below it, which would eat a
+            third of the viewport. Static from `sm` up. */}
+        <div className="sticky top-0 z-20 -mx-3 -mt-3 flex flex-col gap-2 border-b border-line bg-card px-3 pb-2.5 pt-3 sm:static sm:mx-0 sm:mt-0 sm:flex-row sm:items-center sm:border-0 sm:px-0 sm:pb-0 sm:pt-0">
           <label className="relative flex min-w-0 flex-1 items-center">
             <IconSearch width={16} height={16} className="pointer-events-none absolute left-3 text-fg-muted" />
             <input
@@ -251,7 +255,7 @@ export function ContactsDirectory({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search name, company, title, phone, email…"
               aria-label="Search contacts"
-              className={`h-10 w-full pl-9 ${CONTROL}`}
+              className={`h-11 w-full pl-9 sm:h-10 ${CONTROL}`}
             />
           </label>
           <label className="flex shrink-0 items-center gap-2">

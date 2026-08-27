@@ -37,6 +37,13 @@ export type CompanyRow = {
   lastContactMs: number | null;
   /** Open crm_tasks on this company. */
   openWork: number;
+  /** The person the phone list offers to call — crm_accounts.primary_contact_id
+   * where set, else the first contact by name (lib/crm/primaryContact). Null
+   * when nobody is on file at all. */
+  contactName: string | null;
+  /** What Call actually dials: the company's own number if it has one, else
+   * that contact's. Null when neither exists — 51 of 99 companies. */
+  callPhone: string | null;
 };
 
 /**

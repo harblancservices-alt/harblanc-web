@@ -15,6 +15,7 @@ import type { CompanyOption } from "../contacts/CompanyCombobox";
 import { excludeUnclaimedProspects } from "../_shell/unclaimedCompanies";
 import { contactCountByAccount } from "@/lib/crm/contactCount";
 import { lastContactByAccount } from "@/lib/crm/lastContact";
+import { primaryContactByAccount } from "@/lib/crm/primaryContact";
 import { serverNow } from "@/lib/crm/serverNow";
 
 export const dynamic = "force-dynamic";
@@ -125,7 +126,7 @@ export default async function CompaniesPage({
 
   let query = supabase
     .from("crm_accounts")
-    .select("id, name, city, state, lifecycle_status, assigned_user_id, phone, phones, created_at")
+    .select("id, name, city, state, lifecycle_status, assigned_user_id, phone, phones, created_at, primary_contact_id")
     .is("deleted_at", null)
     // Anything still awaiting review must not leak into Companies. Kept as a
     // defensive filter after /crm/ai-review was deleted (2026-08-25): nothing
@@ -200,6 +201,17 @@ export default async function CompaniesPage({
   // pair; they now all call the same helper.
   const lastContactMsByAccount = await lastContactByAccount(supabase, accountIds);
 
+  /** Who the phone list offers to call, from the one shared definition. */
+  const primaryByAccount = await primaryContactByAccount(
+    supabase,
+    accountIds,
+    new Map(
+      (accounts as { id: string; primary_contact_id?: string | null }[])
+        .filter((a) => a.primary_contact_id)
+        .map((a) => [a.id, a.primary_contact_id as string]),
+    ),
+  );
+
   if (sort === "stale") {
     // Coldest (or never-contacted) first, so stale accounts surface at the
     // top rather than requiring a scroll through everything else.
@@ -225,6 +237,13 @@ export default async function CompaniesPage({
     contactCount: contactCounts.get(a.id) ?? 0,
     lastContactMs: lastContactMsByAccount.get(a.id) ?? null,
     phone: parsePhones(a.phones)[0]?.number || a.phone,
+    contactName: primaryByAccount.get(a.id)?.name ?? null,
+    // The company's own line first, then the person's — same precedence as
+    // the profile, so the number on the card is the number on the record.
+    callPhone:
+      (parsePhones(a.phones)[0]?.number || a.phone) ??
+      primaryByAccount.get(a.id)?.phone ??
+      null,
   }));
 
   const filtersActive = Boolean(q || stage || rep || tagFilter || sort);

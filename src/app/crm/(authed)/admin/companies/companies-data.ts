@@ -1,6 +1,7 @@
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
 import { initialsOf } from "../../_shell/format";
 import { lastContactByAccount } from "@/lib/crm/lastContact";
+import { primaryContactByAccount } from "@/lib/crm/primaryContact";
 import type { CompanyRow } from "./companyRow";
 
 /**
@@ -34,7 +35,7 @@ export async function getCompaniesData(): Promise<CompaniesData> {
 
   const { data: accountData } = await supabase
     .from("crm_accounts")
-    .select("id, name, city, state, assigned_user_id, source, lifecycle_status")
+    .select("id, name, city, state, assigned_user_id, source, lifecycle_status, phone, primary_contact_id")
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
@@ -65,6 +66,20 @@ export async function getCompaniesData(): Promise<CompaniesData> {
   // Last contact — the shared definition (lib/crm/lastContact.ts).
   const lastContactMsByAccount = await lastContactByAccount(supabase, accountIds);
 
+  /** WHO TO CALL, from the one shared definition (lib/crm/primaryContact).
+   * The phone list needs a person's name and number per company: only 23 of
+   * 99 companies have a number of their own, while 25 more have a contact
+   * who does — so naming the contact roughly doubles what is callable. */
+  const primaryByAccount = await primaryContactByAccount(
+    supabase,
+    accountIds,
+    new Map(
+      accounts
+        .filter((a) => a.primary_contact_id)
+        .map((a) => [a.id as string, a.primary_contact_id as string]),
+    ),
+  );
+
   const openWorkByAccount = new Map<string, number>();
   for (const t of tasksRes.data ?? []) {
     const id = t.account_id as string | null;
@@ -83,6 +98,13 @@ export async function getCompaniesData(): Promise<CompaniesData> {
       source: (a.source as string | null) ?? null,
       stage: (a.lifecycle_status as string | null) ?? null,
       lastContactMs: lastContactMsByAccount.get(a.id as string) ?? null,
+      contactName: primaryByAccount.get(a.id as string)?.name ?? null,
+      // The company's own line first, then the person's — same precedence
+      // the company profile uses, so the number here is the number there.
+      callPhone:
+        ((a.phone as string | null) || null) ??
+        primaryByAccount.get(a.id as string)?.phone ??
+        null,
       openWork: openWorkByAccount.get(a.id as string) ?? 0,
     };
   });

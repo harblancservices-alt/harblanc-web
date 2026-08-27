@@ -50,8 +50,12 @@ const MOOD_DOT: Partial<Record<ContactMood, string>> = {
 
 /** Shared geometry for the three quick actions, so Call/Email/Log occupy the
  * exact same footprint on every row whether they're live or disabled. */
+/* 44px on a phone, 32px from `sm` up. The floor exists because this row is
+   used one-handed from a truck stop and the Call and Email targets sit 6px
+   apart; desktop density is unchanged above the breakpoint, which is what
+   Brent asked for. */
 const ACTION_BASE =
-  "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 text-[12px] font-semibold transition-colors sm:px-2.5";
+  "inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 text-[12px] font-semibold transition-colors sm:h-8 sm:min-w-0 sm:px-2.5";
 
 /**
  * Disabled Call/Email. Deliberately NOT the BTN_* tokens' own

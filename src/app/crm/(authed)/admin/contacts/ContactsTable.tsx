@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "../../_shell/ui";
 import { SegmentedTabs } from "../../_shell/SegmentedTabs";
+import { ListSearch } from "../../_shell/ListSearch";
+import { searchTokens } from "../../_shell/companySearch";
+import { recentFirst } from "../../_shell/recentFirst";
+import { CallAction, EmailAction, MobileEmpty, MobileList, MobileRow, MobileSearchBar } from "../../_shell/mobileList";
 import { lastContactStatus, titleCaseWords, formatPhone } from "../../_shell/format";
 import { temperatureOf } from "@/lib/crm/temperature";
 import { TemperatureDot } from "../../_shell/TemperatureDot";
@@ -43,6 +47,7 @@ export function ContactsTable({
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<string>("all");
+  const [query, setQuery] = useState("");
 
   const sorted = useMemo(() => sortContactsForAdmin(rows), [rows]);
   // Roster first so somebody with nothing still gets a tab; ownerNamesOf
@@ -54,10 +59,29 @@ export function ContactsTable({
     [roster, rows],
   );
   const counts = useMemo(() => countContactsByOwner(rows, ownerNames), [rows, ownerNames]);
+  /** Search a contact the way you would say them out loud: their name, the
+   * company they work at, or the number you are trying to place. */
+  const searched = useMemo(() => {
+    const tokens = searchTokens(query);
+    if (tokens.length === 0) return sorted;
+    return sorted.filter((r) => {
+      const hay = [r.name, r.companyName, r.title, r.email, r.phone]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return tokens.every((t) => hay.includes(t));
+    });
+  }, [sorted, query]);
+
   const visible = useMemo(
-    () => sorted.filter((r) => matchesContactOwner(r, filter)),
-    [sorted, filter],
+    () => searched.filter((r) => matchesContactOwner(r, filter)),
+    [searched, filter],
   );
+
+  /** PHONE ORDER, and only on the phone list. The table keeps its own
+   * "no owner first, then coldest" sort, which is an admin triage order and
+   * the right one at a desk. */
+  const forPhone = useMemo(() => recentFirst(visible), [visible]);
 
   // Unlinked leads — same reasoning as Companies' Unassigned tab: a contact at
   // a company nobody owns is the one nobody is working.
@@ -85,9 +109,33 @@ export function ContactsTable({
         </p>
       </div>
 
+      {/* SEARCH FIRST ON A PHONE — sticky, full width, above everything.
+          On desktop it sits inline with the tabs as one more control. */}
+      <div className="px-4 pt-3 lg:pb-0">
+        <div className="lg:hidden">
+          <MobileSearchBar>
+            <ListSearch
+              value={query}
+              onChange={setQuery}
+              label="Search contacts"
+              placeholder="Search name, company or number…"
+            />
+          </MobileSearchBar>
+        </div>
+        <div className="hidden lg:block">
+          <ListSearch
+            value={query}
+            onChange={setQuery}
+            label="Search contacts"
+            placeholder="Search name, company or number…"
+            hint={searchTokens(query).length > 0 ? `${visible.length} shown` : null}
+          />
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
         <SegmentedTabs ariaLabel="Contact owner" items={filterItems} />
-        <p className="text-[12px] text-fg-subtle">No owner first, then coldest</p>
+        <p className="hidden text-[12px] text-fg-subtle lg:block">No owner first, then coldest</p>
       </div>
 
       {visible.length === 0 ? (
@@ -100,7 +148,46 @@ export function ContactsTable({
           </p>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-auto">
+        <>
+        {/* ══ PHONE: a stack of rows, no table. The desktop table below is
+            880px wide at minimum, which on a 390px screen is a horizontal
+            scrollbar and nothing else. ══ */}
+        <div className="min-h-0 flex-1 overflow-auto lg:hidden">
+          <MobileList>
+            {forPhone.map((row) => (
+              <MobileRow
+                key={row.id}
+                href={`/crm/contacts/${row.id}`}
+                title={row.name}
+                subtitle={
+                  <>
+                    {row.title ? `${row.title} · ` : ""}
+                    {row.companyName ?? "No company"}
+                  </>
+                }
+                meta={row.ownerName ? `Owner: ${row.ownerName}` : "Company has no owner"}
+                actions={
+                  <>
+                    <CallAction
+                      phone={row.phone}
+                      who={row.name}
+                      emptyReason={`No phone number on ${row.name}`}
+                    />
+                    <EmailAction
+                      email={row.email}
+                      who={row.name}
+                      emptyReason={`No email address on ${row.name}`}
+                    />
+                  </>
+                }
+              />
+            ))}
+          </MobileList>
+          {forPhone.length === 0 && <MobileEmpty>Nothing matches that.</MobileEmpty>}
+        </div>
+
+        {/* ══ DESKTOP: unchanged. ══ */}
+        <div className="hidden min-h-0 flex-1 overflow-auto lg:block">
           <table className="w-full min-w-[880px] border-collapse">
             <thead>
               <tr className="border-b border-line text-[10.5px] font-bold uppercase tracking-[0.07em] text-fg-muted">
@@ -191,6 +278,7 @@ export function ContactsTable({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </Card>
   );

@@ -17,6 +17,8 @@ function row(over: Partial<CompanyRow> = {}): CompanyRow {
     state: "TX",
     ownerId: null,
     ownerName: null,
+    contactName: null,
+    callPhone: null,
     source: "manual",
     stage: "new_lead",
     lastContactMs: null,

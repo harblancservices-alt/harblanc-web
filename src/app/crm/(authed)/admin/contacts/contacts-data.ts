@@ -1,5 +1,6 @@
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
 import { lastContactByContact } from "@/lib/crm/lastContact";
+import { parsePhones } from "../../_shell/contactFields";
 
 /**
  * Server-side read for Admin → Contacts — every crm_contacts row in the org,
@@ -55,7 +56,7 @@ export async function getAdminContactsData(): Promise<AdminContactsData> {
   const [contactsRes, accountsRes, profilesRes] = await Promise.all([
     supabase
       .from("crm_contacts")
-      .select("id, name, title, email, phone, mobile, is_decision_maker, account_id")
+      .select("id, name, title, email, phone, mobile, phones, is_decision_maker, account_id")
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .limit(2000),
@@ -104,7 +105,15 @@ export async function getAdminContactsData(): Promise<AdminContactsData> {
       name: (c.name as string) || "Unnamed contact",
       title: (c.title as string | null) ?? null,
       email: (c.email as string | null) ?? null,
-      phone: ((c.phone as string | null) || (c.mobile as string | null)) ?? null,
+      // The structured `phones` jsonb FIRST, then the scalars — the same
+      // precedence lib/crm/primaryContact and the company profile use.
+      // Reading only the scalars left 5 contacts who do have a number
+      // showing an un-callable Call button on the phone list.
+      phone:
+        (parsePhones(c.phones)[0]?.number ||
+          (c.phone as string | null) ||
+          (c.mobile as string | null)) ??
+        null,
       isDecisionMaker: Boolean(c.is_decision_maker),
       accountId,
       // A contact can point at a company that has since been deleted; that is

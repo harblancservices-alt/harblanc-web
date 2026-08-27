@@ -13,6 +13,9 @@ import { TemperatureDot } from "../../_shell/TemperatureDot";
 import { stageLabel, stageTone } from "../../accounts/lifecycle";
 import { ListSearch } from "../../_shell/ListSearch";
 import { filterCompanies, searchTokens } from "../../_shell/companySearch";
+import { recentFirst } from "../../_shell/recentFirst";
+import { CallAction, MobileEmpty, MobileList, MobileRow, MobileSearchBar } from "../../_shell/mobileList";
+import { stageLabel as stageLabelFor } from "../../accounts/lifecycle";
 import { assignCompanies } from "../assign-actions";
 import { batchTaskSpec } from "./assignmentTask";
 import type { CompanyAgent } from "./companies-data";
@@ -92,6 +95,11 @@ export function CompaniesBoard({
     () => searched.filter((r) => matchesOwner(r, filter)),
     [searched, filter],
   );
+
+  /** PHONE ORDER — most recently contacted first. The table keeps its own
+   * "unowned first, then coldest", which is the admin's triage order and
+   * right at a desk; on a phone you are chasing somebody you just spoke to. */
+  const forPhone = useMemo(() => recentFirst(visible), [visible]);
 
   const visibleIds = visible.map((r) => r.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
@@ -221,7 +229,7 @@ export function CompaniesBoard({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+        <div className="hidden flex-wrap items-center gap-2 px-4 pt-3 lg:flex">
           <ListSearch
             value={query}
             onChange={setQuery}
@@ -233,6 +241,18 @@ export function CompaniesBoard({
                 : null
             }
           />
+        </div>
+
+        {/* SEARCH FIRST ON A PHONE — sticky, full width, above the tabs. */}
+        <div className="px-4 pt-3 lg:hidden">
+          <MobileSearchBar>
+            <ListSearch
+              value={query}
+              onChange={setQuery}
+              label="Search companies"
+              placeholder="Search by name, city or state…"
+            />
+          </MobileSearchBar>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
@@ -270,7 +290,55 @@ export function CompaniesBoard({
             </p>
           </div>
         ) : (
-          <div className="min-h-0 flex-1 overflow-auto">
+          <>
+          {/* ══ PHONE: rows, not a table. The desktop table below is 860px
+              at minimum — on a 390px screen that is a horizontal scrollbar
+              and nothing else. ══ */}
+          <div className="min-h-0 flex-1 overflow-auto lg:hidden">
+            <MobileList>
+              {forPhone.map((row) => (
+                <MobileRow
+                  key={row.id}
+                  href={`/crm/accounts/${row.id}`}
+                  title={row.name}
+                  /* NAMES THE PERSON, per Brent: "I would want it to say the
+                     primary contacts name atleast." He sees who he is about
+                     to ring before he taps, rather than a bare phone icon. */
+                  subtitle={
+                    row.contactName
+                      ? row.callPhone
+                        ? `Call ${row.contactName}`
+                        : `${row.contactName} — no number on file`
+                      : "Nobody on file to call"
+                  }
+                  meta={
+                    [
+                      row.stage ? stageLabelFor(row.stage) : null,
+                      [row.city, row.state].filter(Boolean).join(", ") || null,
+                      row.ownerName ?? "Unassigned",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  }
+                  actions={
+                    <CallAction
+                      phone={row.callPhone}
+                      who={row.contactName ?? row.name}
+                      emptyReason={
+                        row.contactName
+                          ? `No number on file for ${row.contactName}`
+                          : `Nobody is on file at ${row.name} yet`
+                      }
+                    />
+                  }
+                />
+              ))}
+            </MobileList>
+            {forPhone.length === 0 && <MobileEmpty>Nothing matches that.</MobileEmpty>}
+          </div>
+
+          {/* ══ DESKTOP: unchanged. ══ */}
+          <div className="hidden min-h-0 flex-1 overflow-auto lg:block">
             <table className="w-full min-w-[860px] border-collapse">
               <thead>
                 <tr className="border-b border-line text-[10.5px] font-bold uppercase tracking-[0.07em] text-fg-muted">
@@ -383,6 +451,7 @@ export function CompaniesBoard({
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {selectedCount > 0 && (
