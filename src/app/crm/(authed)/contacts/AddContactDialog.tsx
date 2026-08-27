@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
 import { Field, TextareaField, SubmitButton, FormError } from "../_shell/form";
 import { IconPlus } from "../_shell/icons";
-import { BTN_ACTION } from "../_shell/ui";
+import { BTN_ACTION, BTN_EDIT } from "../_shell/ui";
 import { PhonesEditor } from "../_shell/PhonesEditor";
 import { LinksEditor } from "../_shell/LinksEditor";
 import { MoodPicker } from "../_shell/MoodPicker";
@@ -25,6 +25,7 @@ export function AddContactDialog({
   companies,
   trigger,
   initialCompany,
+  variant = "primary",
 }: {
   companies: CompanyOption[];
   /** Optional custom opener — defaults to the built-in "Add contact" button
@@ -37,6 +38,11 @@ export function AddContactDialog({
    * form opens already attached to it (still editable, same as any other
    * selection). Omitted everywhere else, which keeps the field blank. */
   initialCompany?: CompanySelection;
+  /** "secondary" draws the blue-outline treatment, for pages where adding a
+   * contact is the cross-link rather than the point (the Companies list).
+   * A serializable prop rather than a custom `trigger`, because those pages
+   * are Server Components and a function cannot cross that boundary. */
+  variant?: "primary" | "secondary";
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,7 +85,7 @@ export function AddContactDialog({
         <button
           type="button"
           onClick={openDialog}
-          className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${BTN_ACTION}`}
+          className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${variant === "secondary" ? BTN_EDIT : BTN_ACTION}`}
         >
           <IconPlus width={16} height={16} />
           Add contact
