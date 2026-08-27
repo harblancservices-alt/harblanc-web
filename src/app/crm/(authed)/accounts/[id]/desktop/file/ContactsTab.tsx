@@ -3,6 +3,7 @@
 import { ContactDialog } from "../../ContactDialog";
 import { digitsForTel } from "../../../../_shell/contactFields";
 import type { CallPerson } from "./WhoDoICall";
+import { FileCard, SectionHead } from "./chrome";
 
 /**
  * THE CONTACTS TAB — the full roster.
@@ -95,7 +96,9 @@ export function ContactsTab({
 }) {
   if (people.length === 0) {
     return (
-      <div className="px-4 py-10 text-center">
+      <FileCard>
+        <SectionHead title="Contacts" count="nobody yet" />
+        <div className="px-4 py-10 text-center">
         <p className="text-[13px] font-bold text-fg">Nobody works here yet</p>
         <p className="mx-auto mt-1 max-w-[42ch] text-[12.5px] text-fg-subtle">
           Add the buyer, the shipping desk, whoever answers the phone. One name and
@@ -113,32 +116,34 @@ export function ContactsTab({
               Add the first contact
             </button>
           )}
-        />
-      </div>
+          />
+        </div>
+      </FileCard>
     );
   }
 
   return (
-    <div className="px-4 py-3">
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-[11.5px] text-fg-subtle">
-          {people.length} {people.length === 1 ? "person" : "people"} on file
-        </p>
-        <ContactDialog
-          accountId={accountId}
-          mode="create"
-          trigger={(open) => (
-            <button
-              type="button"
-              onClick={open}
-              className="text-[12px] font-bold text-accent hover:underline"
-            >
-              + person
-            </button>
-          )}
-        />
-      </div>
-
+    <FileCard>
+      <SectionHead
+        title="Contacts"
+        count={`${people.length} ${people.length === 1 ? "person" : "people"} on file`}
+        action={
+          <ContactDialog
+            accountId={accountId}
+            mode="create"
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={open}
+                className="text-[12px] font-bold text-accent hover:underline"
+              >
+                + person
+              </button>
+            )}
+          />
+        }
+      />
+      <div className="px-4 py-3">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse">
           <thead>
@@ -250,6 +255,7 @@ export function ContactsTab({
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </FileCard>
   );
 }

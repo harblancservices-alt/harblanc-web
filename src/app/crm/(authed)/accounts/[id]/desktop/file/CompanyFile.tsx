@@ -1,14 +1,11 @@
 import type { ReactNode } from "react";
 import { FileHeader } from "./FileHeader";
-import { StageStrip } from "./StageStrip";
-import { WhatHappened } from "./WhatHappened";
 import type { CallPerson } from "./WhoDoICall";
 import { HistoryPanel } from "./HistoryPanel";
 import { TasksPanel, type FileTask } from "./TasksPanel";
 import { WhatWeKnow } from "./WhatWeKnow";
 import { ContactsTab } from "./ContactsTab";
 import { FileBody } from "./FileBody";
-import { FileCard, SectionHead } from "./chrome";
 import type { BolFacts } from "./bolFacts";
 import type { FileGap } from "./fileGaps";
 import type { CrmActivityLogItem } from "../../ActivityLogSection";
@@ -136,46 +133,35 @@ export function CompanyFile({
         gapSummary={gapSummary}
       />
 
-      <StageStrip accountId={accountId} current={stage} />
-
-      <div className="flex flex-col gap-3 p-3">
-        {finalizeBanner}
-
-        <FileCard>
-          <SectionHead title="What happened" />
-          <WhatHappened accountId={accountId} contacts={composerContacts} stage={stage} />
-        </FileCard>
-
-        {/* The three reading panels and the tabbed record, together in one
-            client component because they share the open-tab state — panel
-            01's "+N more" opens the Contacts tab. See FileBody.tsx. */}
-        <FileBody
-          accountId={accountId}
-          people={people}
-          companyPhones={companyPhones}
-          companyDefaults={companyDefaults}
-          reps={reps}
-          shipmentCount={shipmentCount}
-          historyPanel={
-            <HistoryPanel accountId={accountId} items={activityItems} nowMs={nowMs} />
-          }
-          tasksPanel={
-            <TasksPanel tasks={tasks} reps={reps} canReassign={canReassign} nowMs={nowMs} />
-          }
-          knowPanel={
-            <WhatWeKnow
-              accountId={accountId}
-              facts={facts}
-              gaps={gaps}
-              allFieldsCount={allFieldsCount}
-              companyDefaults={companyDefaults}
-              reps={reps}
-            />
-          }
-          contactsPanel={<ContactsTab accountId={accountId} people={people} />}
-          shipmentsPanel={shipmentsPanel}
-        />
-      </div>
+      <FileBody
+        accountId={accountId}
+        stage={stage}
+        composerContacts={composerContacts}
+        people={people}
+        companyPhones={companyPhones}
+        companyDefaults={companyDefaults}
+        reps={reps}
+        shipmentCount={shipmentCount}
+        finalizeBanner={finalizeBanner}
+        historyPanel={
+          <HistoryPanel accountId={accountId} items={activityItems} nowMs={nowMs} />
+        }
+        tasksPanel={
+          <TasksPanel tasks={tasks} reps={reps} canReassign={canReassign} nowMs={nowMs} />
+        }
+        knowPanel={
+          <WhatWeKnow
+            accountId={accountId}
+            facts={facts}
+            gaps={gaps}
+            allFieldsCount={allFieldsCount}
+            companyDefaults={companyDefaults}
+            reps={reps}
+          />
+        }
+        contactsPanel={<ContactsTab accountId={accountId} people={people} />}
+        shipmentsPanel={shipmentsPanel}
+      />
     </div>
   );
 }
