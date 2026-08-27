@@ -115,7 +115,16 @@ function Snooze({ taskId }: { taskId: string }) {
 
 /* ══════════════════ 1. NEW ARRIVALS — TRIAGE FIRST ══════════════════ */
 
-export function ArrivalsQueue({ companies }: { companies: AgentCompany[] }) {
+export function ArrivalsQueue({
+  companies,
+  waiting = 0,
+}: {
+  companies: AgentCompany[];
+  /** Never-contacted companies past the arrival window. Stated rather than
+   * hidden: this column drains by design, and a company that aged out
+   * silently would look like it had been dealt with. */
+  waiting?: number;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [notAFit, setNotAFit] = useState<AgentCompany | null>(null);
@@ -125,7 +134,15 @@ export function ArrivalsQueue({ companies }: { companies: AgentCompany[] }) {
     <FileCard className="flex min-h-0 flex-1 flex-col">
       <SectionHead
         title="New arrivals — triage first"
-        count={companies.length === 0 ? "nothing waiting" : String(companies.length)}
+        count={
+          companies.length === 0
+            ? waiting > 0
+              ? `nothing new · ${waiting} still untouched`
+              : "nothing waiting"
+            : waiting > 0
+              ? `${companies.length} · ${waiting} older`
+              : String(companies.length)
+        }
       />
       {/* THE SCROLL REGION IS THE LIST, NOT THE CARD. The header above
           stays put; only the rows move under it.

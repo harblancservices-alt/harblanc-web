@@ -168,9 +168,38 @@ export function dueTint(dueAt: string | null, now: Date = new Date()): DueTint {
  * NEWEST FIRST, because "new" is the point. Falls back to name order when
  * created_at is unavailable, so the list never reshuffles at random.
  */
-export function newlyAssigned(companies: AgentCompany[]): AgentCompany[] {
+/** How long a company counts as "just landed". After this it is not an
+ * arrival any more — it is simply work you have not started, which is what
+ * the call list and Gaps to fill are for. */
+export const ARRIVAL_WINDOW_DAYS = 14;
+
+/**
+ * NEW ARRIVALS — what has landed on this agent that they have not acted on.
+ *
+ * Two conditions, and the second one is new: never contacted AND arrived
+ * recently. Without the time bound this was an unbounded backlog wearing an
+ * inbox's clothes — a company nobody ever called stayed a "new arrival"
+ * forever, so the column could only ever grow and the word "new" stopped
+ * being true. Now it drains: you either triage it or it ages out into the
+ * ordinary working list.
+ *
+ * ARRIVAL TIME IS created_at, and that is a real limitation worth stating.
+ * crm_accounts has no assigned_at, and assignCompanies logs no activity, so
+ * there is no record of when a company landed on a particular desk. In
+ * practice these arrive as BOL/OTR imports that are created and handed out
+ * in the same run, so created_at is the arrival — but a company created
+ * months ago and reassigned today will not appear here. Fixing that
+ * properly means a new column and a backfill policy, which is a bigger
+ * decision than this column.
+ */
+export function newlyAssigned(
+  companies: AgentCompany[],
+  now: Date = new Date(),
+): AgentCompany[] {
+  const cutoff = now.getTime() - ARRIVAL_WINDOW_DAYS * 86_400_000;
   return companies
     .filter((c) => c.lastContactMs === null)
+    .filter((c) => c.createdMs != null && c.createdMs >= cutoff)
     .sort((a, b) => {
       const am = a.createdMs ?? null;
       const bm = b.createdMs ?? null;
@@ -179,6 +208,23 @@ export function newlyAssigned(companies: AgentCompany[]): AgentCompany[] {
       if (bm === null && am !== null) return -1;
       return a.name.localeCompare(b.name);
     });
+}
+
+/**
+ * Companies never contacted that have aged PAST the arrival window.
+ *
+ * They are not shown as arrivals any more, but they have not been dealt
+ * with either, so the column says how many are waiting rather than letting
+ * them vanish silently. Their work is in the call list by then.
+ */
+export function agedOutArrivals(
+  companies: AgentCompany[],
+  now: Date = new Date(),
+): AgentCompany[] {
+  const cutoff = now.getTime() - ARRIVAL_WINDOW_DAYS * 86_400_000;
+  return companies.filter(
+    (c) => c.lastContactMs === null && (c.createdMs == null || c.createdMs < cutoff),
+  );
 }
 
 /**

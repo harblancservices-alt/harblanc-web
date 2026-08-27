@@ -258,3 +258,33 @@ describe("callList — the middle column", () => {
     expect(callList([], NOW)).toEqual([]);
   });
 });
+
+describe("callList — the three columns do three different jobs", () => {
+  it("hides an untriaged company's work, so it is not in two columns at once", () => {
+    // Widening this column created the duplication: A&R Rent-A-Fence showed
+    // as a New arrival AND as "Research and qualify this company" in the
+    // call list on Brent's live dashboard.
+    const t = task({ id: "research", accountId: "new-co" });
+    expect(callList([t], NOW).map((i) => i.task.id)).toEqual(["research"]);
+    expect(callList([t], NOW, new Set(["new-co"]))).toEqual([]);
+  });
+
+  it("still shows an untriaged company's work once it is LATE", () => {
+    // Late beats tidy. A missed date must never be hidden for neatness.
+    const late = task({ id: "late", accountId: "new-co", dueAt: "2026-08-24T15:00:00Z" });
+    const out = callList([late], NOW, new Set(["new-co"]));
+    expect(out.map((i) => i.task.id)).toEqual(["late"]);
+    expect(out[0].band).toBe("overdue");
+  });
+
+  it("never hides a task that has no company", () => {
+    const orphan = task({ id: "orphan", accountId: null });
+    expect(callList([orphan], NOW, new Set(["new-co"])).map((i) => i.task.id)).toEqual(["orphan"]);
+  });
+
+  it("shows the work again once the company is triaged", () => {
+    const t = task({ id: "research", accountId: "co" });
+    expect(callList([t], NOW, new Set(["co"]))).toEqual([]);
+    expect(callList([t], NOW, new Set()).map((i) => i.task.id)).toEqual(["research"]);
+  });
+});

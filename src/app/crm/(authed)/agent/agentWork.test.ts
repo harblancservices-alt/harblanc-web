@@ -6,6 +6,7 @@ import {
   dueTint,
   groupAgentWork,
   newlyAssigned,
+  agedOutArrivals,
   type AgentCompany,
   type AgentTask,
 } from "./agentWork";
@@ -37,6 +38,10 @@ function company(name: string, lastContactMs: number | null, stage: string | nul
     id: name, name, city: null, state: null, stage, lastContactMs,
     source: null, stageChangedMs: null, contactName: null, contactTitle: null,
     contactPhone: null, openTasks: 0,
+    // Recent by default. newlyAssigned is time-bounded now, so a fixture
+    // with no created date would never be an arrival and every test here
+    // would be asserting against an empty list.
+    createdMs: NOW.getTime() - DAY,
   };
 }
 
@@ -150,14 +155,14 @@ describe("newlyAssigned", () => {
       company("Worked", NOW.getTime() - DAY, "contacted"),
       company("Untouched", null, "new_lead"),
     ];
-    expect(newlyAssigned(rows).map((c) => c.name)).toEqual(["Untouched"]);
+    expect(newlyAssigned(rows, NOW).map((c) => c.name)).toEqual(["Untouched"]);
   });
 
   it("drops a company the moment a contact is logged — the leave trigger", () => {
     const before = [company("Acme", null, "new_lead")];
-    expect(newlyAssigned(before)).toHaveLength(1);
+    expect(newlyAssigned(before, NOW)).toHaveLength(1);
     const after = [company("Acme", NOW.getTime(), "new_lead")];
-    expect(newlyAssigned(after)).toHaveLength(0);
+    expect(newlyAssigned(after, NOW)).toHaveLength(0);
   });
 
   it("puts the newest first", () => {
@@ -165,17 +170,25 @@ describe("newlyAssigned", () => {
       { ...company("Older", null, "new_lead"), createdMs: NOW.getTime() - 10 * DAY },
       { ...company("Newer", null, "new_lead"), createdMs: NOW.getTime() - DAY },
     ];
-    expect(newlyAssigned(rows).map((c) => c.name)).toEqual(["Newer", "Older"]);
+    expect(newlyAssigned(rows, NOW).map((c) => c.name)).toEqual(["Newer", "Older"]);
   });
 
-  it("falls back to name order when nothing carries a created date", () => {
-    const rows = [company("B", null, "new_lead"), company("A", null, "new_lead")];
-    expect(newlyAssigned(rows).map((c) => c.name)).toEqual(["A", "B"]);
+  it("is not an arrival when there is no created date to age it by", () => {
+    // crm_accounts.created_at is NOT NULL, so this cannot happen in
+    // practice — but if it ever did, a row with no arrival time must not
+    // sit in an inbox that can never expire it. agedOutArrivals catches
+    // these, so they are counted rather than dropped.
+    const rows = [
+      { ...company("B", null, "new_lead"), createdMs: null },
+      { ...company("A", null, "new_lead"), createdMs: null },
+    ];
+    expect(newlyAssigned(rows, NOW)).toEqual([]);
+    expect(agedOutArrivals(rows, NOW).map((c) => c.name)).toEqual(["B", "A"]);
   });
 
   it("does not mutate its input", () => {
     const rows = [company("B", null, null), company("A", null, null)];
-    newlyAssigned(rows);
+    newlyAssigned(rows, NOW);
     expect(rows.map((c) => c.name)).toEqual(["B", "A"]);
   });
 });
@@ -209,5 +222,56 @@ describe("activityStatus", () => {
     const old = company("A", NOW.getTime() - 400 * DAY, "active_customer");
     expect(companyFlag(old, NOW)).toBeNull();
     expect(activityStatus(old, NOW).tone).toBe("bad");
+  });
+});
+
+describe("newlyAssigned — an inbox that drains", () => {
+  const NOW2 = new Date("2026-08-27T15:00:00Z");
+  function co(over: Partial<AgentCompany> = {}): AgentCompany {
+    return {
+      id: Math.random().toString(36).slice(2),
+      name: "Somebody Inc",
+      city: null, state: null, source: null, stage: "new_lead",
+      stageChangedMs: null, lastContactMs: null, contactName: null,
+      contactTitle: null, contactPhone: null, openTasks: 0,
+      createdMs: Date.parse("2026-08-26T12:00:00Z"),
+      ...over,
+    } as AgentCompany;
+  }
+
+  it("shows a company that just landed and nobody has called", () => {
+    expect(newlyAssigned([co()], NOW2)).toHaveLength(1);
+  });
+
+  it("drops one that has been sitting there for a month", () => {
+    // Without the window this column could only ever grow, and "new"
+    // stopped being true.
+    expect(newlyAssigned([co({ createdMs: Date.parse("2026-07-01T12:00:00Z") })], NOW2)).toHaveLength(0);
+  });
+
+  it("drops one that has been contacted, however recently it arrived", () => {
+    expect(
+      newlyAssigned([co({ lastContactMs: Date.parse("2026-08-27T09:00:00Z") })], NOW2),
+    ).toHaveLength(0);
+  });
+
+  it("counts the ones that aged out rather than losing them silently", () => {
+    const old = co({ createdMs: Date.parse("2026-07-01T12:00:00Z") });
+    const fresh = co();
+    expect(newlyAssigned([old, fresh], NOW2)).toHaveLength(1);
+    expect(agedOutArrivals([old, fresh], NOW2)).toHaveLength(1);
+  });
+
+  it("never counts the same company as both fresh and aged out", () => {
+    const all = [co(), co({ createdMs: Date.parse("2026-07-01T12:00:00Z") }), co({ createdMs: null })];
+    const fresh = newlyAssigned(all, NOW2).map((c) => c.id);
+    const aged = agedOutArrivals(all, NOW2).map((c) => c.id);
+    expect(fresh.filter((id) => aged.includes(id))).toEqual([]);
+  });
+
+  it("puts the newest first", () => {
+    const older = co({ id: "older", createdMs: Date.parse("2026-08-20T12:00:00Z") });
+    const newer = co({ id: "newer", createdMs: Date.parse("2026-08-26T12:00:00Z") });
+    expect(newlyAssigned([older, newer], NOW2).map((c) => c.id)).toEqual(["newer", "older"]);
   });
 });

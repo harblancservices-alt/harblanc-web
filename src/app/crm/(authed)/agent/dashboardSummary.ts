@@ -269,7 +269,31 @@ export type CallListItem = { task: AgentTask; band: CallBand };
 
 const BAND_ORDER: Record<CallBand, number> = { overdue: 0, today: 1, later: 2, undated: 3 };
 
-export function callList(tasks: AgentTask[], now: Date = new Date()): CallListItem[] {
+export function callList(
+  tasks: AgentTask[],
+  now: Date = new Date(),
+  /**
+   * Companies still sitting in New arrivals awaiting triage. Their work is
+   * hidden here so the three columns have three jobs instead of two of them
+   * showing the same rows.
+   *
+   * This exists because widening this column CREATED a duplication: before,
+   * it filtered to due-today, so a newly assigned company's undated
+   * "Research and qualify this company" task was invisible here and New
+   * arrivals was its only home. Widening put it in both, and Brent's live
+   * dashboard showed A&R Rent-A-Fence and ANJ Electric twice.
+   *
+   * Triage is a different verb from calling — "is this worth working at
+   * all" versus "do the work" — so the company belongs in one column and
+   * its tasks in the other, never both. Once triaged, or once the company
+   * ages out of the arrival window, its work appears here. Nothing can hide
+   * indefinitely.
+   *
+   * OVERDUE IS NEVER HIDDEN. Late beats tidy: if a task on an untriaged
+   * company has gone past its date, it shows here anyway.
+   */
+  untriagedAccountIds: ReadonlySet<string> = new Set(),
+): CallListItem[] {
   const items: CallListItem[] = tasks.map((task) => {
     const bucket = taskDueBucket(task.dueAt, now);
     const band: CallBand =
@@ -281,7 +305,12 @@ export function callList(tasks: AgentTask[], now: Date = new Date()): CallListIt
             ? "undated"
             : "later";
     return { task, band };
-  });
+  }).filter(
+    (item) =>
+      item.band === "overdue" ||
+      !item.task.accountId ||
+      !untriagedAccountIds.has(item.task.accountId),
+  );
 
   // Stable: equal-band, equal-date rows keep the order the query returned
   // them in, so the list does not reshuffle between renders.

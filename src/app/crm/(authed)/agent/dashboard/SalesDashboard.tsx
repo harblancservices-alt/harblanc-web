@@ -6,7 +6,13 @@ import { FileCard, SectionHead } from "../../accounts/[id]/desktop/file/chrome";
 import { CompletenessList } from "../CompletenessList";
 import { CommandHeader } from "./CommandHeader";
 import { ArrivalsQueue, CallQueue, OverdueQueue } from "./WorkQueues";
-import { groupAgentWork, newlyAssigned, type AgentTask, type AgentCompany } from "../agentWork";
+import {
+  agedOutArrivals,
+  groupAgentWork,
+  newlyAssigned,
+  type AgentTask,
+  type AgentCompany,
+} from "../agentWork";
 import { buildSummary, callList, workQueue } from "../dashboardSummary";
 import { gapsForCompany, type CompletenessInput } from "../completeness";
 
@@ -59,7 +65,14 @@ export function SalesDashboard({
 }) {
   const nowDate = new Date(now);
   const groups = groupAgentWork(tasks, nowDate);
-  const arrivals = newlyAssigned(companies);
+  const arrivals = newlyAssigned(companies, nowDate);
+  /** Never contacted, but past the arrival window — not shown as arrivals
+   * any more, so the column says how many are waiting rather than letting
+   * them disappear. Their work is in the call list by now. */
+  const waiting = agedOutArrivals(companies, nowDate).length;
+  /** Companies still awaiting triage. Their tasks are held OUT of the call
+   * list so a company is never in two columns at once — see callList. */
+  const untriaged = new Set(arrivals.map((c) => c.id));
   const summary = buildSummary({ tasks, companies, callsToday, reachedToday, now: nowDate });
 
   // Where the primary button goes: whatever the queue puts first. Built from
@@ -132,13 +145,13 @@ export function SalesDashboard({
             were still 2114px tall and had nothing to scroll. An explicit
             minmax(0,1fr) track gives the cards a real height to fit into. */}
         <div className="grid min-h-[320px] max-h-[58vh] flex-1 grid-rows-[minmax(0,1fr)] grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] items-stretch gap-3">
-          <ArrivalsQueue companies={arrivals} />
+          <ArrivalsQueue companies={arrivals} waiting={waiting} />
           {/* The agent's WHOLE open book, not just today. Overdue also
               appears in the column to the right — that duplication is
               deliberate: the list you work top-to-bottom has to start with
               what is already late, and the right column stays as the alarm. */}
           <CallQueue
-            items={callList(tasks, nowDate)}
+            items={callList(tasks, nowDate, untriaged)}
             phoneByAccount={phoneByAccount}
             contactByAccount={contactByAccount}
             nowMs={now}
