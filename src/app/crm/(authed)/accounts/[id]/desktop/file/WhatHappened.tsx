@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { logCall } from "../../../../calls/actions";
-import { QUICK_OUTCOMES } from "../../../../calls/outcomes";
+import { QUICK_OUTCOMES, callOutcomeWeight, type OutcomeWeight } from "../../../../calls/outcomes";
 import { addNote } from "../../../actions";
 import { createTask } from "../../../../tasks/actions";
 import {
@@ -53,6 +53,15 @@ import { Micro } from "./chrome";
  */
 
 type Mode = "call" | "note" | "task";
+
+/** Button treatment per outcome weight. Exactly one filled — the outcome a
+ * rep is trying for — so the row has a target rather than five equal blues. */
+const OUTCOME_BUTTON: Record<OutcomeWeight, string> = {
+  good: "border-ok bg-ok text-white hover:bg-ok/90",
+  bad: "border-bad/50 bg-bad-bg text-bad hover:border-bad",
+  warn: "border-warn/50 bg-warn-bg text-warn hover:border-warn",
+  neutral: "border-line-strong bg-card text-fg hover:bg-inset",
+};
 
 export function WhatHappened({
   accountId,
@@ -234,13 +243,21 @@ export function WhatHappened({
         <div className="px-4 pb-3.5 pt-2">
           <Micro className="block text-fg">How did it go? — one click saves</Micro>
           <div className="mt-2 flex flex-wrap items-center gap-2">
+            {/* ONE filled button, four outlined. These were five identical
+                filled-blue primaries, which made the outcome an agent is
+                dialling for indistinguishable at a glance from "this number
+                is dead" — on the most-pressed control in the CRM. The
+                weight comes off each outcome's own tone in calls/outcomes.ts
+                so the button and the timeline chip can never disagree. */}
             {QUICK_OUTCOMES.map((o) => (
               <button
                 key={o.value}
                 type="button"
                 onClick={() => saveCall(o.value)}
                 disabled={pending}
-                className="rounded-md bg-accent px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-accent-hover disabled:opacity-55"
+                className={`rounded-md border px-3.5 py-2 text-[12.5px] font-bold transition-colors disabled:opacity-55 ${
+                  OUTCOME_BUTTON[callOutcomeWeight(o.value)]
+                }`}
               >
                 {o.short}
               </button>

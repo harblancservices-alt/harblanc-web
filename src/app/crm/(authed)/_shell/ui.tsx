@@ -155,17 +155,17 @@ export const ZEBRA_ROWS =
  *   BTN_PRIMARY — filled steel-blue (var(--accent)). Save / Add / Create /
  *                 Search / primary CTA.
  *   BTN_SUCCESS — filled green.  Done / Complete / approve.
- *   BTN_ACTION  — filled 2563eb. Operational actions — Log call, Add person,
- *                 Add task, Note, Email, and the per-contact card actions.
- *                 Brent's explicit call: these read as "do something now"
- *                 across the whole CRM, distinct from both BTN_PRIMARY's
- *                 steel-blue and BTN_DANGER's red (an actual destructive
- *                 Delete/Discard/Remove). Was BTN_RED/dc2626 — Brent's
- *                 2026-08-08 correction retired every red operational
- *                 button in favor of this blue; the STAGE tracker's
- *                 current-stage chevron matches (see StageTracker.tsx).
- *                 Destructive actions (BTN_DANGER) are unchanged — that's a
- *                 different semantic category, not a "primary/action" button.
+ *   BTN_ACTION  — filled var(--accent), same as BTN_PRIMARY. Operational
+ *                 actions — Log call, Add person, Add task, Note, Email, and
+ *                 the per-contact card actions. Was BTN_RED/dc2626 until
+ *                 Brent's 2026-08-08 correction retired every red
+ *                 operational button in favour of a blue; that blue was the
+ *                 #2563eb literal until 2026-08-27, when it was retired in
+ *                 turn — see the note above its definition. The name
+ *                 survives because the INTENT is still worth stating; the
+ *                 colour distinction does not, because there is no longer
+ *                 one. Destructive actions (BTN_DANGER) are unchanged —
+ *                 that's a different semantic category.
  *   BTN_EDIT    — blue outline.  Edit / Open / View / secondary navigate.
  *   BTN_WARNING — amber outline. Reschedule / snooze / date changes.
  *   BTN_DANGER  — red outline.   Delete / Discard / Remove / Reject.
@@ -175,8 +175,21 @@ export const BTN_PRIMARY =
   "border border-accent bg-accent text-white hover:bg-accent-hover disabled:opacity-60";
 export const BTN_SUCCESS =
   "border border-ok bg-ok text-white hover:bg-ok/90 disabled:opacity-60";
+// 2026-08-27: the raw #2563eb literal is retired. The August split was real
+// when it was made — BTN_PRIMARY's steel-blue and this one were far enough
+// apart to read as different roles — but --accent has since moved to #2f5fd6
+// and the two converged to six points apart: rgb(47,95,214) against
+// rgb(37,99,235). They sit side by side in the Contacts header and on the
+// company file's Create load, where the difference no longer reads as a
+// distinction, only as a mistake.
+//
+// The NAME stays, and so do its fourteen call sites, because "this is an
+// operational action" is still worth saying in code. What is gone is the
+// claim that it is a different colour. Do not reintroduce a literal here to
+// restore the split; if the two roles need separating again, separate them
+// by weight (see BTN_EDIT) rather than by two blues nobody can tell apart.
 export const BTN_ACTION =
-  "border border-[#2563eb] bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-60";
+  "border border-accent bg-accent text-white hover:bg-accent-hover disabled:opacity-60";
 export const BTN_EDIT =
   "border border-accent/40 bg-card text-accent hover:bg-accent/10 disabled:opacity-60";
 export const BTN_WARNING =

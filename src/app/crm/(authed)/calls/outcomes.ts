@@ -79,3 +79,27 @@ export const QUICK_OUTCOMES: readonly { value: CallOutcome; short: string }[] = 
   { value: "wrong_number", short: "Bad number" },
   { value: "decision_maker_unavailable", short: "Wrong contact" },
 ];
+
+/**
+ * How much an outcome should SHOUT, derived from the vocabulary above rather
+ * than restated.
+ *
+ * The company file's one-click row drew all five outcomes as identical
+ * filled-blue primaries. It is the most-pressed control an agent has, and
+ * "Reached" — the thing you are dialling for — looked exactly like "Bad
+ * number". Both --ok and --bad already existed and neither was used.
+ *
+ * Read off each outcome's own `tone` on purpose. A second hand-written table
+ * of "which of these is good" is precisely the drift this file's header
+ * warns about: it would let the timeline call something green while the
+ * button called it red.
+ */
+export type OutcomeWeight = "good" | "warn" | "bad" | "neutral";
+
+export function callOutcomeWeight(value: string | null | undefined): OutcomeWeight {
+  const tone = callOutcomeTone(value);
+  if (tone.includes("text-ok")) return "good";
+  if (tone.includes("text-bad")) return "bad";
+  if (tone.includes("text-warn")) return "warn";
+  return "neutral";
+}

@@ -198,8 +198,12 @@ export function FileBody({
             it was built as a tab panel inside the old profile's chrome. It
             gets the same FileCard + header as its peers here so the four
             tabs do not each look like a different kind of surface. */}
+        {/* flex-1 + min-h-0 the whole way down, the same chain the other
+            three tabs use. Without it this card sized to its content and
+            stopped — a 110px strip in a 745px window with ~500px of bare
+            canvas under it, on the one tab most likely to be empty. */}
         <div hidden={tab !== "shipments"} className="flex min-h-0 flex-1 flex-col">
-          <FileCard>
+          <FileCard className="flex min-h-0 flex-1 flex-col">
             <SectionHead
               title="Shipments"
               count={
@@ -208,7 +212,7 @@ export function FileBody({
                   : `${shipmentCount} ${shipmentCount === 1 ? "load" : "loads"}`
               }
             />
-            {shipmentsPanel}
+            <div className="min-h-0 flex-1 overflow-auto">{shipmentsPanel}</div>
           </FileCard>
         </div>
       </div>

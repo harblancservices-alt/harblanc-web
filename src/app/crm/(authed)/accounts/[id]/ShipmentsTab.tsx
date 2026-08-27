@@ -22,15 +22,25 @@ export async function ShipmentsTab({ accountId, accountName }: { accountId: stri
   const historical = shipments.filter((s) => !isActiveShipmentStatus(s.status));
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div className="flex items-center justify-end">
-        <NewShipmentButton accountId={accountId} customerName={accountName} label="Create load" />
-      </div>
+    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+      {/* The button only sits up here when there is a list to sit above.
+          On an empty tab it used to float hard right of nothing, with the
+          sentence explaining the emptiness stranded below it — the eye
+          lands on the middle of an empty card, so that is where the way
+          out belongs. */}
+      {shipments.length > 0 && (
+        <div className="flex items-center justify-end">
+          <NewShipmentButton accountId={accountId} customerName={accountName} label="Create load" />
+        </div>
+      )}
 
       {shipments.length === 0 ? (
-        <p className="py-8 text-center text-[13.5px] text-fg-muted">
-          No shipments for this customer yet — create one to start a load.
-        </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+          <p className="text-[13.5px] text-fg-muted">
+            No shipments for this customer yet — create one to start a load.
+          </p>
+          <NewShipmentButton accountId={accountId} customerName={accountName} label="Create load" />
+        </div>
       ) : (
         <>
           <div>

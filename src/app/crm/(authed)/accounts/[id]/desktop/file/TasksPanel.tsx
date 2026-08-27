@@ -138,7 +138,7 @@ export function TasksPanel({
           <div className="py-8 text-center">
             <p className="text-[13px] font-bold text-fg">Nothing is owed here</p>
             <p className="mx-auto mt-1 max-w-[32ch] text-[12px] text-fg-subtle">
-              Use the Task tab above to put something on the clock.
+              Use the Task button above to put something on the clock.
             </p>
           </div>
         ) : (

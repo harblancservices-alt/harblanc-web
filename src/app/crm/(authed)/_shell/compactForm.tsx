@@ -84,7 +84,21 @@ export const FIELD_W = {
  */
 export const PILL = "flex items-center whitespace-nowrap rounded-full px-3 text-[12.5px] font-semibold transition-colors";
 export const PILL_SIZE = "min-h-10 sm:min-h-7";
-export const PILL_ACTIVE = "border border-ok bg-ok text-white hover:bg-ok/90";
+/**
+ * SELECTED, not "good".
+ *
+ * This was --ok green until 2026-08-27. Green is the healthy-state colour
+ * everywhere else in the CRM — a fresh contact, an on-time task, a parsed
+ * snapshot — and spending it on "this filter is on" overloaded it: a green
+ * pill in a row of filters reads as a status rather than a choice.
+ *
+ * NOTE FOR BRENT: this reverses his own 2026-08-09 call, which set the pill
+ * pickers to green deliberately. It changes three surfaces that share this
+ * token — the Contacts filters, RoleControl's role pills, and CompanyDialog's
+ * industry pills — because all three mean "selected" and none of them mean
+ * "good". Recorded rather than done quietly; it is one line to put back.
+ */
+export const PILL_ACTIVE = "border border-accent bg-accent text-white hover:bg-accent-hover";
 export const PILL_INACTIVE = "border border-fg-subtle bg-card text-fg hover:bg-inset";
 export const PILL_DASHED =
   "border border-dashed border-fg-subtle bg-card text-fg-muted hover:border-accent/50 hover:text-accent";
