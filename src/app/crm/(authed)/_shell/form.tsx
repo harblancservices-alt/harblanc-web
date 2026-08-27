@@ -1,4 +1,4 @@
-import type { ChangeEvent, ReactNode } from "react";
+import type { ChangeEvent, ReactNode, SelectHTMLAttributes } from "react";
 import { CONTROL as BASE_CONTROL, CONTROL_SIZE, LABEL } from "./compactForm";
 
 /**
@@ -131,17 +131,82 @@ export function SelectField({
   return (
     <label className="flex w-full min-w-0 flex-col gap-1">
       <FieldLabel required={required}>{label}</FieldLabel>
-      <select
-        name={name}
-        defaultValue={defaultValue}
-        required={required}
-        disabled={disabled}
-        onChange={onChange}
-        className={`w-full min-w-0 disabled:opacity-60 ${CONTROL_SIZE} ${BASE_CONTROL}`}
+      <SelectChrome>
+        <select
+          name={name}
+          defaultValue={defaultValue}
+          required={required}
+          disabled={disabled}
+          onChange={onChange}
+          className={`w-full min-w-0 disabled:opacity-60 ${CONTROL_SIZE} ${SELECT_CONTROL}`}
+        >
+          {children}
+        </select>
+      </SelectChrome>
+    </label>
+  );
+}
+
+/**
+ * SELECT CHROME — one caret for every dropdown in the CRM.
+ *
+ * A bare <select> renders with the operating system's own arrow and menu
+ * button, which on Windows is a grey square that matches nothing else on
+ * the page. The audit counted eight of them on agent-facing screens alone:
+ * four filters on Companies, one on Contacts, the "Move" control under
+ * every Pipeline and Tasks card, and two inside the contact dialog.
+ *
+ * The element stays NATIVE on purpose. A hand-rolled listbox would have to
+ * re-implement keyboard navigation, type-ahead, form association and the
+ * mobile wheel picker, and would get one of them wrong. `appearance-none`
+ * only removes the OS's own decoration; everything that makes a select work
+ * is untouched.
+ *
+ * The caret is aria-hidden and pointer-events-none so it is invisible to
+ * assistive tech and cannot swallow the click that opens the menu.
+ */
+export const SELECT_CONTROL = `${BASE_CONTROL} appearance-none pr-8`;
+
+export function SelectChrome({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span className={`relative block ${className ?? ""}`}>
+      {children}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[8px] text-fg-subtle"
       >
+        ▼
+      </span>
+    </span>
+  );
+}
+
+/**
+ * A native <select> already wearing the CRM's chrome.
+ *
+ * `wrapClassName` carries the LAYOUT (flex-1, min-w-0, width) because the
+ * caret is positioned against the wrapper — putting flex classes on the
+ * select itself would size the box and leave the arrow floating somewhere
+ * else. `className` carries anything else the select needs.
+ */
+export function StyledSelect({
+  className,
+  wrapClassName,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { wrapClassName?: string }) {
+  return (
+    <SelectChrome className={wrapClassName}>
+      <select className={`w-full ${SELECT_CONTROL} ${className ?? ""}`} {...props}>
         {children}
       </select>
-    </label>
+    </SelectChrome>
   );
 }
 

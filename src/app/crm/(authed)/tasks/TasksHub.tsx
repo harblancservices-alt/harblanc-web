@@ -396,7 +396,7 @@ function TaskCard({
         disabled={pending}
         onChange={(e) => e.target.value && onPick(task.id, e.target.value as PlanColumn)}
         aria-label={`Move "${task.title}" to another column`}
-        className="cursor-pointer rounded-[4px] border border-line bg-card px-1.5 py-0.5 text-[11px] font-semibold text-fg-subtle hover:border-accent hover:text-accent disabled:opacity-60"
+        className="cursor-pointer appearance-none rounded-[4px] border border-line bg-card px-1.5 py-0.5 text-[11px] font-semibold text-fg-subtle hover:border-accent hover:text-accent disabled:opacity-60"
       >
         <option value="">Move ⌄</option>
         {PLAN_COLUMNS.map((c) => (

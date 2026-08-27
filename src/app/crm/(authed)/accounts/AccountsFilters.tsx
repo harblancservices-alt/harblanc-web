@@ -7,6 +7,7 @@ import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
 import { BTN_NEUTRAL, BTN_PRIMARY } from "../_shell/ui";
 import { CONTROL, CONTROL_SIZE } from "../_shell/compactForm";
+import { StyledSelect } from "../_shell/form";
 
 const SORT_OPTIONS = [
   { value: "", label: "Newest first" },
@@ -68,7 +69,7 @@ export function AccountsFilters({
     startTransition(() => router.push(pathname));
   }
 
-  const selectClass = `min-w-0 disabled:opacity-60 ${CONTROL_SIZE} ${CONTROL}`;
+  const selectClass = `disabled:opacity-60 ${CONTROL_SIZE}`;
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -91,12 +92,12 @@ export function AccountsFilters({
       </form>
 
       <div className="flex flex-wrap items-center gap-2">
-        <select
+        <StyledSelect
           value={stage}
           onChange={(e) => push({ stage: e.target.value })}
           disabled={pending}
           aria-label="Filter by lifecycle stage"
-          className={selectClass}
+          className={selectClass} wrapClassName="min-w-0"
         >
           <option value="">All stages</option>
           {LIFECYCLE_STAGES.map((s) => (
@@ -104,14 +105,14 @@ export function AccountsFilters({
               {LIFECYCLE_LABEL[s]}
             </option>
           ))}
-        </select>
+        </StyledSelect>
 
-        <select
+        <StyledSelect
           value={rep}
           onChange={(e) => push({ rep: e.target.value })}
           disabled={pending}
           aria-label="Filter by assigned rep"
-          className={selectClass}
+          className={selectClass} wrapClassName="min-w-0"
         >
           <option value="">All reps</option>
           <option value="unassigned">Unassigned</option>
@@ -120,15 +121,15 @@ export function AccountsFilters({
               {r.label}
             </option>
           ))}
-        </select>
+        </StyledSelect>
 
         {tags.length > 0 && (
-          <select
+          <StyledSelect
             value={tag}
             onChange={(e) => push({ tag: e.target.value })}
             disabled={pending}
             aria-label="Filter by tag"
-            className={selectClass}
+            className={selectClass} wrapClassName="min-w-0"
           >
             <option value="">All tags</option>
             {tags.map((t) => (
@@ -136,22 +137,22 @@ export function AccountsFilters({
                 {t.label}
               </option>
             ))}
-          </select>
+          </StyledSelect>
         )}
 
-        <select
+        <StyledSelect
           value={sort}
           onChange={(e) => push({ sort: e.target.value })}
           disabled={pending}
           aria-label="Sort companies"
-          className={selectClass}
+          className={selectClass} wrapClassName="min-w-0"
         >
           {SORT_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
-        </select>
+        </StyledSelect>
 
         {active && (
           <button

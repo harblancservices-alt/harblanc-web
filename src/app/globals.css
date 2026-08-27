@@ -315,6 +315,30 @@ input[type="date"]::-webkit-date-and-time-value {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
+/* Date and time inputs keep the NATIVE picker on purpose — it brings the
+   platform's own calendar, keyboard entry, locale handling and validation,
+   and a hand-rolled replacement would get one of those wrong. What was
+   actually wrong is that the browser draws its calendar button in its own
+   chrome, so a CRM dialog ended up with one control that belonged to the
+   operating system.
+
+   This restyles the indicator only: the CRM's own subtle-foreground colour,
+   and a pointer so it reads as pressable. Everything the control DOES is
+   untouched. Firefox draws no indicator at all and simply ignores this. */
+.crm-light input[type="date"]::-webkit-calendar-picker-indicator,
+.crm-light input[type="time"]::-webkit-calendar-picker-indicator,
+.crm-light input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
+  filter: grayscale(1);
+  transition: opacity 120ms ease;
+}
+.crm-light input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.crm-light input[type="time"]::-webkit-calendar-picker-indicator:hover,
+.crm-light input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 /* ============================================================== */
 /* TMS V2 THEME — scoped override, fully independent of the admin portal
    and the CRM. The /tms-v2 shell root carries .tms-v2-light.

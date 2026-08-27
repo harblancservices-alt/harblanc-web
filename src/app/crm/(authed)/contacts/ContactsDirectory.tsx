@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { CONTROL } from "../_shell/form";
 import { PILL, PILL_ACTIVE, PILL_INACTIVE, PILL_SIZE } from "../_shell/compactForm";
+import { StyledSelect } from "../_shell/form";
 import { IconContacts, IconSearch } from "../_shell/icons";
 import { timestampMs } from "../_shell/format";
 import { normalizeMood } from "../_shell/mood";
@@ -255,16 +256,16 @@ export function ContactsDirectory({
           </label>
           <label className="flex shrink-0 items-center gap-2">
             <span className="text-[11.5px] font-bold uppercase tracking-[0.07em] text-fg">Sort</span>
-            <select
+            <StyledSelect
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
               aria-label="Sort contacts"
-              className={`h-10 ${CONTROL}`}
+              className="h-10"
             >
               <option value="az">A–Z</option>
               <option value="recent">Last contacted</option>
               <option value="company">Company</option>
-            </select>
+            </StyledSelect>
           </label>
         </div>
 

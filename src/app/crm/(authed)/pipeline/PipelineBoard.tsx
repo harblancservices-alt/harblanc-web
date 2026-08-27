@@ -302,7 +302,7 @@ function CompanyCard({
           disabled={pending}
           onChange={(e) => e.target.value && onPick(card.id, e.target.value as LifecycleStage)}
           aria-label={`Move ${card.name} to another stage`}
-          className="cursor-pointer rounded-[4px] border border-line bg-card px-1.5 py-0.5 text-[11px] font-semibold text-fg-subtle hover:border-accent hover:text-accent disabled:opacity-60"
+          className="cursor-pointer appearance-none rounded-[4px] border border-line bg-card px-1.5 py-0.5 text-[11px] font-semibold text-fg-subtle hover:border-accent hover:text-accent disabled:opacity-60"
         >
           <option value="">Move ⌄</option>
           {LIFECYCLE_STAGES.map((s) => (

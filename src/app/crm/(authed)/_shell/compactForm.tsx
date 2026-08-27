@@ -82,7 +82,20 @@ export const FIELD_W = {
  * PILL_SIZE is responsive (40px mobile / 28px desktop) instead of the old
  * flat 44px, matching CONTROL_SIZE's own split.
  */
-export const PILL = "flex items-center whitespace-nowrap rounded-full px-3 text-[12.5px] font-semibold transition-colors";
+/**
+ * Square, since 2026-08-27. These are CONTROLS you tap — the Contacts
+ * filters, RoleControl's roles, CompanyDialog's industries, the mood picker
+ * — and they now sit next to the gap chips in _shell/gapChip.tsx, which are
+ * rounded-md because that is the language Brent approved on the company
+ * file.
+ *
+ * The audit's "rounded pills" finding covered more than this, and the rest
+ * was deliberately LEFT round: the stage pills on Pipeline and the tag chips
+ * on the company cards are status LABELS, not controls, and the capsule is
+ * what stops them reading as buttons. Status dots stay round because they
+ * are dots. Changing shape by what a thing IS, not by find-and-replace.
+ */
+export const PILL = "flex items-center whitespace-nowrap rounded-md px-3 text-[12.5px] font-semibold transition-colors";
 export const PILL_SIZE = "min-h-10 sm:min-h-7";
 /**
  * SELECTED, not "good".
