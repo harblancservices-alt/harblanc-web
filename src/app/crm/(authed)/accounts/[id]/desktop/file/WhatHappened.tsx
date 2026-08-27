@@ -146,6 +146,14 @@ export function WhatHappened({
   const [followupTitle, setFollowupTitle] = useState<string>("");
   /* Once the rep edits the title we stop rewriting it under them. */
   const [titleTouched, setTitleTouched] = useState(false);
+  /* Same for the date. Until the rep picks a day themselves, the DATE
+     BELONGS TO THE DETECTOR — which means the detector can also take it
+     back when the words it read are no longer there. Without this the
+     reading outlived its own sentence: clear "call him back tuesday" and
+     the chip vanished but 1 Sep stayed silently in the date field, with
+     nothing in the row selected to show for it, and a task was still
+     created on save. */
+  const [dateTouched, setDateTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const active = normalizeStage(stage);
@@ -154,19 +162,25 @@ export function WhatHappened({
   // The tick is only offered where it can actually be honoured.
   const canAdvance = nextStage !== null && !stageNeedsReason(nextStage);
 
-  function done(res: { ok: boolean; error?: string }) {
-    if (!res.ok) {
-      setError(res.error ?? "That did not save.");
-      return;
-    }
+  /** Everything the composer was holding, back to empty. */
+  function resetComposer() {
     setText("");
-    setError(null);
     setGotThrough(null);
     setResult(null);
     setDetected(null);
     setFollowupDate("");
     setFollowupTitle("");
     setTitleTouched(false);
+    setDateTouched(false);
+  }
+
+  function done(res: { ok: boolean; error?: string }) {
+    if (!res.ok) {
+      setError(res.error ?? "That did not save.");
+      return;
+    }
+    resetComposer();
+    setError(null);
     router.refresh();
   }
 
@@ -179,8 +193,11 @@ export function WhatHappened({
     const found = detectDate(note, new Date());
     setDetected(found);
     if (!titleTouched) setFollowupTitle(draftFollowupTitle(note, outcome, found));
-    // The detected date is PRE-SELECTED, and the chip renders it visibly.
-    if (found) setFollowupDate(found.date);
+    /* The detected date is PRE-SELECTED, and the chip renders it visibly.
+       It is also RETRACTED when the note stops saying it — a reading must
+       not outlive the words it was read from. A day the rep picked
+       themselves is theirs and is never touched here. */
+    if (!dateTouched) setFollowupDate(found ? found.date : "");
   }
 
   function pickGotThrough(value: string) {
@@ -245,7 +262,10 @@ export function WhatHappened({
       if (advance && canAdvance && nextStage) {
         const moved = await updateLifecycleStatus(accountId, nextStage);
         if (!moved.ok) {
-          setText("");
+          // The CALL saved. Clear the composer for the same reason a
+          // success does — leaving the outcome and a detected follow-up
+          // on screen invites logging the whole thing twice.
+          resetComposer();
           setError(`Call saved, but the stage did not move: ${moved.error}`);
           router.refresh();
           return;
@@ -348,7 +368,10 @@ export function WhatHappened({
           value={text}
           onChange={(e) => {
             setText(e.target.value);
-            if (gotThrough) redraft(e.target.value, effectiveOutcome);
+            // A note or a task is not a call. Typing in those modes must
+            // not drive the call's date detection, or switching back shows
+            // a follow-up read out of somebody's meeting notes.
+            if (mode === "call" && gotThrough) redraft(e.target.value, effectiveOutcome);
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && mode !== "call") {
@@ -438,7 +461,10 @@ export function WhatHappened({
                     <button
                       key={c.key}
                       type="button"
-                      onClick={() => setFollowupDate(c.date)}
+                      onClick={() => {
+                        setDateTouched(true);
+                        setFollowupDate(c.date);
+                      }}
                       disabled={pending}
                       /* IT NOTICES, IT NEVER DECIDES - and the noticing is
                          now carried by the chip itself. A reading taken
@@ -473,7 +499,10 @@ export function WhatHappened({
                   <input
                     type="date"
                     value={followupDate}
-                    onChange={(e) => setFollowupDate(e.target.value)}
+                    onChange={(e) => {
+                      setDateTouched(true);
+                      setFollowupDate(e.target.value);
+                    }}
                     disabled={pending}
                     className="rounded-md border border-line bg-inset px-2 py-1.5 text-[12px] text-fg outline-none focus:border-accent disabled:opacity-60"
                   />
@@ -485,7 +514,12 @@ export function WhatHappened({
                     others and shows as chosen when it is. */}
                 <button
                   type="button"
-                  onClick={() => setFollowupDate("")}
+                  onClick={() => {
+                    // Dismissing a follow-up has to STICK — otherwise the
+                    // next keystroke re-applies the date they just declined.
+                    setDateTouched(true);
+                    setFollowupDate("");
+                  }}
                   disabled={pending}
                   aria-pressed={!followupDate}
                   className={`rounded-md border px-3 py-2 text-[12px] font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-55 ${
