@@ -6,6 +6,9 @@ import {
   QuickAddTaskButton,
 } from "../QuickActions";
 import { getAgentDashboardData } from "./agent-data";
+import { listQuickTasks } from "../admin/quick-task-actions";
+import { createCrmServerClient } from "@/lib/crm/auth";
+import type { ComposerContactOption } from "../tasks/TaskComposer";
 import { SalesDashboard } from "./dashboard/SalesDashboard";
 
 /**
@@ -27,6 +30,33 @@ import { SalesDashboard } from "./dashboard/SalesDashboard";
 export async function AgentHome({ user }: { user: CrmUser }) {
   const { tasks, companies, completeness, callsToday, reachedToday, now } =
     await getAgentDashboardData(user);
+
+  /** The org's quick-task buttons — the same rows Admin → Overview shows.
+   * Shared vocabulary, not a per-user list; the agent uses them and cannot
+   * edit them (see TaskComposer's header). */
+  const quickTasks = await listQuickTasks();
+
+  /** Contacts at the agent's OWN companies, for the composer's picker —
+   * scoped the same way every other agent surface is, rather than the
+   * org-wide list the admin composer gets. */
+  const supabase = await createCrmServerClient();
+  const ownedIds = companies.map((c) => c.id);
+  const { data: contactRows } = ownedIds.length
+    ? await supabase
+        .from("crm_contacts")
+        .select("id, name, account_id, title")
+        .in("account_id", ownedIds)
+        .is("deleted_at", null)
+        .order("name", { ascending: true })
+    : { data: [] };
+  const composerContacts: ComposerContactOption[] = (
+    (contactRows ?? []) as { id: string; name: string | null; account_id: string; title: string | null }[]
+  ).map((c) => ({
+    id: c.id,
+    name: c.name || "Unnamed contact",
+    accountId: c.account_id,
+    title: c.title ?? null,
+  }));
 
   /** The agent's own companies, as the shape both quick-add dialogs want.
    * Reusing the rows already loaded rather than querying a company list
@@ -59,10 +89,9 @@ export async function AgentHome({ user }: { user: CrmUser }) {
           <QuickAddCompanyButton reps={[]} />
           <QuickAddContactButton companies={companyOptions} />
           <QuickAddTaskButton
-            accounts={companyOptions}
-            contacts={[]}
-            reps={[]}
-            canAssignOthers={false}
+            companies={companyOptions}
+            contacts={composerContacts}
+            quickTasks={quickTasks}
             currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
           />
         </>

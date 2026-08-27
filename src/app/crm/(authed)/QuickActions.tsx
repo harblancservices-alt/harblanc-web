@@ -1,10 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { IconPlus, IconTasks, IconPhone } from "./_shell/icons";
 import { AddContactDialog } from "./contacts/AddContactDialog";
 import type { CompanyOption } from "./contacts/CompanyCombobox";
-import { TaskDialog, type TaskAccountOption, type TaskContactOption } from "./tasks/TaskDialog";
+import { Modal } from "./_shell/Modal";
+import {
+  TaskComposer,
+  type ComposerCompany,
+  type ComposerContactOption,
+} from "./tasks/TaskComposer";
+import type { QuickTask } from "./admin/quick-task-actions";
 import { CompanyDialog, type RepOption } from "./accounts/CompanyDialog";
 import { LogCallDialog } from "./calls/LogCallDialog";
 import { BTN_PRIMARY, BTN_EDIT } from "./_shell/ui";
@@ -118,34 +125,52 @@ export function QuickLogCallButton({
   );
 }
 
+/**
+ * "Add task" on the dashboard's CREATE bar.
+ *
+ * Opens the SHARED TaskComposer (tasks/TaskComposer.tsx) — the same one
+ * Admin → Overview uses, with its quick-task buttons, instructions,
+ * what-done-looks-like and the high-priority-needs-a-date rule. It used to
+ * open TaskDialog, an older and much thinner form, which is exactly the
+ * bug Brent hit: two task-making surfaces, one of which knew about none of
+ * that.
+ *
+ * No "who" picker: an agent is making work for themselves. That matches
+ * every assignment gate in the CRM (all role === "owner") and sendTask
+ * enforces it server-side regardless.
+ */
 export function QuickAddTaskButton({
-  accounts,
+  companies,
   contacts,
-  reps,
-  canAssignOthers,
+  quickTasks,
   currentUser,
 }: {
-  accounts: TaskAccountOption[];
-  contacts: TaskContactOption[];
-  reps: RepOption[];
-  canAssignOthers: boolean;
+  companies: ComposerCompany[];
+  contacts: ComposerContactOption[];
+  quickTasks: QuickTask[];
   currentUser: { id: string; label: string };
 }) {
+  const [open, setOpen] = useState(false);
   return (
-    <TaskDialog
-      mode="create"
-      accounts={accounts}
-      contacts={contacts}
-      reps={reps}
-      canAssignOthers={canAssignOthers}
-      currentUser={currentUser}
-      trigger={(open) => (
-        <button type="button" onClick={open} className={BUTTON_CLASS}>
-          <IconTasks width={18} height={18} />
-          Add task
-        </button>
-      )}
-    />
+    <>
+      <button type="button" onClick={() => setOpen(true)} className={BUTTON_CLASS}>
+        <IconTasks width={18} height={18} />
+        Add task
+      </button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Add a task" wide>
+        <TaskComposer
+          assignee={{ kind: "self", id: currentUser.id, label: currentUser.label }}
+          companies={companies}
+          contacts={contacts}
+          quickTasks={quickTasks}
+          // Org-shared vocabulary; addQuickTask/removeQuickTask are
+          // owner-only on the server, so the controls are hidden rather
+          // than shown and then failing.
+          canEditQuickTasks={false}
+          chrome="bare"
+        />
+      </Modal>
+    </>
   );
 }
 
