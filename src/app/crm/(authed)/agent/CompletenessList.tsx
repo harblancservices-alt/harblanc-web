@@ -4,83 +4,107 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { titleCaseWords } from "../_shell/format";
+import { SourcePill } from "../_shell/SourcePill";
 import { ContactDialog } from "../accounts/[id]/ContactDialog";
 import { fillCompanyGap } from "../accounts/[id]/details-actions";
 import { GAP_REASON, type CompletenessGap, type GapKind } from "./completeness";
 
 /**
- * Completeness gaps — grouped by company, and FIXABLE WHERE THEY SIT.
+ * GAPS TO FILL — structure A, "company first".
  *
- * Brent, 2026-08-26: "give the gaps record a real look and function."
+ * Brent picked A from the four: the COMPANY is the object and the gaps are
+ * what it is missing. One row per company, not one row per gap — a company
+ * missing three things is one decision ("do I work these people?"), not
+ * three.
  *
- * FUNCTION. A gap used to be a link: it told you something was missing and
- * sent you to the company profile to fix it, which meant leaving the
- * dashboard, finding the field, saving, and coming back. Now the input opens
- * in the row. Type it, save, the row goes — that disappearance is the whole
- * reward, so it happens immediately rather than waiting on a page reload.
+ * ── A'S NAMED WEAKNESS, AND THE TWO FIXES ─────────────────────────────
  *
- * "FIND A CONTACT" IS THE EXCEPTION and opens the real add-contact dialog,
- * pre-filled with the company. A person is a name, a title, a number and an
- * email; cramming that into one inline field would produce bad records
- * faster, which is the opposite of the point.
+ * The sheet says it plainly: "nothing tells you which company to do first.
+ * Three rows, equal weight." Fixed without importing B's two-tier layout,
+ * which would have brought B's own weakness (the same company appearing
+ * twice):
  *
- * GROUPED BY COMPANY. Five rows covering two companies read as five
- * unrelated chores; two blocks read as "these two companies need filling
- * in", which is what it actually is. It also roughly halves the height.
+ *   ORDER   a company with a blocking gap sorts above one without. Ties
+ *           break on how many things are missing, then on name so the list
+ *           does not reshuffle between renders.
+ *   MARKER  the blocking chip is drawn in the red accent; the optional ones
+ *           stay outlined blue. One chip differs, not a whole second tier.
  *
- * WHAT DELIBERATELY DID NOT CHANGE, because it was already right: gaps are
- * DERIVED and never stored (completeness.ts), so there is nothing to reap
- * and they self-heal; there is no checkbox and no Done button, because
- * there is nothing to complete — the row leaves when the field is filled;
- * and they stay out of the overdue and due-today counts, which only ever
- * mean real tasks.
+ * ── WHAT "BLOCKING" MEANS, PRECISELY ──────────────────────────────────
  *
- * The optimistic hide plus router.refresh() is deliberate: the refresh
- * re-derives the gaps from the server, so if a save half-succeeded the row
- * comes back rather than staying gone on a lie.
+ * It is NOT a stage gate and this component does not say it is. No badge
+ * reads "BLOCKS QUALIFIED", because nothing in this app refuses a stage
+ * change for a missing field. What is true — and what the red marks — is
+ * that Qualified hands an agent "Make first contact", and you cannot make
+ * first contact with a company that has nobody on file. See
+ * completeness.ts's `blocking` note.
+ *
+ * ── STILL DERIVED, STILL DISAPPEARING ─────────────────────────────────
+ *
+ * Every row comes from gapsForCompany at read time. Nothing is stored,
+ * nothing is reaped, and a chip vanishes the moment its field is filled —
+ * the optimistic hide plus router.refresh means a half-succeeded save
+ * brings the chip back rather than leaving it gone on a lie.
+ *
+ * ── EACH CHIP IS THE FIX ──────────────────────────────────────────────
+ *
+ * Typing happens in the chip's place: it becomes an input, you type, enter,
+ * the chip goes. "Find a contact" is the exception and opens the real
+ * add-contact dialog — a person is a name, a title, a number and an email,
+ * and one text box would produce bad records faster.
  */
 
-/** What the inline editor asks for, per kind. `null` means this kind is not
+/** What the inline editor asks for, per kind. Absent means this kind is not
  * inline-fixable and opens a dialog instead. */
 const INLINE: Partial<Record<GapKind, { placeholder: string; label: string }>> = {
   industry: { placeholder: "e.g. Scaffolding, Pumps, Fence rental", label: "Industry" },
   address: { placeholder: "Street address", label: "Address" },
 };
 
+const CHIP =
+  "rounded-md border px-2.5 py-1 text-[12px] font-semibold transition-colors";
+const CHIP_OPTIONAL = `${CHIP} border-accent/45 bg-card text-accent hover:border-accent hover:bg-accent-bg`;
+// The one distinction. Red means "you cannot start" here, the same way it
+// means late on a task — not a second tier, one chip in a different colour.
+const CHIP_BLOCKING = `${CHIP} border-bad/50 bg-bad-bg text-bad hover:border-bad`;
+
 export function CompletenessList({
   gaps,
   total,
-  compact = false,
 }: {
   gaps: CompletenessGap[];
   /** Gaps across the whole book, which may exceed what is shown. */
   total: number;
-  compact?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  /** Rows hidden the instant they save, before the server round-trip lands. */
-  const [fixed, setFixed] = useState<Set<string>>(new Set());
+  /** Chips hidden the instant they save, before the server round-trip. */
+  const [filled, setFilled] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<string | null>(null);
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const visible = gaps.filter((g) => !fixed.has(g.id));
+  const visible = gaps.filter((g) => !filled.has(g.id));
   if (visible.length === 0) return null;
 
-  // Grouped, preserving the order companies first appear in.
-  const byCompany = new Map<string, { name: string; gaps: CompletenessGap[] }>();
+  // ── Group by company, then order by urgency (fix 1). ──
+  const byCompany = new Map<
+    string,
+    { name: string; source: string | null; gaps: CompletenessGap[] }
+  >();
   for (const g of visible) {
-    const entry = byCompany.get(g.companyId) ?? { name: g.companyName, gaps: [] };
+    const entry =
+      byCompany.get(g.companyId) ?? { name: g.companyName, source: g.source, gaps: [] };
     entry.gaps.push(g);
     byCompany.set(g.companyId, entry);
   }
-
-  function open(gap: CompletenessGap) {
-    setEditing(gap.id);
-    setValue("");
-    setError(null);
-  }
+  const rows = [...byCompany.entries()].sort(([, a], [, b]) => {
+    const aBlocked = a.gaps.some((g) => g.blocking);
+    const bBlocked = b.gaps.some((g) => g.blocking);
+    if (aBlocked !== bBlocked) return aBlocked ? -1 : 1;
+    if (a.gaps.length !== b.gaps.length) return b.gaps.length - a.gaps.length;
+    return a.name.localeCompare(b.name);
+  });
 
   function save(gap: CompletenessGap) {
     const v = value.trim();
@@ -92,7 +116,7 @@ export function CompletenessList({
         setError(res.error);
         return;
       }
-      setFixed((prev) => new Set(prev).add(gap.id));
+      setFilled((prev) => new Set(prev).add(gap.id));
       setEditing(null);
       setValue("");
       router.refresh();
@@ -100,42 +124,37 @@ export function CompletenessList({
   }
 
   return (
-    <div className={compact ? "" : ""}>
-      {/* No second heading: the card this sits in already says "Gaps". The
-          count moves up here so the panel is one header, not two. */}
+    <div>
       {total > visible.length && (
-        <p className="px-4 pb-1 pt-2 text-[11.5px] text-fg-subtle">
+        <p className="px-4 pt-2 text-[11.5px] text-fg-subtle">
           Showing {visible.length} of {total}
         </p>
       )}
 
       {error && (
-        <p className="mx-3 mb-2 rounded-md border border-bad/30 bg-bad-bg px-2.5 py-1.5 text-[12px] font-semibold text-bad">
+        <p className="mx-4 mt-2 rounded-md border border-bad/30 bg-bad-bg px-2.5 py-1.5 text-[12px] font-semibold text-bad">
           {error}
         </p>
       )}
 
-      <ul className="flex flex-col gap-2 p-3">
-        {[...byCompany.entries()].map(([companyId, entry]) => (
-          <li
-            key={companyId}
-            className="rounded-lg border border-line-strong bg-card p-3 shadow-e1"
-          >
-            <Link
-              href={`/crm/accounts/${companyId}`}
-              prefetch={false}
-              className="block truncate text-[13px] font-bold text-fg hover:text-accent hover:underline"
-            >
-              {titleCaseWords(entry.name)}
-            </Link>
-            <p className="mt-0.5 text-[11.5px] text-fg-subtle">
-              {entry.gaps.length} {entry.gaps.length === 1 ? "thing" : "things"} missing
-            </p>
+      <ul>
+        {rows.map(([companyId, entry]) => (
+          <li key={companyId} className="border-t border-line px-4 py-3 first:border-t-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/crm/accounts/${companyId}`}
+                prefetch={false}
+                className="min-w-0 truncate text-[13px] font-extrabold text-fg hover:text-accent hover:underline"
+              >
+                {titleCaseWords(entry.name)}
+              </Link>
+              <SourcePill source={entry.source} short />
+            </div>
 
-            <div className="mt-2 flex flex-col gap-1.5">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {entry.gaps.map((gap) => {
                 const inline = INLINE[gap.kind];
-                const isOpen = editing === gap.id;
+                const cls = gap.blocking ? CHIP_BLOCKING : CHIP_OPTIONAL;
 
                 // The one gap that is a real form, not a field.
                 if (!inline) {
@@ -144,38 +163,43 @@ export function CompletenessList({
                       key={gap.id}
                       accountId={gap.companyId}
                       mode="create"
-                      trigger={(openDialog) => (
+                      trigger={(open) => (
                         <button
                           type="button"
-                          onClick={openDialog}
-                          className="flex items-baseline gap-2 rounded-md border border-line px-2.5 py-1.5 text-left transition-colors hover:border-accent hover:bg-accent-bg"
+                          onClick={open}
+                          title={
+                            gap.blocking
+                              ? "Nothing can happen here until somebody is on file to call"
+                              : GAP_REASON[gap.kind]
+                          }
+                          className={cls}
                         >
-                          <span className="text-[12.5px] font-semibold text-fg">{gap.label}</span>
-                          <span className="truncate text-[11.5px] text-fg-subtle">
-                            {GAP_REASON[gap.kind]}
-                          </span>
+                          {gap.label}
                         </button>
                       )}
                     />
                   );
                 }
 
-                if (!isOpen) {
+                if (editing !== gap.id) {
                   return (
                     <button
                       key={gap.id}
                       type="button"
-                      onClick={() => open(gap)}
-                      className="flex items-baseline gap-2 rounded-md border border-line px-2.5 py-1.5 text-left transition-colors hover:border-accent hover:bg-accent-bg"
+                      onClick={() => {
+                        setEditing(gap.id);
+                        setValue("");
+                        setError(null);
+                      }}
+                      title={GAP_REASON[gap.kind]}
+                      className={cls}
                     >
-                      <span className="text-[12.5px] font-semibold text-fg">{gap.label}</span>
-                      <span className="truncate text-[11.5px] text-fg-subtle">
-                        {GAP_REASON[gap.kind]}
-                      </span>
+                      {gap.label}
                     </button>
                   );
                 }
 
+                // The chip becomes the field, in place.
                 return (
                   <form
                     key={gap.id}
@@ -183,7 +207,7 @@ export function CompletenessList({
                       e.preventDefault();
                       save(gap);
                     }}
-                    className="flex items-center gap-1.5 rounded-md border border-accent bg-accent-bg px-2 py-1.5"
+                    className="inline-flex items-center gap-1"
                   >
                     <input
                       autoFocus
@@ -195,27 +219,20 @@ export function CompletenessList({
                           setValue("");
                         }
                       }}
+                      onBlur={() => {
+                        if (!value.trim()) setEditing(null);
+                      }}
                       placeholder={inline.placeholder}
                       aria-label={`${inline.label} for ${entry.name}`}
                       disabled={pending}
-                      className="min-w-0 flex-1 rounded border border-line-strong bg-card px-2 py-1 text-[12.5px] text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
+                      className="w-[210px] rounded-md border border-accent bg-card px-2.5 py-1 text-[12px] text-fg outline-none placeholder:text-fg-subtle focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
                     />
                     <button
                       type="submit"
                       disabled={pending || !value.trim()}
-                      className="shrink-0 rounded bg-accent px-2 py-1 text-[11.5px] font-bold text-white disabled:opacity-50"
+                      className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-bold text-white disabled:opacity-50"
                     >
                       {pending ? "…" : "Save"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditing(null);
-                        setValue("");
-                      }}
-                      className="shrink-0 rounded px-1.5 py-1 text-[11.5px] font-semibold text-fg-muted hover:text-fg"
-                    >
-                      Cancel
                     </button>
                   </form>
                 );

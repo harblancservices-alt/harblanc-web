@@ -160,6 +160,9 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     address: (a.address as string | null) ?? null,
     industry: (a.industry as string | null) ?? null,
     contactCount: contactCounts.get(a.id as string) ?? 0,
+    // Provenance for the gaps row's pill — the same column the company card
+    // and the work pool already show. Already selected above.
+    source: (a.source as string | null) ?? null,
   }));
 
   // Who to call, by the shared rule (lib/crm/primaryContact.ts).

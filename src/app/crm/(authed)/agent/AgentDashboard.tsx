@@ -150,7 +150,7 @@ export function AgentDashboard({
               </p>
             </div>
           ) : (
-            <CompletenessList gaps={gaps} total={gapTotal} compact />
+            <CompletenessList gaps={gaps} total={gapTotal} />
           )}
         </Card>
 

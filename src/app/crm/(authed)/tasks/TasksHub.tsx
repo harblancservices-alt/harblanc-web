@@ -205,7 +205,7 @@ export function TasksHub({
                   ))
                 )}
 
-                {key === "inbox" && <CompletenessList gaps={gaps} total={gapTotal} compact />}
+                {key === "inbox" && <CompletenessList gaps={gaps} total={gapTotal} />}
               </div>
             </section>
           ))}

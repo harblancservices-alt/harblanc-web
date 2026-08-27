@@ -34,6 +34,25 @@ export type CompletenessGap = {
   label: string;
   /** Deep link to the company, focused on the thing that's missing. */
   href: string;
+  /** crm_accounts.source, carried through so a gaps row can show the same
+   * provenance pill the company shows everywhere else. Never control flow. */
+  source: string | null;
+  /**
+   * Does this gap stop the work, as opposed to merely thinning the record?
+   *
+   * READ THIS BEFORE CALLING IT A STAGE GATE. Nothing in this app refuses a
+   * stage change for a missing field — updateLifecycleStatus moves a company
+   * anywhere at any time and blocks exactly one thing, a terminal stage with
+   * no reason. So this is NOT "blocks Qualified" in the enforcement sense,
+   * and no badge here should claim it is.
+   *
+   * What it IS: a true statement about the work. Qualified hands an agent
+   * "Make first contact" (assignmentTask.ts), and you cannot make first
+   * contact with a company that has nobody on file to call. A missing
+   * industry or freight spend costs you context; a missing contact costs you
+   * the ability to start. That difference is real and worth one marker.
+   */
+  blocking: boolean;
 };
 
 /** The company shape a gap is computed from — every field already loaded by
@@ -48,6 +67,9 @@ export type CompletenessInput = {
   industry?: string | null;
   /** How many contacts this company has on file. */
   contactCount: number;
+  /** crm_accounts.source — provenance for the pill, optional because the
+   * older callers of this derivation never needed it. */
+  source?: string | null;
 };
 
 const GAP_LABEL: Record<GapKind, string> = {
@@ -61,6 +83,17 @@ export const GAP_REASON: Record<GapKind, string> = {
   contact: "nobody to call there yet",
   address: "no address on file",
   industry: "not categorised",
+};
+
+/**
+ * Which kinds stop the work. Exactly one does — see `blocking` above for why
+ * this is a statement about what an agent can do, not about what the server
+ * will refuse.
+ */
+export const GAP_BLOCKS_WORK: Record<GapKind, boolean> = {
+  contact: true,
+  address: false,
+  industry: false,
 };
 
 function isBlank(value: string | null | undefined): boolean {
@@ -89,6 +122,8 @@ export function gapsForCompany(company: CompletenessInput): CompletenessGap[] {
       // fixed, and `#details` puts the detail card in view rather than making
       // them hunt for the field.
       href: `/crm/accounts/${company.id}#details`,
+      source: company.source ?? null,
+      blocking: GAP_BLOCKS_WORK[kind],
     });
 
   if (company.contactCount === 0) add("contact");
