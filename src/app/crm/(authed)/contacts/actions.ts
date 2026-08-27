@@ -7,6 +7,7 @@ import { DEFAULT_LIFECYCLE } from "../accounts/lifecycle";
 import { centralInputToIso, titleCaseWords } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue } from "../_shell/contactFields";
 import { syncFollowupTask } from "@/lib/crm/followupTask";
+import { roleFromTitle } from "../accounts/[id]/contactRoles";
 
 export type ActionResult =
   | { ok: true; accountId: string | null }
@@ -105,6 +106,14 @@ export async function createContactQuick(formData: FormData): Promise<ActionResu
       account_id: accountId,
       name,
       title: optStr(formData, "title"),
+      // Derived from the chosen title, exactly as createContact does, so a
+      // person added from the dashboard gets the same coloured role pill as
+      // one added from inside a company. Only written when the title is a
+      // recognised preset — free text leaves the column alone rather than
+      // nulling a role somebody set from the inline pills.
+      ...(roleFromTitle(optStr(formData, "title"))
+        ? { role_category: roleFromTitle(optStr(formData, "title")) }
+        : {}),
       email: optStr(formData, "email"),
       phone: phones[0]?.number || null,
       phones,
@@ -132,6 +141,32 @@ export async function createContactQuick(formData: FormData): Promise<ActionResu
       kind: CRM_ACTIVITY.contactAdded,
       summary: `Contact added: ${name}`,
     });
+
+    // THE NOTE GOES ON THE COMPANY, not the person — the same rule
+    // createContact follows, and the same reason: what you learn while
+    // writing somebody down is a fact about the account, and filing it
+    // under a person buries it the moment they leave. A failed note does
+    // not fail the save; the contact is already stored.
+    const companyNote = (optStr(formData, "company_note") ?? "").trim();
+    if (companyNote) {
+      const { error: noteErr } = await supabase.from("crm_notes").insert({
+        org_id: user.orgId,
+        account_id: accountId,
+        user_id: user.id,
+        body: companyNote,
+        is_pinned: false,
+        is_ai: false,
+      });
+      if (!noteErr) {
+        await logActivity(supabase, {
+          orgId: user.orgId,
+          userId: user.id,
+          accountId,
+          kind: CRM_ACTIVITY.noteAdded,
+          summary: "Note added",
+        });
+      }
+    }
   }
 
   // Keeps a real crm_tasks row in sync with next_followup_at — see

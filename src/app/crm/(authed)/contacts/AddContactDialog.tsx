@@ -4,14 +4,15 @@ import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
-import { Field, TextareaField, SubmitButton, FormError } from "../_shell/form";
+import { Field, SelectField, TextareaField, SubmitButton, FormError } from "../_shell/form";
 import { IconPlus } from "../_shell/icons";
-import { BTN_ACTION, BTN_EDIT } from "../_shell/ui";
+import { BTN_ACTION, BTN_EDIT, BTN_NEUTRAL } from "../_shell/ui";
 import { PhonesEditor } from "../_shell/PhonesEditor";
 import { LinksEditor } from "../_shell/LinksEditor";
 import { MoodPicker } from "../_shell/MoodPicker";
 import { CompanyCombobox, type CompanyOption, type CompanySelection } from "./CompanyCombobox";
 import { createContactQuick } from "./actions";
+import { CONTACT_ROLE_PRESETS, ROLE_OTHER } from "../accounts/[id]/contactRoles";
 
 /**
  * Quick-add a contact from the global Contacts directory — the entry point
@@ -48,11 +49,16 @@ export function AddContactDialog({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [company, setCompany] = useState<CompanySelection>({ text: "", selectedId: null });
+  /** Which option the role dropdown shows. Same vocabulary the in-company
+   * dialog uses — contactRoles.ts — so a person added here and a person
+   * added from a company page get the same titles and the same pills. */
+  const [role, setRole] = useState<string>("");
   const router = useRouter();
 
   function openDialog() {
     setError(null);
     setCompany(initialCompany ?? { text: "", selectedId: null });
+    setRole("");
     setOpen(true);
   }
 
@@ -95,29 +101,74 @@ export function AddContactDialog({
       <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="New contact">
         <FormError message={error} />
         <form onSubmit={onSubmit} className="flex flex-col gap-2">
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <Field label="Name" name="name" required autoFocus />
-            <Field label="Title" name="title" />
-          </div>
+          <Field label="Name" name="name" required autoFocus />
 
           <CompanyCombobox companies={companies} selection={company} onChange={setCompany} />
 
-          <Field label="Email" name="email" type="email" inputMode="email" />
+          {/* THE SAME ROLE DROPDOWN THE IN-COMPANY DIALOG USES. This was a
+              free-text "Title" box, which is how the live data ended up
+              holding "Purchasing Manager", "Manager, Purchasing" and
+              "purchasing" for one job. Two dialogs that both create a
+              contact must not disagree about what a role is. */}
+          <SelectField
+            label="Role"
+            name="role_preset"
+            defaultValue=""
+            onChange={(e) => setRole(e.target.value)}
+          >
+            <option value="">Select a role…</option>
+            {CONTACT_ROLE_PRESETS.map((r) => (
+              <option key={r.title} value={r.title}>
+                {r.title}
+              </option>
+            ))}
+            <option value={ROLE_OTHER}>Other…</option>
+          </SelectField>
+
+          {role === ROLE_OTHER ? (
+            <Field label="Role (other)" name="title" placeholder="e.g. VP Operations" />
+          ) : (
+            <input type="hidden" name="title" value={role} />
+          )}
 
           <PhonesEditor />
-          <LinksEditor />
 
-          <MoodPicker />
-
-          <Field
-            label="Best time to call"
-            name="best_time_to_call"
-            placeholder="e.g. Weekday AM"
+          <TextareaField
+            label="Note — saves to the company's notes feed"
+            name="company_note"
+            rows={3}
+            placeholder="What did you learn? Goes on the company, not this person."
           />
-          <Field label="Next follow-up (CST)" name="next_followup_at" type="datetime-local" />
-          <TextareaField label="Notes" name="notes" />
 
-          <SubmitButton pending={pending}>Save contact</SubmitButton>
+          {/* Everything this form used to open with. */}
+          <details className="mt-1 rounded-md border border-line">
+            <summary className="cursor-pointer select-none px-3 py-2 text-[12px] font-bold text-fg-muted hover:text-fg">
+              More fields
+            </summary>
+            <div className="flex flex-col gap-2 border-t border-line p-3">
+              <Field label="Email" name="email" type="email" inputMode="email" />
+              <LinksEditor />
+              <MoodPicker />
+              <Field
+                label="Best time to call"
+                name="best_time_to_call"
+                placeholder="e.g. Weekday AM"
+              />
+              <Field label="Next follow-up (CST)" name="next_followup_at" type="datetime-local" />
+            </div>
+          </details>
+
+          <div className="mt-1 flex items-center gap-2">
+            <SubmitButton pending={pending}>Save contact</SubmitButton>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              disabled={pending}
+              className={`inline-flex h-9 items-center rounded-md px-4 text-[13px] font-semibold transition-colors max-lg:h-11 max-lg:text-[14px] ${BTN_NEUTRAL}`}
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       </Modal>
     </>
