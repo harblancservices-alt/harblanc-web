@@ -131,10 +131,22 @@ export function WhoDoICall({
             accountId={accountId} companyName={companyName}
             mode="create"
             trigger={(open) => (
+              /* A REAL BUTTON, IN RED — Brent's call, 2026-08-27.
+                 51 of 99 companies have nobody on file, and a company with
+                 no name and no number cannot be worked at all, so the one
+                 action that fixes that is allowed to shout.
+
+                 It does break the app's own rule: red is otherwise reserved
+                 for LATE and DESTRUCTIVE, which is why the source pills
+                 avoided it, why overdue is the only red on a task card, and
+                 why the call outcomes keep red for "bad number". The task
+                 card two columns to the right paints its OVERDUE caption and
+                 its left rule from this same --bad. Flagged and built as
+                 asked. */
               <button
                 type="button"
                 onClick={open}
-                className="text-[12px] font-bold text-accent hover:underline"
+                className="inline-flex min-h-9 items-center rounded-md bg-bad px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-bad/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40"
               >
                 + person
               </button>
