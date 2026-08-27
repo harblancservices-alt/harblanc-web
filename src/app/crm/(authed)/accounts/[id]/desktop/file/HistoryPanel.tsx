@@ -145,7 +145,7 @@ export function HistoryPanel({
           <div className={written.length > 0 ? "mt-2 border-t border-line pt-2" : ""}>
             {events.map((e) => (
               <p key={e.id} className="flex gap-3 py-[3px] text-[11.5px] text-fg-subtle">
-                <span className="w-[46px] shrink-0 crm-num">{stamp(e.occurredAt, nowMs)}</span>
+                <span className="w-[88px] shrink-0 whitespace-nowrap crm-num">{stamp(e.occurredAt, nowMs)}</span>
                 <span className="min-w-0 flex-1">
                   {e.title}
                   {e.body ? ` — ${e.body}` : ""}

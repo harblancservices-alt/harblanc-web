@@ -18,7 +18,7 @@ import { CompanyProfileSection } from "./CompanyProfileSection";
 import { ShipmentsTab } from "./ShipmentsTab";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
 import { CompanyFile } from "./desktop/file/CompanyFile";
-import { bolFacts, type BolRow } from "./desktop/file/bolFacts";
+import { bolFacts, placeOf, type BolRow } from "./desktop/file/bolFacts";
 import { fileGaps } from "./desktop/file/fileGaps";
 import type { CallPerson } from "./desktop/file/WhoDoICall";
 import type { FileTask } from "./desktop/file/TasksPanel";
@@ -456,9 +456,21 @@ export default async function AccountDetailPage({
       })
     : null;
 
-  /** The header subtitle's second half, and the only place city/state are
-   * shown on this page. Falls back to nothing rather than a stray comma. */
-  const headerPlace = [accountCity, accountState].filter(Boolean).join(", ") || null;
+  /**
+   * The header subtitle's second half — "Mesquite, TX".
+   *
+   * city/state FIRST, then the address as a fallback. That fallback is not a
+   * nicety: Fritz Industries, and every other company created from a BOL,
+   * has its whole address in the single `address` text column with city,
+   * state and zip all NULL. Reading only the columns would have dropped the
+   * place off the header for exactly the companies the design was drawn
+   * from. placeOf is the same tested parser panel 04 uses on BOL addresses,
+   * so the two can never disagree about where somebody is.
+   */
+  const headerPlace =
+    [accountCity, accountState].filter(Boolean).join(", ") ||
+    placeOf(accountAddress) ||
+    null;
 
   const filePeople: CallPerson[] = contacts
     .map((c) => {
