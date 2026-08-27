@@ -61,7 +61,6 @@ export function CompanyFile({
   accountId,
   accountName,
   industry,
-  place,
   fullAddress,
   stage,
   ownerLabel,
@@ -87,7 +86,6 @@ export function CompanyFile({
   accountId: string;
   accountName: string;
   industry: string | null;
-  place: string | null;
   fullAddress: string | null;
   stage: string;
   ownerLabel: string | null;
@@ -129,7 +127,6 @@ export function CompanyFile({
       <FileHeader
         accountName={accountName}
         industry={industry}
-        place={place}
         fullAddress={fullAddress}
         ownerLabel={ownerLabel}
         reassign={reassign}

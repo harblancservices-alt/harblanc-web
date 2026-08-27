@@ -2,8 +2,39 @@ import type { ReactNode } from "react";
 import { Micro } from "./chrome";
 
 /**
- * The company file's dark header — the top strip, the name band, and the
- * three stat blocks on the right.
+ * The company file's dark header — the name band and the three stat blocks.
+ *
+ * ── THE BRANDING STRIP IS GONE (Brent, 2026-08-26) ────────────────────
+ *
+ *   "remove this hellohotshot bar and move the addres down next to the
+ *    company city and state."
+ *
+ * It carried a logo chip, "HELLO HOTSHOT", "COMPANY FILE" and the address.
+ * Three of those four said nothing: the sidebar says Hello Hotshot on
+ * every page of the app, and "COMPANY FILE" labelled a page that has the
+ * company's name in 27px type directly beneath it. The address was the
+ * only real content, and it sat at the far right of a bar — as far from
+ * the company it belongs to as the layout allowed.
+ *
+ * So the strip went and the address moved into the subtitle, beside the
+ * trade: one line reading "what they do, and where they are" instead of
+ * two bands saying it separately. It also reclaims ~34px on every company,
+ * which answers part of the density complaint for free.
+ *
+ * THE SEPARATE "place" (city, state) WENT WITH IT, because it would now be
+ * printed twice. `fullAddress` is composed as address + city/state + zip,
+ * so it already ends in the town — and for the BOL-created companies,
+ * whose city/state columns are null and whose entire address lives in one
+ * text blob, the town is inside that blob as well. One value, shown once.
+ *
+ * NOT TRUNCATED. Measured before deciding: across the 85 companies that
+ * have an address the longest composed value is 71 characters and the
+ * average is 28, and only 6 of 99 would push the whole subtitle past 75.
+ * That fits this header at 12px with room to spare, so the address renders
+ * in full. `truncate` stays on the line purely as a guard against some
+ * future pathological value breaking the layout — it is not expected to
+ * fire on today's data, and the full string is in the link title either
+ * way.
  *
  * ── WHAT IS REAL AND WHAT THE DESIGN ASKED FOR ────────────────────────
  *
@@ -50,7 +81,6 @@ function Stat({
 export function FileHeader({
   accountName,
   industry,
-  place,
   fullAddress,
   ownerLabel,
   reassign,
@@ -61,8 +91,8 @@ export function FileHeader({
 }: {
   accountName: string;
   industry: string | null;
-  /** "Mesquite, TX" — the subtitle's second half. */
-  place: string | null;
+  /** The composed address — street, city, state, zip. Rendered whole, in
+   * the subtitle, as a Maps link. */
   fullAddress: string | null;
   ownerLabel: string | null;
   /** The "reassign" control, rendered as a quiet underlined link. */
@@ -73,60 +103,54 @@ export function FileHeader({
   /** What the gaps actually are, e.g. "contact, carrier, spend". */
   gapSummary: string | null;
 }) {
-  const subtitle = [industry, place].filter(Boolean);
   const mapHref = fullAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`
     : null;
 
   return (
     <header>
-      {/* ── Top strip ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2.5 bg-graphite-2 px-4 py-2">
-        <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[3px] bg-white text-[11px] font-extrabold text-graphite">
-          H
-        </span>
-        <Micro className="text-white">Hello Hotshot</Micro>
-        <Micro className="text-white/45">Company file</Micro>
-
-        {fullAddress && (
-          <div className="ml-auto flex min-w-0 items-center gap-1.5">
-            <svg
-              aria-hidden
-              viewBox="0 0 24 24"
-              className="h-3.5 w-3.5 shrink-0 fill-none stroke-white/55 stroke-2"
-            >
-              <path d="M12 21s7-6.5 7-11a7 7 0 1 0-14 0c0 4.5 7 11 7 11Z" />
-              <circle cx="12" cy="10" r="2.5" />
-            </svg>
-            {mapHref ? (
-              <a
-                href={mapHref}
-                target="_blank"
-                rel="noreferrer"
-                className="min-w-0 truncate text-[11.5px] font-bold text-white underline decoration-white/40 underline-offset-2 hover:decoration-white"
-              >
-                {fullAddress}
-              </a>
-            ) : (
-              <span className="min-w-0 truncate text-[11.5px] font-bold text-white">
-                {fullAddress}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* ── Name band ─────────────────────────────────────────────── */}
       <div className="flex items-end gap-6 bg-graphite px-4 pb-4 pt-3.5">
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[27px] font-extrabold leading-none tracking-[-0.02em] text-white">
             {accountName}
           </h1>
-          {subtitle.length > 0 && (
-            <p className="mt-2 truncate text-[12px]">
-              {industry && <span className="font-bold text-white/90">{industry}</span>}
-              {industry && place && <span className="px-1.5 text-white/35">·</span>}
-              {place && <span className="text-white/60">{place}</span>}
+          {(industry || fullAddress) && (
+            <p className="mt-2 flex items-center gap-1.5 truncate text-[12px]">
+              {industry && <span className="shrink-0 font-bold text-white/90">{industry}</span>}
+              {industry && fullAddress && (
+                <span aria-hidden className="shrink-0 text-white/35">
+                  ·
+                </span>
+              )}
+              {fullAddress && (
+                <>
+                  {/* The pin still earns its place inline: on a band this
+                      dark it is what says "this is a location" before the
+                      eye has read a word of it. */}
+                  <svg
+                    aria-hidden
+                    viewBox="0 0 24 24"
+                    className="h-3.5 w-3.5 shrink-0 fill-none stroke-white/50 stroke-2"
+                  >
+                    <path d="M12 21s7-6.5 7-11a7 7 0 1 0-14 0c0 4.5 7 11 7 11Z" />
+                    <circle cx="12" cy="10" r="2.5" />
+                  </svg>
+                  {mapHref ? (
+                    <a
+                      href={mapHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={fullAddress}
+                      className="min-w-0 truncate text-white/70 underline decoration-white/30 underline-offset-2 hover:text-white hover:decoration-white"
+                    >
+                      {fullAddress}
+                    </a>
+                  ) : (
+                    <span className="min-w-0 truncate text-white/70">{fullAddress}</span>
+                  )}
+                </>
+              )}
             </p>
           )}
         </div>

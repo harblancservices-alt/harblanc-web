@@ -18,7 +18,7 @@ import { CompanyProfileSection } from "./CompanyProfileSection";
 import { ShipmentsTab } from "./ShipmentsTab";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
 import { CompanyFile } from "./desktop/file/CompanyFile";
-import { bolFacts, placeOf, type BolRow } from "./desktop/file/bolFacts";
+import { bolFacts, type BolRow } from "./desktop/file/bolFacts";
 import { fileGaps } from "./desktop/file/fileGaps";
 import type { CallPerson } from "./desktop/file/WhoDoICall";
 import type { FileTask } from "./desktop/file/TasksPanel";
@@ -378,8 +378,22 @@ export default async function AccountDetailPage({
   const websiteHref = website ? normalizeHref(website) : null;
   const phones = parsePhones(account.phones);
   const links = parseLinks(account.links);
-  const fullAddress =
-    [accountAddress, [accountCity, accountState].filter(Boolean).join(", "), account.zip].filter(Boolean).join(", ") || null;
+  /**
+   * The composed address — now the header's subtitle rather than a line in
+   * a bar, so its punctuation is visible enough to matter.
+   *
+   * The ZIP joins the state with a SPACE, not a comma: US addresses are
+   * written "Houston, TX 77040", and the old comma-join rendered
+   * "Houston, TX, 77040", which read as a list rather than an address.
+   * Only the city/state/zip tail changes; the street still joins with a
+   * comma, and a company missing any part still composes cleanly because
+   * each piece is filtered before it is joined.
+   */
+  const cityStateZip =
+    [[accountCity, accountState].filter(Boolean).join(", "), (account.zip as string | null) || null]
+      .filter(Boolean)
+      .join(" ");
+  const fullAddress = [accountAddress, cityStateZip].filter(Boolean).join(", ") || null;
   const companyEmail = (account.email as string | null) || primaryContactEmail;
 
   const aiConfirmedFields = (account.ai_confirmed_fields as Record<string, unknown> | null) ?? {};
@@ -472,21 +486,9 @@ export default async function AccountDetailPage({
       })
     : null;
 
-  /**
-   * The header subtitle's second half — "Mesquite, TX".
-   *
-   * city/state FIRST, then the address as a fallback. That fallback is not a
-   * nicety: Fritz Industries, and every other company created from a BOL,
-   * has its whole address in the single `address` text column with city,
-   * state and zip all NULL. Reading only the columns would have dropped the
-   * place off the header for exactly the companies the design was drawn
-   * from. placeOf is the same tested parser panel 04 uses on BOL addresses,
-   * so the two can never disagree about where somebody is.
-   */
-  const headerPlace =
-    [accountCity, accountState].filter(Boolean).join(", ") ||
-    placeOf(accountAddress) ||
-    null;
+  // `headerPlace` (city, state) stood here until 2026-08-26. The header's
+  // subtitle now renders the composed `fullAddress`, which already ends in
+  // the town — showing both printed the place twice. See FileHeader.tsx.
 
   const filePeople: CallPerson[] = contacts
     .map((c) => {
@@ -727,7 +729,6 @@ export default async function AccountDetailPage({
           accountId={account.id as string}
           accountName={accountName}
           industry={account.industry as string | null}
-          place={headerPlace}
           fullAddress={fullAddress}
           stage={stage}
           ownerLabel={currentRepLabel}
