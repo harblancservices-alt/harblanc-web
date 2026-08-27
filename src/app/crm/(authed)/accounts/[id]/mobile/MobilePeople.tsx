@@ -37,7 +37,15 @@ export type MobilePerson = {
  * prop reaching this component is plain serializable data, so no function
  * crosses the RSC boundary from the server page.
  */
-export function MobilePeople({ accountId, people }: { accountId: string; people: MobilePerson[] }) {
+export function MobilePeople({
+  accountId,
+  companyName,
+  people,
+}: {
+  accountId: string;
+  companyName?: string;
+  people: MobilePerson[];
+}) {
   if (people.length === 0) {
     return (
       <p className="px-[13px] py-[18px] text-[12.5px] font-semibold text-fg-muted">
@@ -100,7 +108,7 @@ export function MobilePeople({ accountId, people }: { accountId: string; people:
                 </a>
               ) : null}
               <ContactDialog
-                accountId={accountId}
+                accountId={accountId} companyName={companyName}
                 mode="edit"
                 defaults={p.defaults}
                 trigger={(open) => (

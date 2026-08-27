@@ -162,6 +162,7 @@ export function CompanyFile({
         }
         knowProps={{
           accountId,
+          companyName: accountName,
           facts,
           bolDocs,
           gaps,
@@ -169,7 +170,9 @@ export function CompanyFile({
           companyDefaults,
           reps,
         }}
-        contactsPanel={<ContactsTab accountId={accountId} people={people} />}
+        contactsPanel={
+          <ContactsTab accountId={accountId} companyName={accountName} people={people} />
+        }
         shipmentsPanel={shipmentsPanel}
       />
     </div>

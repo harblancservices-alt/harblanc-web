@@ -177,6 +177,7 @@ export function FileBody({
             <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,1.05fr)] items-stretch gap-3">
               <WhoDoICall
                 accountId={accountId}
+                companyName={header.accountName}
                 people={people}
                 companyPhones={companyPhones}
                 companyDefaults={companyDefaults}

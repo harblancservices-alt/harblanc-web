@@ -162,6 +162,10 @@ export function CompletenessList({
                     <ContactDialog
                       key={gap.id}
                       accountId={gap.companyId}
+                      // This list is where the missing-company bug bit: several
+                      // companies stacked, chips that look alike, and a dialog
+                      // that named none of them.
+                      companyName={titleCaseWords(entry.name)}
                       mode="create"
                       trigger={(open) => (
                         <button

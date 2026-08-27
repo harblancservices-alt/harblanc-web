@@ -91,6 +91,7 @@ const SHORTLIST = 3;
 
 export function WhoDoICall({
   accountId,
+  companyName,
   people,
   companyPhones,
   companyDefaults,
@@ -98,6 +99,8 @@ export function WhoDoICall({
   onOpenContacts,
 }: {
   accountId: string;
+  /** Named in every contact dialog this panel opens. */
+  companyName?: string;
   /** Everybody on the company. This panel shows the first few; the Contacts
    * tab shows them all. */
   people: CallPerson[];
@@ -125,7 +128,7 @@ export function WhoDoICall({
         count={people.length === 0 ? "nobody yet" : shortlistLabel}
         action={
           <ContactDialog
-            accountId={accountId}
+            accountId={accountId} companyName={companyName}
             mode="create"
             trigger={(open) => (
               <button
@@ -149,7 +152,7 @@ export function WhoDoICall({
               This company cannot be worked until somebody has a name and a number.
             </p>
             <ContactDialog
-              accountId={accountId}
+              accountId={accountId} companyName={companyName}
               mode="create"
               trigger={(open) => (
                 <button
@@ -183,7 +186,7 @@ export function WhoDoICall({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <ContactDialog
-                        accountId={accountId}
+                        accountId={accountId} companyName={companyName}
                         mode="edit"
                         defaults={p.defaults}
                         trigger={(open) => (
@@ -219,7 +222,7 @@ export function WhoDoICall({
                         <>
                           {meta.length > 0 && " · "}
                           <ContactDialog
-                            accountId={accountId}
+                            accountId={accountId} companyName={companyName}
                             mode="edit"
                             defaults={p.defaults}
                             trigger={(open) => (
@@ -241,7 +244,7 @@ export function WhoDoICall({
                     <PhoneButton label={phone.label || null} number={phone.number} />
                   ) : (
                     <ContactDialog
-                      accountId={accountId}
+                      accountId={accountId} companyName={companyName}
                       mode="edit"
                       defaults={p.defaults}
                       trigger={(open) => (

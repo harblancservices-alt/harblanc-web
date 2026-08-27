@@ -7,6 +7,7 @@ import { normalizeStage, stageLabel, stageRank, stageNeedsReason, DEFAULT_LIFECY
 import { centralInputToIso, firstName, titleCaseWords, upperCaseState } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue, parsePhones, looksLikePhone } from "../_shell/contactFields";
 import { MOOD_VALUES } from "../_shell/mood";
+import { roleFromTitle } from "./[id]/contactRoles";
 import { syncFollowupTask } from "@/lib/crm/followupTask";
 import { fireStageEntryTask } from "@/lib/crm/stageAutomation";
 
@@ -804,6 +805,27 @@ function contactFieldsFromForm(fd: FormData) {
   };
 }
 
+/**
+ * The role columns to write for a submitted title, as a spreadable object.
+ *
+ * ContactDialog's role dropdown submits ONLY `title` — the mapping onto
+ * roles.ts's ten pill buckets is derived here, from the single tested table
+ * in contactRoles.ts, so the client cannot send a role_category the pills
+ * do not know how to draw.
+ *
+ * It returns nothing at all when the title is free text ("Other", or any
+ * legacy hand-typed value like the live "VP Operations"). That is the
+ * important case: role_category was deliberately kept out of this form
+ * because the inline RoleControl pills own it, and a save that wrote
+ * `role_category: null` alongside a free-text title would silently wipe a
+ * role a rep had already set. Recognised title ⇒ set the bucket. Anything
+ * else ⇒ leave the column exactly as it was.
+ */
+function roleColumnsFromTitle(title: string | null): { role_category?: string } {
+  const category = roleFromTitle(title);
+  return category ? { role_category: category } : {};
+}
+
 export async function createContact(
   accountId: string,
   formData: FormData,
@@ -819,6 +841,7 @@ export async function createContact(
       org_id: user.orgId,
       account_id: accountId,
       ...fields,
+      ...roleColumnsFromTitle(fields.title),
     })
     .select("id")
     .single();
@@ -836,6 +859,39 @@ export async function createContact(
     kind: CRM_ACTIVITY.contactAdded,
     summary: `Contact added: ${fields.name}`,
   });
+
+  // THE NOTE GOES ON THE COMPANY, NOT THE PERSON. Brent was explicit, and
+  // the live data already agrees with him — of 31 notes in the database
+  // exactly one is attached to a contact. What a rep learns while writing
+  // somebody down ("they run everything out of the Houston dock") is a fact
+  // about the account, and filing it under a person buries it the moment
+  // that person leaves.
+  //
+  // So this writes the same row addNote() writes: account_id set, contact_id
+  // left null, which is what puts it in the company's notes feed. A failure
+  // here does NOT fail the whole action — the contact is already saved, and
+  // reporting "could not save" for a lost note would be a lie about the
+  // thing the rep actually came to do.
+  const companyNote = (optStr(formData, "company_note") ?? "").trim();
+  if (companyNote) {
+    const { error: noteError } = await supabase.from("crm_notes").insert({
+      org_id: user.orgId,
+      account_id: accountId,
+      user_id: user.id,
+      body: companyNote,
+      is_pinned: false,
+      is_ai: false,
+    });
+    if (!noteError) {
+      await logActivity(supabase, {
+        orgId: user.orgId,
+        userId: user.id,
+        accountId,
+        kind: CRM_ACTIVITY.noteAdded,
+        summary: "Note added",
+      });
+    }
+  }
 
   // Keeps a real crm_tasks row in sync with next_followup_at — see
   // src/lib/crm/followupTask.ts's header comment for why this exists (a
@@ -874,7 +930,7 @@ export async function updateContact(
 
   const { error } = await supabase
     .from("crm_contacts")
-    .update({ ...fields })
+    .update({ ...fields, ...roleColumnsFromTitle(fields.title) })
     .eq("id", contactId);
 
   if (error) {

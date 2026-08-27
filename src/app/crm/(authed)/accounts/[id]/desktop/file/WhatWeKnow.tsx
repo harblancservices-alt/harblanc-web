@@ -69,6 +69,7 @@ function Row({
 
 export function WhatWeKnow({
   accountId,
+  companyName,
   facts,
   bolDocs,
   gaps,
@@ -78,6 +79,8 @@ export function WhatWeKnow({
   active,
 }: {
   accountId: string;
+  /** Named in the contact dialog the "somebody to call" gap opens. */
+  companyName?: string;
   facts: BolFacts;
   /** The BOL PDFs themselves, newest first — joined company ->
    * crm_bol_entries -> crm_documents in page.tsx. See BolViewer. */
@@ -255,7 +258,7 @@ export function WhatWeKnow({
                 <div className="w-[160px] shrink-0">
                   {gap.needsForm ? (
                     <ContactDialog
-                      accountId={accountId}
+                      accountId={accountId} companyName={companyName}
                       mode="create"
                       trigger={(open) => (
                         <button

@@ -63,15 +63,17 @@ function Head({ children }: { children: React.ReactNode }) {
 function Missing({
   label,
   accountId,
+  companyName,
   person,
 }: {
   label: string;
   accountId: string;
+  companyName?: string;
   person: CallPerson;
 }) {
   return (
     <ContactDialog
-      accountId={accountId}
+      accountId={accountId} companyName={companyName}
       mode="edit"
       defaults={person.defaults}
       trigger={(open) => (
@@ -89,9 +91,11 @@ function Missing({
 
 export function ContactsTab({
   accountId,
+  companyName,
   people,
 }: {
   accountId: string;
+  companyName?: string;
   people: CallPerson[];
 }) {
   if (people.length === 0) {
@@ -105,7 +109,7 @@ export function ContactsTab({
           one number is enough to start.
         </p>
         <ContactDialog
-          accountId={accountId}
+          accountId={accountId} companyName={companyName}
           mode="create"
           trigger={(open) => (
             <button
@@ -129,7 +133,7 @@ export function ContactsTab({
         count={`${people.length} ${people.length === 1 ? "person" : "people"} on file`}
         action={
           <ContactDialog
-            accountId={accountId}
+            accountId={accountId} companyName={companyName}
             mode="create"
             trigger={(open) => (
               <button
@@ -180,7 +184,7 @@ export function ContactsTab({
                   {p.role || p.title ? (
                     <span className="text-[12px] text-fg-muted">{p.role ?? p.title}</span>
                   ) : (
-                    <Missing label="set role" accountId={accountId} person={p} />
+                    <Missing label="set role" accountId={accountId} companyName={companyName} person={p} />
                   )}
                 </Cell>
 
@@ -205,7 +209,7 @@ export function ContactsTab({
                       ))}
                     </span>
                   ) : (
-                    <Missing label="+ phone" accountId={accountId} person={p} />
+                    <Missing label="+ phone" accountId={accountId} companyName={companyName} person={p} />
                   )}
                 </Cell>
 
@@ -218,7 +222,7 @@ export function ContactsTab({
                       {p.email}
                     </a>
                   ) : (
-                    <Missing label="+ email" accountId={accountId} person={p} />
+                    <Missing label="+ email" accountId={accountId} companyName={companyName} person={p} />
                   )}
                 </Cell>
 
@@ -226,7 +230,7 @@ export function ContactsTab({
                   {p.bestTimeToCall ? (
                     <span className="text-[12px] text-fg-muted">{p.bestTimeToCall}</span>
                   ) : (
-                    <Missing label="when?" accountId={accountId} person={p} />
+                    <Missing label="when?" accountId={accountId} companyName={companyName} person={p} />
                   )}
                 </Cell>
 
@@ -236,7 +240,7 @@ export function ContactsTab({
 
                 <Cell>
                   <ContactDialog
-                    accountId={accountId}
+                    accountId={accountId} companyName={companyName}
                     mode="edit"
                     defaults={p.defaults}
                     trigger={(open) => (
