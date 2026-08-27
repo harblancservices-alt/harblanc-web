@@ -9,6 +9,16 @@
  * only ever sits on those fixed surfaces (the CRM's core rule).
  */
 export const CALL_OUTCOMES = [
+  /* "Reached" was added 2026-08-26 for the company file's one-click outcome
+     row. The vocabulary had twelve values and not one of them meant the
+     plainest thing that happens on a call — you got through and spoke to
+     them. Every candidate already carried a JUDGEMENT the rep had not made:
+     "Interested" and "Not Interested" are verdicts on the conversation,
+     "Call Back" and "Meeting Scheduled" are commitments. Storing one of
+     those for a click that only means "I spoke to somebody" would put an
+     opinion in the record nobody expressed. It sorts first because it is
+     the outcome a rep is trying for. */
+  { value: "reached", label: "Reached", tone: "bg-ok-bg text-ok" },
   { value: "no_answer", label: "No Answer", tone: "bg-slate-bg text-slate" },
   { value: "voicemail", label: "Voicemail", tone: "bg-slate-bg text-slate" },
   { value: "busy", label: "Busy", tone: "bg-slate-bg text-slate" },
@@ -42,3 +52,30 @@ export function callOutcomeTone(value: string | null | undefined): string {
   if (!value) return "bg-slate-bg text-slate";
   return OUTCOME_BY_VALUE.get(value)?.tone ?? "bg-slate-bg text-slate";
 }
+
+/**
+ * THE FIVE ONE-CLICK OUTCOMES on the company file's "What happened" bar.
+ *
+ * A rep logging a call from the company page is doing it between calls, and
+ * a twelve-item picker is not a thing you use between calls. These five are
+ * what actually happens when you dial a cold number, in the order they
+ * happen by frequency.
+ *
+ * `short` exists because "Decision Maker Unavailable" is thirty characters
+ * and this is a row of buttons. It is the SAME vocabulary shortened, never a
+ * second set of names — exactly the rule SourcePill's abbreviations follow —
+ * and the stored value is always the canonical slug, so a call logged from
+ * here and one logged from the full dialog are the same row. The timeline
+ * shows the canonical label for both.
+ *
+ * The full picker is still there in LogCallDialog for the calls that need
+ * "Quote Requested" or "Closed Won"; this is the fast path, not a
+ * replacement.
+ */
+export const QUICK_OUTCOMES: readonly { value: CallOutcome; short: string }[] = [
+  { value: "reached", short: "Reached" },
+  { value: "voicemail", short: "Left VM" },
+  { value: "no_answer", short: "No answer" },
+  { value: "wrong_number", short: "Bad number" },
+  { value: "decision_maker_unavailable", short: "Wrong contact" },
+];

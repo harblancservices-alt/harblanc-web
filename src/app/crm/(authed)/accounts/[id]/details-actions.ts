@@ -96,7 +96,19 @@ async function applyUpdate(accountId: string, fields: Record<string, unknown>): 
 const GAP_COLUMN: Record<string, string> = {
   industry: "industry",
   address: "address",
+  // Added 2026-08-26 for the company file's panel 04, which asks the same
+  // question about two more columns. Both are real crm_accounts columns and
+  // both are empty on all 99 companies today — see file/fileGaps.ts for why
+  // they are asked on the company page and NOT added to the dashboard's
+  // narrower list.
+  carrier: "current_carrier",
+  spend: "annual_freight_spend",
 };
+
+/** Gaps whose column is numeric — the typed value has to become a number,
+ * and a value that isn't one has to be refused rather than silently stored
+ * as NaN or dropped by Postgres. */
+const NUMERIC_GAPS = new Set(["spend"]);
 
 export async function fillCompanyGap(
   accountId: string,
@@ -109,7 +121,21 @@ export async function fillCompanyGap(
   const trimmed = value.trim();
   if (!trimmed) return { ok: false, error: "Type something first." };
 
-  const result = await applyUpdate(accountId, { [column]: trimmed });
+  let stored: string | number = trimmed;
+  if (NUMERIC_GAPS.has(kind)) {
+    // People type money the way they say it — "$250k", "250,000", "250000".
+    // Strip the punctuation they use for readability, honour a trailing k/m,
+    // and refuse anything that still isn't a number.
+    const cleaned = trimmed.replace(/[$,\s]/g, "").toLowerCase();
+    const scale = cleaned.endsWith("k") ? 1_000 : cleaned.endsWith("m") ? 1_000_000 : 1;
+    const n = Number(scale === 1 ? cleaned : cleaned.slice(0, -1));
+    if (!Number.isFinite(n) || n < 0) {
+      return { ok: false, error: "Give that as a number — 250000, 250k or $250,000." };
+    }
+    stored = n * scale;
+  }
+
+  const result = await applyUpdate(accountId, { [column]: stored });
   if (result.ok) {
     revalidatePath("/crm");
     revalidatePath("/crm/tasks");
