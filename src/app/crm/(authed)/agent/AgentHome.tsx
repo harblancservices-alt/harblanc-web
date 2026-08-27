@@ -1,8 +1,12 @@
 import type { CrmUser } from "@/lib/crm/auth";
 import { firstName } from "../_shell/format";
-import { HeaderAddCompanyButton } from "../QuickActions";
+import {
+  QuickAddCompanyButton,
+  QuickAddContactButton,
+  QuickAddTaskButton,
+} from "../QuickActions";
 import { getAgentDashboardData } from "./agent-data";
-import { AgentDashboard } from "./AgentDashboard";
+import { SalesDashboard } from "./dashboard/SalesDashboard";
 
 /**
  * The Dashboard's server half: read this person's work and this person's
@@ -21,16 +25,48 @@ import { AgentDashboard } from "./AgentDashboard";
  * creator anyway — createAccount defaults assigned_user_id to `user.id`.
  */
 export async function AgentHome({ user }: { user: CrmUser }) {
-  const { tasks, companies, completeness, now } = await getAgentDashboardData(user);
+  const { tasks, companies, completeness, callsToday, reachedToday, now } =
+    await getAgentDashboardData(user);
+
+  /** The agent's own companies, as the shape both quick-add dialogs want.
+   * Reusing the rows already loaded rather than querying a company list
+   * again for a dropdown. */
+  const companyOptions = companies.map((c) => ({ id: c.id, name: c.name }));
 
   return (
-    <AgentDashboard
+    <SalesDashboard
       name={firstName(user.fullName, user.email) || "You"}
       tasks={tasks}
       companies={companies}
       completeness={completeness}
+      callsToday={callsToday}
+      reachedToday={reachedToday}
       now={now}
-      addCompanyButton={<HeaderAddCompanyButton reps={[]} />}
+      createBar={
+        <>
+          {/* THE EXISTING DIALOGS, not new ones. Each of these is the same
+              component the rest of the CRM opens — a second creation path
+              for a company or a contact is exactly the duplication the
+              brief rules out.
+
+              The reference's fourth button, "+ Note", is NOT here and has
+              no honest equivalent: a note belongs to a company, the
+              standalone QuickNoteDialog was deleted on 2026-08-26, and the
+              place notes are written is the composer on the company page.
+              A button that opened a company picker in order to then open a
+              note box would be a worse version of clicking the company.
+              Flagged rather than faked. */}
+          <QuickAddCompanyButton reps={[]} />
+          <QuickAddContactButton companies={companyOptions} />
+          <QuickAddTaskButton
+            accounts={companyOptions}
+            contacts={[]}
+            reps={[]}
+            canAssignOthers={false}
+            currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
+          />
+        </>
+      }
     />
   );
 }
