@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { FileHeader, type FileHeaderProps } from "./FileHeader";
 import { HeaderTabs } from "./HeaderTabs";
+import { WhatWeKnow } from "./WhatWeKnow";
 import { WhoDoICall, type CallPerson } from "./WhoDoICall";
 import { StageStrip } from "./StageStrip";
 import { WhatHappened } from "./WhatHappened";
@@ -86,7 +87,7 @@ export function FileBody({
   reps,
   historyPanel,
   tasksPanel,
-  knowPanel,
+  knowProps,
   contactsPanel,
   shipmentsPanel,
   shipmentCount,
@@ -102,7 +103,10 @@ export function FileBody({
   reps: RepOption[];
   historyPanel: ReactNode;
   tasksPanel: ReactNode;
-  knowPanel: ReactNode;
+  /** WhatWeKnow's props rather than a rendered node: this component owns
+   * the open tab, and the BOL viewer inside it must be told when its tab is
+   * showing so it can defer fetching the PDF until then. */
+  knowProps: Omit<React.ComponentProps<typeof WhatWeKnow>, "active">;
   contactsPanel: ReactNode;
   /** ShipmentsTab, rendered on the server and handed down — it does its own
    * fetch, so this tree neither knows nor cares how loads are loaded. */
@@ -167,7 +171,9 @@ export function FileBody({
           </div>
         </div>
 
-        <div hidden={tab !== "know"}>{knowPanel}</div>
+        <div hidden={tab !== "know"}>
+          <WhatWeKnow {...knowProps} active={tab === "know"} />
+        </div>
         <div hidden={tab !== "contacts"}>{contactsPanel}</div>
         {/* ShipmentsTab brings its own body and empty state but no card —
             it was built as a tab panel inside the old profile's chrome. It

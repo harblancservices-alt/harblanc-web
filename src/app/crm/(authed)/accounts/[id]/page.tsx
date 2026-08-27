@@ -166,7 +166,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_bol_entries")
       .select(
-        "id, document_id, bol_number, shipper_address, consignee_name, consignee_address, commodity, weight, carrier, pickup_date",
+        "id, document_id, bol_number, carrier, shipper_name, shipper_address, consignee_name, consignee_address, bill_to, commodity, weight, pickup_date, delivery_date, reference, notes",
       )
       .eq("matched_shipper_account_id", id)
       .is("deleted_at", null)
@@ -569,13 +569,18 @@ export default async function AccountDetailPage({
     id: string;
     document_id: string | null;
     bol_number: string | null;
+    carrier: string | null;
+    shipper_name: string | null;
     shipper_address: string | null;
     consignee_name: string | null;
     consignee_address: string | null;
+    bill_to: string | null;
     commodity: string | null;
     weight: string | null;
-    carrier: string | null;
     pickup_date: string | null;
+    delivery_date: string | null;
+    reference: string | null;
+    notes: string | null;
   }[];
 
   /**
@@ -622,14 +627,28 @@ export default async function AccountDetailPage({
     .map((b) => {
       const doc = b.document_id ? docById.get(b.document_id) : undefined;
       if (!doc) return null;
+      const t = (v: string | null) => (v ?? "").trim() || null;
       return {
         entryId: b.id,
-        bolNumber: (b.bol_number ?? "").trim() || null,
-        pickupDate: (b.pickup_date ?? "").trim() || null,
+        bolNumber: t(b.bol_number),
+        pickupDate: t(b.pickup_date),
         fileName: doc.file_name,
         storagePath: doc.storage_path,
         mimeType: doc.mime_type,
         sizeBytes: doc.size_bytes,
+        // Every remaining parsed field, trimmed to null when blank so the
+        // right column can simply skip what the parse did not find.
+        carrier: t(b.carrier),
+        shipperName: t(b.shipper_name),
+        shipperAddress: t(b.shipper_address),
+        consigneeName: t(b.consignee_name),
+        consigneeAddress: t(b.consignee_address),
+        billTo: t(b.bill_to),
+        commodity: t(b.commodity),
+        weight: t(b.weight),
+        deliveryDate: t(b.delivery_date),
+        reference: t(b.reference),
+        notes: t(b.notes),
       };
     })
     .filter((d): d is BolDoc => d !== null)

@@ -1,106 +1,138 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DocThumb } from "../../../../_shell/DocThumb";
-import { getSignedPdfUrl, openStoredPdf } from "../../../../shipments/pdfClient";
-import { Micro } from "./chrome";
+import { getSignedPdfUrl } from "../../../../shipments/pdfClient";
 
 /**
- * THE BOL ITSELF — the left half of "What we know".
+ * THE BOL ITSELF — the left half of "What we know", and nothing else.
  *
- * "here's the document, here's what we pulled off it, here's what we know
- * beyond it." This is the first of those three.
+ * Brent: "the BOL needs to be a full version good quality still on the side
+ * there. no side boarders or anything just the viewer itself."
  *
- * ── HOW IT FINDS THE FILE, AND WHY NOT THE OBVIOUS WAY ────────────────
+ * ── A REAL EMBED, NOT A RASTER ────────────────────────────────────────
  *
- * company -> crm_bol_entries -> crm_documents. NOT company ->
- * crm_documents, which is what every other document surface in the CRM
- * does, because `crm_documents.account_id` is NULL on 13 of the 14 BOL
- * PDFs — they were uploaded through the BOL Center and land under a
- * `bol-center/` storage path with no company on them. Filtering documents
- * by account_id finds one of the fourteen. Going through the parsed entry,
- * which carries both `matched_shipper_account_id` and `document_id`, finds
- * all of them. The join is done in page.tsx; this component receives the
- * result.
+ * This used to be DocThumb, which rasters page one at 320 CSS px wide. That
+ * is a thumbnail: fine for a document tile in a list, useless for reading a
+ * scanned dock receipt — you could see there was a form, not what it said.
+ * And it is page ONE only, which would silently hide pages 2-n of a
+ * multi-page BOL.
  *
- * ── NOTHING NEW WAS BUILT TO SHOW A PDF ───────────────────────────────
+ * So the PDF is embedded natively instead. The browser's own PDF viewer
+ * renders it at full resolution from the vector/scan data, gives every page
+ * with scroll and page navigation, and brings zoom, search, print and save
+ * with it. There is no resolution to quote because there is no raster — it
+ * re-renders as you zoom, exactly like opening the file. Nothing we could
+ * draw to a canvas would beat that, and a canvas would have needed a
+ * page-picker, a zoom control and a scroll container written by hand.
  *
- * DocThumb already resolves a stored document to a picture — a
- * server-rendered thumbnail when one exists, else a browser-side raster of
- * the first page via pdfjs, else a labelled file tile. getSignedPdfUrl and
- * openStoredPdf already handle the private `crm-documents` bucket. All
- * three are reused as-is. The signed URL is fetched on demand and is
- * short-lived (300s), which is why it is re-fetched when you switch
- * documents rather than held for the page's lifetime.
+ * It also deletes work: the Open/Download buttons this panel used to carry
+ * are in the viewer's own toolbar now, which is why they are gone.
  *
- * ── BUILT FOR BULK ARRIVAL ────────────────────────────────────────────
+ * ── NO CHROME ─────────────────────────────────────────────────────────
  *
- * The parsing pipeline lives OUTSIDE this app by design: Brent photographs
- * BOL pages, they collect in storage, and a separate Claude session reads
- * and parses them into crm_bol_entries. So a company can go from zero BOLs
- * to a dozen between two page loads, and this has to cope with that
- * without a change. Hence a real document switcher rather than an
- * assumption of one file, ordered newest first, with the count stated.
+ * No card, no header bar, no padding frame, no border of its own. The
+ * document sits directly on the column, edge to edge; the only line near it
+ * is the divider between the two halves, which belongs to the layout rather
+ * than to the viewer. The multi-BOL switcher floats OVER the top-left of
+ * the document rather than sitting in a bar above it, so it cannot
+ * reintroduce the frame that was just removed — and it only exists at all
+ * when there is more than one document to switch between.
+ *
+ * ── LOADED ONLY WHEN LOOKED AT ────────────────────────────────────────
+ *
+ * These scans are 288KB-5.2MB and 93 of 99 companies have no BOL at all, so
+ * fetching one on every company page load would be waste on almost every
+ * visit. Neither the signed URL nor the PDF is requested until the What we
+ * know tab is actually opened; once opened the iframe stays mounted, so
+ * switching away and back is instant.
+ *
+ * The gate is an explicit `active` prop threaded down from FileBody, which
+ * owns the open tab — NOT an IntersectionObserver. The observer was tried
+ * first and does not fire reliably when an ancestor's `hidden` attribute is
+ * removed: the element gains a box, but the callback did not run, so the
+ * viewer stayed blank on a tab that was plainly on screen. A boolean that
+ * says "this tab is open" is the thing actually being asked about, and it
+ * cannot be wrong about it.
  */
 
 export type BolDoc = {
   entryId: string;
   bolNumber: string | null;
-  /** Free text out of the parse — displayed, never parsed for sorting here
-   * (page.tsx orders the list). */
   pickupDate: string | null;
   fileName: string;
   storagePath: string;
   mimeType: string | null;
   sizeBytes: number | null;
+  /** ── The rest of the parse. Rendered by the fields column beside this,
+   * not here; carried on the same object because they describe the same
+   * document and splitting them would let the two halves disagree. */
+  carrier: string | null;
+  shipperName: string | null;
+  shipperAddress: string | null;
+  consigneeName: string | null;
+  consigneeAddress: string | null;
+  billTo: string | null;
+  commodity: string | null;
+  weight: string | null;
+  deliveryDate: string | null;
+  reference: string | null;
+  notes: string | null;
 };
 
-export function BolViewer({ docs }: { docs: BolDoc[] }) {
-  const [index, setIndex] = useState(0);
+export function BolViewer({
+  docs,
+  index,
+  onIndex,
+  active,
+}: {
+  docs: BolDoc[];
+  index: number;
+  onIndex: (i: number) => void;
+  /** True once the What we know tab has been opened. Nothing is fetched
+   * before that — see the note above. */
+  active: boolean;
+}) {
   const current = docs[index] ?? null;
   const path = current?.storagePath ?? null;
 
   /**
-   * ONE piece of state carrying the path it belongs to, rather than a `url`
-   * plus a `failed` flag reset at the top of the effect.
+   * The signed URL, carrying the path it belongs to.
    *
-   * react-hooks/set-state-in-effect forbids a setState in an effect BODY,
-   * and rightly — clearing the URL synchronously on every path change is a
-   * second render whose only job is to undo the first. DocThumb solves the
-   * same problem the same way (see its `startedFor` note): every setState
-   * happens inside the async callback. Staleness is then handled by
-   * COMPARING rather than clearing — if the resolved path is not the path
-   * being displayed, it is simply ignored.
+   * This doubles as the "already loaded" latch, which is why there is no
+   * second piece of state for that: the panel is HIDDEN rather than
+   * unmounted when you leave the tab, so once this is set it survives, the
+   * iframe stays mounted, and coming back is instant. Gating only the FETCH
+   * on `active` therefore gets the latch for free — and a `setState` inside
+   * an effect body to track "has been active", which is what the extra
+   * state would have needed, is exactly what react-hooks/set-state-in-effect
+   * forbids.
+   *
+   * Every setState here happens in an async callback, and staleness is
+   * handled by comparing the path rather than clearing on change.
    */
-  const [signed, setSigned] = useState<{
-    path: string;
-    url: string | null;
-    failed: boolean;
-  } | null>(null);
+  const [signed, setSigned] = useState<{ path: string; url: string | null } | null>(null);
 
   useEffect(() => {
-    if (!path) return;
+    if (!active || !path) return;
     let live = true;
     getSignedPdfUrl(path)
       .then((u) => {
-        if (live) setSigned({ path, url: u, failed: !u });
+        if (live) setSigned({ path, url: u });
       })
       .catch(() => {
-        if (live) setSigned({ path, url: null, failed: true });
+        if (live) setSigned({ path, url: null });
       });
     return () => {
       live = false;
     };
-  }, [path]);
+  }, [active, path]);
 
   const resolved = signed && signed.path === path ? signed : null;
-  const url = resolved?.url ?? null;
-  const failed = resolved?.failed ?? false;
 
   // ── The normal case: 93 of 99 companies. Deliberate, not broken. ──
   if (docs.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="flex h-full min-h-[420px] flex-col items-center justify-center px-6 py-12 text-center">
         <svg
           aria-hidden
           viewBox="0 0 24 24"
@@ -112,89 +144,56 @@ export function BolViewer({ docs }: { docs: BolDoc[] }) {
         <p className="mt-3 text-[13px] font-bold text-fg">No bill of lading on file</p>
         <p className="mx-auto mt-1 max-w-[38ch] text-[12.5px] leading-relaxed text-fg-subtle">
           When one of their BOLs is scanned and parsed, the document appears here
-          and the facts read off it fill the panel beside this one.
+          and the fields read off it fill the panel beside this one.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col">
-      {/* ── Switcher. Only drawn when there is something to switch. ── */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2">
-        <Micro className="text-fg-muted">Document</Micro>
-        <span className="text-[11.5px] text-fg-subtle">
-          {docs.length === 1 ? "1 on file" : `${index + 1} of ${docs.length}`}
-        </span>
+    <div className="relative h-full min-h-[680px] bg-inset">
+      {resolved?.url ? (
+        <iframe
+          // Remount per document so the viewer resets to page one rather
+          // than holding the previous file's scroll position.
+          key={current!.storagePath}
+          src={resolved.url}
+          title={current!.bolNumber ? `BOL ${current!.bolNumber}` : current!.fileName}
+          className="h-full w-full border-0"
+        />
+      ) : resolved && !resolved.url ? (
+        <p className="px-6 py-16 text-center text-[12.5px] text-fg-subtle">
+          This document could not be opened. The record still points at{" "}
+          <span className="font-semibold">{current!.fileName}</span> — it may have
+          been removed from storage.
+        </p>
+      ) : (
+        <p className="px-6 py-16 text-center text-[12.5px] text-fg-subtle">
+          {active ? "Opening the document…" : ""}
+        </p>
+      )}
 
-        {docs.length > 1 && (
-          <div className="ml-auto flex items-center gap-1">
-            {docs.map((d, i) => (
-              <button
-                key={d.entryId}
-                type="button"
-                onClick={() => setIndex(i)}
-                aria-pressed={i === index}
-                title={d.bolNumber ? `BOL #${d.bolNumber}` : d.fileName}
-                className={`rounded-[3px] border px-2 py-1 text-[11px] font-bold transition-colors crm-num ${
-                  i === index
-                    ? "border-accent bg-accent text-white"
-                    : "border-line bg-card text-fg-muted hover:border-accent hover:text-accent"
-                }`}
-              >
-                {d.bolNumber ? `#${d.bolNumber}` : i + 1}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── The page image ────────────────────────────────────────── */}
-      <div className="flex flex-1 items-start justify-center bg-inset p-4">
-        {failed ? (
-          <p className="py-10 text-center text-[12.5px] text-fg-subtle">
-            The file could not be opened. It is still on the record — try Open
-            below, or the document may have been removed from storage.
-          </p>
-        ) : (
-          <DocThumb
-            // Keyed on the path so switching documents remounts rather than
-            // showing the previous page while the new URL is signed.
-            key={current!.storagePath}
-            previewUrl={url}
-            fileName={current!.fileName}
-            mimeType={current!.mimeType}
-            sizeBytes={current!.sizeBytes}
-            className="h-[420px] w-full max-w-[520px] rounded-md border border-line-strong bg-card"
-          />
-        )}
-      </div>
-
-      {/* ── What it is, and how to open it properly ───────────────── */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-4 py-2.5">
-        <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-fg" title={current!.fileName}>
-          {current!.bolNumber ? `BOL #${current!.bolNumber}` : current!.fileName}
-        </span>
-        {current!.pickupDate && (
-          <span className="shrink-0 text-[11.5px] text-fg-subtle crm-num">
-            {current!.pickupDate}
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => void openStoredPdf(current!.storagePath)}
-          className="shrink-0 rounded-md bg-accent px-3 py-1.5 text-[12px] font-bold text-white transition-colors hover:bg-accent-hover"
-        >
-          Open
-        </button>
-        <button
-          type="button"
-          onClick={() => void openStoredPdf(current!.storagePath, current!.fileName)}
-          className="shrink-0 text-[12px] font-bold text-accent hover:underline"
-        >
-          Download
-        </button>
-      </div>
+      {/* Floats OVER the document rather than sitting in a bar above it —
+          a bar would be exactly the frame that was just taken away. Only
+          rendered when there is something to switch between. */}
+      {docs.length > 1 && (
+        <div className="absolute left-3 top-3 flex items-center gap-1 rounded-md bg-graphite/85 p-1 shadow-e1 backdrop-blur-sm">
+          {docs.map((d, i) => (
+            <button
+              key={d.entryId}
+              type="button"
+              onClick={() => onIndex(i)}
+              aria-pressed={i === index}
+              title={d.bolNumber ? `BOL #${d.bolNumber}` : d.fileName}
+              className={`rounded px-2 py-1 text-[11px] font-bold transition-colors crm-num ${
+                i === index ? "bg-card text-fg" : "text-white/70 hover:text-white"
+              }`}
+            >
+              {d.bolNumber ? `#${d.bolNumber}` : i + 1}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import type { BolFacts } from "./bolFacts";
 import type { FileGap } from "./fileGaps";
 import { FileCard, SectionHead, Micro } from "./chrome";
 import { BolViewer, type BolDoc } from "./BolViewer";
+import { ParsedFields } from "./ParsedFields";
 
 /**
  * PANEL 04 — WHAT WE KNOW.
@@ -74,6 +75,7 @@ export function WhatWeKnow({
   allFieldsCount,
   companyDefaults,
   reps,
+  active,
 }: {
   accountId: string;
   facts: BolFacts;
@@ -86,6 +88,9 @@ export function WhatWeKnow({
   allFieldsCount: number;
   companyDefaults: CompanyDefaults;
   reps: RepOption[];
+  /** True while this tab is open. Forwarded to the viewer, which does not
+   * fetch a 288KB-5.2MB scan until somebody actually looks at it. */
+  active: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -93,6 +98,12 @@ export function WhatWeKnow({
   const [value, setValue] = useState("");
   const [filled, setFilled] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  /** Which BOL is open. Held HERE, not inside the viewer, because both
+   * halves follow it — the document on the left and the fields on the
+   * right have to be showing the same BOL or the whole point of putting
+   * them side by side is lost. */
+  const [bolIndex, setBolIndex] = useState(0);
+  const openDoc = bolDocs[bolIndex] ?? null;
 
   const visible = gaps.filter((g) => !filled.has(g.kind));
 
@@ -129,15 +140,22 @@ export function WhatWeKnow({
           then what we know beyond it — on the right. `items-stretch` so the
           viewer's own column fills the taller side rather than floating. */}
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-stretch">
-        {/* ══ LEFT: the bill of lading itself ══════════════════════ */}
+        {/* ══ LEFT: the bill of lading itself, no chrome ═══════════
+            The only line is the divider between the halves, and it belongs
+            to this grid rather than to the viewer. */}
         <div className="border-r border-line-strong">
-          <BolViewer docs={bolDocs} />
+          <BolViewer docs={bolDocs} index={bolIndex} onIndex={setBolIndex} active={active} />
         </div>
 
         {/* ══ RIGHT: parsed facts, then the company record ═════════ */}
         <div className="flex min-w-0 flex-col">
-        {/* ── FROM BOLS ─────────────────────────────────────────────── */}
-        <div className="px-4 py-3">
+        {/* ── The fields read off the open document ─────────────────── */}
+        {openDoc && <ParsedFields doc={openDoc} total={bolDocs.length} />}
+
+        {/* ── ACROSS EVERY BOL — only worth drawing when there IS more
+            than one, since with a single document the aggregate is the
+            fields above repeated. ─────────────────────────────────────── */}
+        <div className={bolDocs.length > 1 || facts.parsed === 0 ? "border-t border-line px-4 py-3" : "hidden"}>
           <p className="mb-1">
             <Micro className="text-fg-muted">From BOLs</Micro>
             <span className="ml-2 text-[11.5px] text-fg-subtle">

@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import type { CallPerson } from "./WhoDoICall";
 import { HistoryPanel } from "./HistoryPanel";
 import { TasksPanel, type FileTask } from "./TasksPanel";
-import { WhatWeKnow } from "./WhatWeKnow";
 import { ContactsTab } from "./ContactsTab";
 import { FileBody } from "./FileBody";
 import type { BolFacts } from "./bolFacts";
@@ -154,17 +153,15 @@ export function CompanyFile({
         tasksPanel={
           <TasksPanel tasks={tasks} reps={reps} canReassign={canReassign} nowMs={nowMs} />
         }
-        knowPanel={
-          <WhatWeKnow
-            accountId={accountId}
-            facts={facts}
-            bolDocs={bolDocs}
-            gaps={gaps}
-            allFieldsCount={allFieldsCount}
-            companyDefaults={companyDefaults}
-            reps={reps}
-          />
-        }
+        knowProps={{
+          accountId,
+          facts,
+          bolDocs,
+          gaps,
+          allFieldsCount,
+          companyDefaults,
+          reps,
+        }}
         contactsPanel={<ContactsTab accountId={accountId} people={people} />}
         shipmentsPanel={shipmentsPanel}
       />
