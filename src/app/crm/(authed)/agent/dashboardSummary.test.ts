@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildSummary, greetingFor, workQueue } from "./dashboardSummary";
-import type { AgentTask, AgentCompany } from "./agentWork";
+import { buildSummary, callList, greetingFor, workQueue } from "./dashboardSummary";
+import { groupAgentWork, type AgentTask, type AgentCompany } from "./agentWork";
 
 const NOW = new Date("2026-08-27T15:00:00Z"); // 10:00 Central, a Thursday
 
@@ -195,5 +195,66 @@ describe("workQueue", () => {
     const s = buildSummary({ ...base, tasks: [task(), task()], companies: [] });
     expect(s.queueCount).toBe(0);
     expect(s.line).toMatch(/no date on them yet/);
+  });
+});
+
+describe("callList — the middle column", () => {
+  it("puts the whole book in one list, undated included", () => {
+    // The bug this fixes: five of Brent's six open tasks were invisible on
+    // his own dashboard because they had no due date.
+    const list = callList([task(), task(), task()], NOW);
+    expect(list).toHaveLength(3);
+    expect(list.every((i) => i.band === "undated")).toBe(true);
+  });
+
+  it("orders overdue, then today, then later, then undated", () => {
+    const undated = task({ id: "undated" });
+    const later = task({ id: "later", dueAt: "2026-09-04T15:00:00Z" });
+    const today = task({ id: "today", dueAt: "2026-08-27T20:00:00Z" });
+    const late = task({ id: "late", dueAt: "2026-08-24T15:00:00Z" });
+    const list = callList([undated, later, today, late], NOW);
+    expect(list.map((i) => i.task.id)).toEqual(["late", "today", "later", "undated"]);
+    expect(list.map((i) => i.band)).toEqual(["overdue", "today", "later", "undated"]);
+  });
+
+  it("puts the most overdue first, not the least", () => {
+    const threeLate = task({ id: "three", dueAt: "2026-08-24T15:00:00Z" });
+    const oneLate = task({ id: "one", dueAt: "2026-08-26T15:00:00Z" });
+    expect(callList([oneLate, threeLate], NOW).map((i) => i.task.id)).toEqual(["three", "one"]);
+  });
+
+  it("sorts dated work soonest first", () => {
+    const far = task({ id: "far", dueAt: "2026-09-20T15:00:00Z" });
+    const near = task({ id: "near", dueAt: "2026-08-29T15:00:00Z" });
+    expect(callList([far, near], NOW).map((i) => i.task.id)).toEqual(["near", "far"]);
+  });
+
+  it("keeps undated work in the order it arrived, so nothing reshuffles", () => {
+    const a = task({ id: "a" });
+    const b = task({ id: "b" });
+    const c = task({ id: "c" });
+    expect(callList([a, b, c], NOW).map((i) => i.task.id)).toEqual(["a", "b", "c"]);
+    // And again — a comparator that returned 0 for ties without the index
+    // fallback would be free to swap these between renders.
+    expect(callList([a, b, c], NOW).map((i) => i.task.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("agrees with the Overdue column about what is late", () => {
+    // The duplication is deliberate, but both surfaces must mean the same
+    // thing by "overdue" — they share taskDueBucket for exactly this.
+    const late = task({ id: "late", dueAt: "2026-08-24T15:00:00Z" });
+    const groups = groupAgentWork([late], NOW);
+    const list = callList([late], NOW);
+    expect(groups.overdue.map((t) => t.id)).toEqual(["late"]);
+    expect(list.filter((i) => i.band === "overdue").map((i) => i.task.id)).toEqual(["late"]);
+  });
+
+  it("does not invent a band for a task due later today", () => {
+    const s = callList([task({ dueAt: "2026-08-27T23:30:00Z" })], NOW);
+    expect(s[0].band).toBe("today");
+  });
+
+  it("is empty only when there is genuinely nothing open", () => {
+    expect(callList([], NOW)).toEqual([]);
   });
 });

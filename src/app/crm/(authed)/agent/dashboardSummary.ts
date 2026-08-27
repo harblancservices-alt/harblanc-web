@@ -1,4 +1,4 @@
-import { daysLate } from "@/lib/crm/taskUrgency";
+import { daysLate, taskDueBucket } from "@/lib/crm/taskUrgency";
 import { groupAgentWork, newlyAssigned, type AgentTask, type AgentCompany } from "./agentWork";
 
 /**
@@ -219,4 +219,83 @@ export function buildSummary(input: {
     metrics,
     queueCount: workQueue(tasks, companies, now).length,
   };
+}
+
+/* ══════════════════ THE CALL LIST ══════════════════════════════════════ */
+
+/**
+ * THE MIDDLE COLUMN — every open task this agent owns, in the order they
+ * should be worked.
+ *
+ * ── WHY THIS EXISTS ───────────────────────────────────────────────────
+ *
+ * It used to be "Today's call queue" and filtered to tasks due today. On
+ * Brent's book that is legitimately empty: he has six open tasks, one of
+ * which has a due date, none due today and none overdue. So five of his six
+ * tasks were invisible on his own dashboard — no date means a task cannot
+ * appear in Today, Overdue OR This week, and it survives only in the Tasks
+ * inbox. The column was working exactly as designed against a dataset where
+ * nothing is dated, which is the worst kind of broken: nothing to fix in
+ * the code it lives in.
+ *
+ * ── WHY NOT JUST DATE THE TASKS ───────────────────────────────────────
+ *
+ * The other fix was to stamp a due date on assignment. Rejected, and not
+ * because it is more work: a due date is a commitment a human made. Four of
+ * Brent's five undated tasks are machine-created "Research prospect" rows —
+ * nobody promised anything, so nothing is late. Auto-stamping them turns an
+ * inbox into a wall of manufactured deadlines and, worse, makes OVERDUE —
+ * the one alarm on this screen — mean "the system dated something for you"
+ * instead of "you are behind". That breaks the metric rather than filling
+ * the column.
+ *
+ * ── THE ORDER, AND THE ONE DUPLICATION ────────────────────────────────
+ *
+ * overdue → due today → dated later, soonest first → undated last.
+ *
+ * Overdue tasks appear here AND in the Overdue column to the right. That
+ * duplication is deliberate and was accepted explicitly: the list an agent
+ * works top-to-bottom must start with the thing that is already late, and
+ * the right-hand column stays as the alarm. Undated last because a task
+ * with no date is real work but nobody has committed to when.
+ *
+ * Buckets come from taskDueBucket — the same function groupAgentWork and
+ * dueLabel use — so this cannot drift into a second opinion about what
+ * "today" means.
+ */
+export type CallBand = "overdue" | "today" | "later" | "undated";
+
+export type CallListItem = { task: AgentTask; band: CallBand };
+
+const BAND_ORDER: Record<CallBand, number> = { overdue: 0, today: 1, later: 2, undated: 3 };
+
+export function callList(tasks: AgentTask[], now: Date = new Date()): CallListItem[] {
+  const items: CallListItem[] = tasks.map((task) => {
+    const bucket = taskDueBucket(task.dueAt, now);
+    const band: CallBand =
+      bucket === "overdue"
+        ? "overdue"
+        : bucket === "today"
+          ? "today"
+          : bucket === "none"
+            ? "undated"
+            : "later";
+    return { task, band };
+  });
+
+  // Stable: equal-band, equal-date rows keep the order the query returned
+  // them in, so the list does not reshuffle between renders.
+  return items
+    .map((item, i) => ({ item, i }))
+    .sort((a, b) => {
+      const band = BAND_ORDER[a.item.band] - BAND_ORDER[b.item.band];
+      if (band !== 0) return band;
+      const aMs = a.item.task.dueAt ? Date.parse(a.item.task.dueAt) : null;
+      const bMs = b.item.task.dueAt ? Date.parse(b.item.task.dueAt) : null;
+      // Ascending within every dated band. For overdue that puts the most
+      // late first, which is the same thing said the other way round.
+      if (aMs !== null && bMs !== null && aMs !== bMs) return aMs - bMs;
+      return a.i - b.i;
+    })
+    .map(({ item }) => item);
 }

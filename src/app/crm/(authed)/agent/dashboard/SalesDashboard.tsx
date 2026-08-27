@@ -7,7 +7,7 @@ import { CompletenessList } from "../CompletenessList";
 import { CommandHeader } from "./CommandHeader";
 import { ArrivalsQueue, CallQueue, OverdueQueue } from "./WorkQueues";
 import { groupAgentWork, newlyAssigned, type AgentTask, type AgentCompany } from "../agentWork";
-import { buildSummary, workQueue } from "../dashboardSummary";
+import { buildSummary, callList, workQueue } from "../dashboardSummary";
 import { gapsForCompany, type CompletenessInput } from "../completeness";
 
 /**
@@ -108,10 +108,15 @@ export function SalesDashboard({
         {/* ── The three queues ─────────────────────────────────────── */}
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] items-stretch gap-3">
           <ArrivalsQueue companies={arrivals} />
+          {/* The agent's WHOLE open book, not just today. Overdue also
+              appears in the column to the right — that duplication is
+              deliberate: the list you work top-to-bottom has to start with
+              what is already late, and the right column stays as the alarm. */}
           <CallQueue
-            tasks={groups.today}
+            items={callList(tasks, nowDate)}
             phoneByAccount={phoneByAccount}
             contactByAccount={contactByAccount}
+            nowMs={now}
           />
           <OverdueQueue tasks={groups.overdue} nowMs={now} />
         </div>

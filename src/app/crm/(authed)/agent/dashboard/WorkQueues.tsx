@@ -12,6 +12,7 @@ import { SNOOZE_PRESETS } from "../../tasks/snooze";
 import { updateLifecycleStatus } from "../../accounts/actions";
 import { digitsForTel } from "../../_shell/contactFields";
 import { dueLabel, type AgentTask, type AgentCompany } from "../agentWork";
+import type { CallListItem } from "../dashboardSummary";
 import { daysLate } from "@/lib/crm/taskUrgency";
 
 /**
@@ -213,20 +214,31 @@ export function ArrivalsQueue({ companies }: { companies: AgentCompany[] }) {
 /* ═════════════════════ 2. TODAY'S CALL QUEUE ════════════════════════ */
 
 export function CallQueue({
-  tasks,
+  items,
   phoneByAccount,
   contactByAccount,
+  nowMs,
 }: {
-  tasks: AgentTask[];
+  /** The agent's WHOLE open book, ordered by callList: overdue, then due
+   * today, then dated later soonest first, then undated. Not just today —
+   * see callList's note for why filtering to today left five of Brent's six
+   * tasks invisible on his own dashboard. */
+  items: CallListItem[];
   /** The company's callable number, from the companies this agent owns. */
   phoneByAccount: Map<string, string | null>;
   contactByAccount: Map<string, string | null>;
+  nowMs: number;
 }) {
+  const now = new Date(nowMs);
   return (
     <FileCard className="flex min-h-0 flex-1 flex-col">
       <SectionHead
-        title="Today's call queue"
-        count={tasks.length === 0 ? "nothing booked" : "soonest first"}
+        title="Your call list"
+        count={
+          items.length === 0
+            ? "nothing open"
+            : `${items.length} ${items.length === 1 ? "task" : "tasks"}`
+        }
         action={
           <Link
             href="/crm/tasks"
@@ -238,16 +250,17 @@ export function CallQueue({
         }
       />
       <div className="flex-1 p-3">
-        {tasks.length === 0 ? (
+        {items.length === 0 ? (
           <div className="py-10 text-center">
-            <p className="text-[13px] font-bold text-fg">No calls booked today</p>
+            <p className="text-[13px] font-bold text-fg">Nothing open</p>
             <p className="mx-auto mt-1 max-w-[36ch] text-[12px] text-fg-subtle">
-              Tasks with a due date of today appear here, soonest first.
+              Every task assigned to you shows up here — late first, then
+              dated, then the ones with no date yet.
             </p>
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {tasks.map((t) => {
+            {items.map(({ task: t, band }) => {
               const phone = t.accountId ? phoneByAccount.get(t.accountId) ?? null : null;
               const contact = t.contactName ?? (t.accountId ? contactByAccount.get(t.accountId) ?? null : null);
               return (
@@ -270,7 +283,24 @@ export function CallQueue({
                           <span className="text-[11.5px] text-fg-subtle">· {contact}</span>
                         )}
                       </p>
-                      <p className="mt-0.5 truncate text-[11.5px] text-fg-muted">{t.title}</p>
+                      <p className="mt-0.5 flex flex-wrap items-baseline gap-1.5 text-[11.5px]">
+                        <span className="truncate text-fg-muted">{t.title}</span>
+                        {/* WHEN, said once. dueLabel is the same function
+                            the Tasks page and the Overdue column use, so a
+                            row cannot read "3 days late" here and something
+                            else there. Only late shouts. */}
+                        <span
+                          className={`shrink-0 rounded-[3px] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] ${
+                            band === "overdue"
+                              ? "bg-bad-bg text-bad"
+                              : band === "today"
+                                ? "bg-accent-bg text-accent"
+                                : "text-fg-subtle"
+                          }`}
+                        >
+                          {dueLabel(t.dueAt, now)}
+                        </span>
+                      </p>
                     </div>
 
                     {phone ? (
