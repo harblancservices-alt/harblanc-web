@@ -4,7 +4,10 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { titleCaseWords } from "../../_shell/format";
-import { reassignTask } from "../../tasks/actions";
+import { deleteTask, reassignTask } from "../../tasks/actions";
+import { Modal } from "../../_shell/Modal";
+import { IconTrash } from "../../_shell/icons";
+import { BTN_DANGER, BTN_NEUTRAL } from "../../_shell/ui";
 import { dueLabel, dueTint } from "../../agent/agentWork";
 import type { DueTaskRow } from "../dueReport";
 import {
@@ -230,6 +233,7 @@ function Column({
               now={now}
               team={team}
               columnKey={column.key}
+              assigneeName={column.name}
               pending={pending}
               isDragging={draggingId === card.id}
               onDragStart={onDragStart}
@@ -248,6 +252,7 @@ function TaskCard({
   now,
   team,
   columnKey,
+  assigneeName,
   pending,
   isDragging,
   onDragStart,
@@ -258,6 +263,10 @@ function TaskCard({
   now: Date;
   team: { id: string; name: string }[];
   columnKey: string;
+  /** Whose column this card is sitting in. Named in the confirm, because
+   * "delete this task" and "take this task off Sarah" are different
+   * sentences and only one of them is what an admin is actually doing. */
+  assigneeName: string;
   pending: boolean;
   isDragging: boolean;
   onDragStart: (id: string) => void;
@@ -265,6 +274,27 @@ function TaskCard({
   onPick: (taskId: string, targetKey: string) => void;
 }) {
   const tint = dueTint(card.dueAt, now);
+  const router = useRouter();
+  const [confirm, setConfirm] = useState(false);
+  const [removing, startRemoving] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  /* Reuses tasks/actions.ts deleteTask — the same SOFT delete (deleted_at)
+     the agent's own task row has always used, so a task an admin removes
+     is recoverable exactly like any other and the row stays in the table
+     for the accountability work. No second delete path was written. */
+  function remove() {
+    setError(null);
+    startRemoving(async () => {
+      const res = await deleteTask(card.id, card.accountId);
+      if (res.ok) {
+        setConfirm(false);
+        router.refresh();
+      } else {
+        setError(res.error);
+      }
+    });
+  }
   return (
     <article
       draggable
@@ -274,11 +304,29 @@ function TaskCard({
         onDragStart(card.id);
       }}
       onDragEnd={onDragEnd}
-      className={`group cursor-grab rounded-[5px] border border-line bg-card p-2.5 shadow-e1 transition-opacity active:cursor-grabbing ${
+      className={`group relative cursor-grab rounded-[5px] border border-line bg-card p-2.5 shadow-e1 transition-opacity active:cursor-grabbing ${
         isDragging ? "opacity-40" : ""
       } ${tint === "late" ? "border-l-[3px] border-l-bad" : ""}`}
     >
-      <p className="flex items-start gap-1.5 text-[13px] font-bold leading-snug text-fg">
+      {/* ADMIN-ONLY REMOVAL, top right. It is small because it sits on a
+          drag handle and must not become the thing you grab, and it is
+          always in the DOM rather than hover-revealed so it is reachable
+          by keyboard and on touch. `draggable={false}` keeps a press on
+          the icon from starting a card drag instead. */}
+      <button
+        type="button"
+        draggable={false}
+        onClick={() => setConfirm(true)}
+        disabled={pending || removing}
+        aria-label={`Delete task "${card.title}"`}
+        title="Delete this task"
+        className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-[4px] text-bad/70 transition-colors hover:bg-bad-bg hover:text-bad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40 disabled:opacity-40"
+      >
+        <IconTrash width={15} height={15} />
+      </button>
+
+      {/* pr-7 keeps a long title from running under the button above. */}
+      <p className="flex items-start gap-1.5 pr-7 text-[13px] font-bold leading-snug text-fg">
         {/* The same quiet dot the agent surfaces use, so "high priority"
             looks like one thing across the CRM rather than three. */}
         {card.isHigh && (
@@ -333,6 +381,51 @@ function TaskCard({
           ))}
         </select>
       </div>
+
+      {confirm && (
+        <Modal
+          open
+          onClose={() => !removing && setConfirm(false)}
+          busy={removing}
+          title="Delete task"
+        >
+          <p className="text-[13.5px] leading-relaxed text-fg">
+            Delete <span className="font-semibold">{card.title}</span>
+            {columnKey === UNASSIGNED_KEY ? (
+              <>, which nobody owns yet? It comes off the board straight away.</>
+            ) : (
+              <>
+                {" "}
+                from <span className="font-semibold">{assigneeName}</span>&rsquo;s list? It stops
+                showing on their board straight away.
+              </>
+            )}
+          </p>
+          {error && (
+            <p className="mt-3 rounded-md border border-bad/30 bg-bad-bg px-2.5 py-1.5 text-[12px] font-semibold text-bad">
+              {error}
+            </p>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirm(false)}
+              disabled={removing}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={removing}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_DANGER}`}
+            >
+              {removing ? "Deleting\u2026" : "Delete task"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </article>
   );
 }
