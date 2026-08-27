@@ -27,32 +27,39 @@ import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
  * Contacts and Shipments are now peers of Overview rather than things
  * buried in its fourth panel.
  *
- * ── WHAT STAYS PUT WHEN YOU SWITCH TABS ───────────────────────────────
+ * ── THE ORDER, AND WHAT SITS INSIDE THE TABS ──────────────────────────
  *
- * The stage strip and the composer are OUTSIDE the tabs, on purpose.
+ *   dark header  ->  stage strip  ->  tabs  ->  tab content
  *
- * Overview is defined as the three reading panels (Brent lists it as "who
- * do I call, notes & what happened, tasks"), so the composer is not part of
- * it. And that is the right call independently: "What happened" is the only
- * place this page writes, and putting it behind a tab would mean switching
- * tabs to log a call you just made while looking at somebody's contact
- * details. Same for the stage: where a company sits in the funnel is true
- * on every tab, not a fact about the Overview.
+ * THE STAGE STRIP IS ABOVE THE TABS (Brent, 2026-08-26), and it is the
+ * better arrangement: where a company sits in the funnel is true whichever
+ * tab you are on, so it belongs with the header material rather than
+ * floating above a row that governs something else. The tabs then sit
+ * directly on top of the content they actually switch.
  *
- * ── HOW THE TWO FULL-WIDTH ROWS ARE KEPT APART ────────────────────────
+ * THE COMPOSER IS INSIDE OVERVIEW. This reverses an earlier call — it used
+ * to sit outside the tabs, on the reasoning that "What happened" is the
+ * only place this page writes and burying it in a tab means changing tabs
+ * to log a call you just made. Brent overruled that. It renders on Overview
+ * and nowhere else.
  *
- * A tab row directly above a ten-cell stage strip is two horizontal bands
- * of chips stacked, which could easily read as one confusing block. Three
- * things separate them, and none of them is just a line:
+ * ── KEEPING THE STRIP AND THE TAB ROW APART, NOW THEY HAVE SWAPPED ────
  *
- *   GROUND     the tabs sit on --canvas (the page's blue-grey); the stage
- *              strip is on --card (white). A tonal step, so the eye reads
- *              two surfaces before it reads any content.
- *   RHYTHM     the tab row is INSET with padding; the stage strip is
- *              full-bleed, edge to edge. Different shapes, not two rows of
- *              the same thing.
- *   CLOSURE    the strip carries a --line-strong rule under it, closing it
- *              as a band and starting the page body beneath.
+ * They used to be separated by a tonal step in the other direction: tabs on
+ * --canvas above, strip white and full-bleed below. Reversed, the same
+ * three devices still do the work, and one of them now does a second job:
+ *
+ *   GROUND     the strip is --card (white) and full-bleed; the tab row is
+ *              on --canvas. The step is unchanged, just inverted.
+ *   CLOSURE    the strip's --line-strong bottom rule is what ends the
+ *              header block. Above it: who they are and where they are in
+ *              the funnel. Below it: what you are looking at.
+ *   SHARED GROUND, DELIBERATELY — the tab row and the content beneath it
+ *              are on the SAME canvas, inside one padded column. That is
+ *              the point: tabs and the panels they switch should read as
+ *              one unit, distinct from the chrome above. When the tabs sat
+ *              above a white strip they read as belonging to the header;
+ *              they do not, they belong to the content.
  *
  * Colour is exactly the previous patch's: light card headers, mid-grey
  * borders, dark numbered chips, one dark region (the page header). The
@@ -105,8 +112,13 @@ export function FileBody({
 
   return (
     <>
-      {/* ── Page tabs, on the canvas ─────────────────────────────────── */}
-      <div className="bg-canvas px-3 pb-2.5 pt-3">
+      {/* ── Stage strip: full-bleed white band, closed with a rule. It is
+          header material — true on every tab — so it sits above them. ── */}
+      <StageStrip accountId={accountId} current={stage} />
+
+      {/* One padded column on the canvas holding the tabs AND the panels
+          they switch, so the two read as a single unit. */}
+      <div className="flex flex-col gap-3 p-3">
         <SegmentedTabs
           ariaLabel="Company sections"
           size="lg"
@@ -126,35 +138,32 @@ export function FileBody({
                   : undefined,
           }))}
         />
-      </div>
 
-      {/* ── Stage strip: full-bleed white band, closed with a rule ───── */}
-      <StageStrip accountId={accountId} current={stage} />
-
-      <div className="flex flex-col gap-3 p-3">
         {finalizeBanner}
-
-        {/* The composer stays on every tab — see the note above. */}
-        <FileCard>
-          <SectionHead title="What happened" />
-          <WhatHappened accountId={accountId} contacts={composerContacts} stage={stage} />
-        </FileCard>
 
         {/* Hidden rather than unmounted: the shipments panel is already in
             the payload, and keeping the others mounted means a half-typed
             gap value survives a glance at Contacts. */}
         <div hidden={tab !== "overview"}>
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,1.05fr)] items-stretch gap-3">
-            <WhoDoICall
-              accountId={accountId}
-              people={people}
-              companyPhones={companyPhones}
-              companyDefaults={companyDefaults}
-              reps={reps}
-              onOpenContacts={() => setTab("contacts")}
-            />
-            {historyPanel}
-            {tasksPanel}
+          <div className="flex flex-col gap-3">
+            {/* The composer — Overview only, per Brent. */}
+            <FileCard>
+              <SectionHead title="What happened" />
+              <WhatHappened accountId={accountId} contacts={composerContacts} stage={stage} />
+            </FileCard>
+
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,1.05fr)] items-stretch gap-3">
+              <WhoDoICall
+                accountId={accountId}
+                people={people}
+                companyPhones={companyPhones}
+                companyDefaults={companyDefaults}
+                reps={reps}
+                onOpenContacts={() => setTab("contacts")}
+              />
+              {historyPanel}
+              {tasksPanel}
+            </div>
           </div>
         </div>
 
