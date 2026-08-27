@@ -136,10 +136,11 @@ export function WhatWeKnow({
   // like the three on Overview.
   return (
     <FileCard className="flex min-h-0 flex-1 flex-col">
-      <SectionHead
-        title="What we know"
-        count="Shipper record — carrier fields (MC, DOT, insurance, safety) don't render here"
-      />
+      {/* No sub-line. It used to read "Shipper record — carrier fields
+          (MC, DOT, insurance, safety) don't render here", which explained an
+          absence nobody had asked about and cost a row of vertical space on
+          the tab whose whole job is showing a document. */}
+      <SectionHead title="What we know" />
       {/* Two halves: the document on the left, what was read off it — and
           then what we know beyond it — on the right. `items-stretch` so the
           viewer's own column fills the taller side rather than floating. */}
@@ -154,7 +155,13 @@ export function WhatWeKnow({
         {/* ══ LEFT: the bill of lading itself, no chrome ═══════════
             The only line is the divider between the halves, and it belongs
             to this grid rather than to the viewer. */}
-        <div className="border-r border-line-strong">
+        {/* A HAIRLINE, bottom and right only — Brent: "super super super
+            small". Enough that the scan does not read as bleeding off the
+            edge of the panel, and not a frame around it. --line, not
+            --line-strong, which is the emphasized mid-grey this used to
+            carry as the divider between the two halves. Nothing on the top
+            or left, so the document still runs into the corner. */}
+        <div className="border-b border-r border-line">
           <BolViewer docs={bolDocs} index={bolIndex} onIndex={setBolIndex} active={active} />
         </div>
 

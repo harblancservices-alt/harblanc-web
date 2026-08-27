@@ -79,6 +79,36 @@ export type BolDoc = {
   notes: string | null;
 };
 
+/**
+ * WHAT THE EMBEDDED PDF VIEWER IS TOLD TO HIDE.
+ *
+ * Brent, on the What we know tab: strip everything around the document and
+ * just show the document. The grey strip across the top — hamburger, a uuid
+ * filename, page count, zoom, rotate, highlight, undo, save-to-Drive,
+ * download, print — is Chrome's PDF viewer, not ours, and it was the
+ * loudest thing on a tab whose only job is showing a scan.
+ *
+ * These are PDF Open Parameters, read by the viewer itself:
+ *   toolbar=0    the grey strip
+ *   navpanes=0   the thumbnail/bookmark sidebar
+ *   scrollbar=0  the viewer's own scrollbar
+ *   view=Fit     the whole page inside the frame, which is also what
+ *                removes the internal scrolling Brent objected to — the
+ *                document is fitted rather than clipped into a scroller.
+ *
+ * A FRAGMENT, deliberately: everything after # is never sent to the server,
+ * so appending it cannot disturb the Supabase signature on the URL.
+ *
+ * HONEST LIMITATION: these are honoured by Chrome and Edge. Firefox's
+ * pdf.js ignores toolbar/navpanes and will still draw its own bar; Safari
+ * ignores most of them too. It degrades to exactly today's behaviour rather
+ * than breaking, and Brent is on Chrome — but it is a viewer request, not a
+ * guarantee, and rendering to an image instead is the only way to be
+ * certain. That would cost real resolution on a 5MB scan and re-introduce
+ * the page-one-only problem this panel was built to fix.
+ */
+const VIEWER_PARAMS = "#toolbar=0&navpanes=0&scrollbar=0&view=Fit";
+
 export function BolViewer({
   docs,
   index,
@@ -128,6 +158,7 @@ export function BolViewer({
   }, [active, path]);
 
   const resolved = signed && signed.path === path ? signed : null;
+  const isImage = (current?.mimeType ?? "").startsWith("image/");
 
   // ── The normal case: 93 of 99 companies. Deliberate, not broken. ──
   if (docs.length === 0) {
@@ -161,14 +192,29 @@ export function BolViewer({
        laptops, not the mechanism. */
     <div className="relative h-full min-h-[520px] bg-inset">
       {resolved?.url ? (
-        <iframe
-          // Remount per document so the viewer resets to page one rather
-          // than holding the previous file's scroll position.
-          key={current!.storagePath}
-          src={resolved.url}
-          title={current!.bolNumber ? `BOL ${current!.bolNumber}` : current!.fileName}
-          className="h-full w-full border-0"
-        />
+        isImage ? (
+          /* A photographed BOL, not a scanned PDF. Every one of the 50 on
+             file today is a PDF, but Snapshot produces photos, so this is
+             the branch they will arrive through — and an <img> is the
+             right renderer for one: no viewer, no toolbar, nothing to
+             strip. object-contain shows the whole sheet. */
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={current!.storagePath}
+            src={resolved.url}
+            alt={current!.bolNumber ? `BOL ${current!.bolNumber}` : current!.fileName}
+            className="h-full w-full object-contain"
+          />
+        ) : (
+          <iframe
+            // Remount per document so the viewer resets to page one rather
+            // than holding the previous file's scroll position.
+            key={current!.storagePath}
+            src={`${resolved.url}${VIEWER_PARAMS}`}
+            title={current!.bolNumber ? `BOL ${current!.bolNumber}` : current!.fileName}
+            className="h-full w-full border-0"
+          />
+        )
       ) : resolved && !resolved.url ? (
         <p className="px-6 py-16 text-center text-[12.5px] text-fg-subtle">
           This document could not be opened. The record still points at{" "}
@@ -201,6 +247,28 @@ export function BolViewer({
             </button>
           ))}
         </div>
+      )}
+      {/* THE ONE CONTROL THAT REPLACES THE TOOLBAR.
+          Hiding Chrome's strip also hid its zoom, and these are scans of
+          dock paperwork — some of them are going to be hard to read. Rather
+          than rebuild a zoom control, this opens the file itself in a new
+          tab, where the browser gives back every tool it just lost: zoom,
+          rotate, search, print, save. One affordance instead of a bar of
+          them, floated in the corner opposite the document switcher so the
+          two cannot collide.
+
+          A link, not a button, so it behaves like one — middle-click and
+          ctrl-click open it in the background the way anything else does. */}
+      {resolved?.url && (
+        <a
+          href={resolved.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Open the full document in a new tab — zoom, rotate, print, save"
+          className="absolute right-3 top-3 rounded-md bg-graphite/85 px-2.5 py-1 text-[11px] font-bold text-white/80 shadow-e1 backdrop-blur-sm transition-colors hover:text-white"
+        >
+          Open full size ↗
+        </a>
       )}
     </div>
   );
