@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { FileHeader } from "./FileHeader";
 import type { CallPerson } from "./WhoDoICall";
 import { HistoryPanel } from "./HistoryPanel";
 import { TasksPanel, type FileTask } from "./TasksPanel";
@@ -124,19 +123,22 @@ export function CompanyFile({
 
   return (
     <div className="bg-canvas">
-      <FileHeader
-        accountName={accountName}
-        industry={industry}
-        fullAddress={fullAddress}
-        ownerLabel={ownerLabel}
-        reassign={reassign}
-        onFileDays={onFileDays}
-        createdLabel={createdLabel}
-        gapCount={gaps.length}
-        gapSummary={gapSummary}
-      />
-
+      {/* The header is rendered by FileBody, not here: Brent's folder tabs
+          live INSIDE the dark band and need to know which section is open,
+          and that state belongs to FileBody. Its props are threaded through
+          rather than duplicated. */}
       <FileBody
+        header={{
+          accountName,
+          industry,
+          fullAddress,
+          ownerLabel,
+          reassign,
+          onFileDays,
+          createdLabel,
+          gapCount: gaps.length,
+          gapSummary,
+        }}
         accountId={accountId}
         stage={stage}
         composerContacts={composerContacts}

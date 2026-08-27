@@ -2,7 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { SegmentedTabs } from "../../../../_shell/SegmentedTabs";
+import { FileHeader, type FileHeaderProps } from "./FileHeader";
+import { HeaderTabs } from "./HeaderTabs";
 import { WhoDoICall, type CallPerson } from "./WhoDoICall";
 import { StageStrip } from "./StageStrip";
 import { WhatHappened } from "./WhatHappened";
@@ -90,6 +91,7 @@ export function FileBody({
   shipmentsPanel,
   shipmentCount,
   finalizeBanner,
+  header,
 }: {
   accountId: string;
   stage: string;
@@ -107,38 +109,36 @@ export function FileBody({
   shipmentsPanel: ReactNode;
   shipmentCount: number;
   finalizeBanner?: ReactNode;
+  /** Everything the dark band renders except the tabs, which this component
+   * supplies because it owns which one is open. */
+  header: Omit<FileHeaderProps, "tabs">;
 }) {
   const [tab, setTab] = useState<PageTab>("overview");
 
   return (
     <>
-      {/* ── Stage strip: full-bleed white band, closed with a rule. It is
-          header material — true on every tab — so it sits above them. ── */}
+      <FileHeader
+        {...header}
+        tabs={
+          <HeaderTabs
+            ariaLabel="Company sections"
+            active={tab}
+            onSelect={setTab}
+            items={[
+              { key: "overview" as const, label: LABEL.overview },
+              { key: "know" as const, label: LABEL.know },
+              { key: "contacts" as const, label: LABEL.contacts, count: people.length },
+              { key: "shipments" as const, label: LABEL.shipments, count: shipmentCount },
+            ]}
+          />
+        }
+      />
+
+      {/* The stage strip is the white surface the active folder tab runs
+          into — see the note above about what that costs. */}
       <StageStrip accountId={accountId} current={stage} />
 
-      {/* One padded column on the canvas holding the tabs AND the panels
-          they switch, so the two read as a single unit. */}
       <div className="flex flex-col gap-3 p-3">
-        <SegmentedTabs
-          ariaLabel="Company sections"
-          size="lg"
-          items={(["overview", "know", "contacts", "shipments"] as PageTab[]).map((key) => ({
-            key,
-            label: LABEL[key],
-            active: tab === key,
-            onSelect: () => setTab(key),
-            // Only the two that are a QUANTITY get a number. "Overview" and
-            // "What we know" are not counts of anything, and inventing one
-            // for them would make the row look like four measurements.
-            count:
-              key === "contacts"
-                ? people.length
-                : key === "shipments"
-                  ? shipmentCount
-                  : undefined,
-          }))}
-        />
-
         {finalizeBanner}
 
         {/* Hidden rather than unmounted: the shipments panel is already in

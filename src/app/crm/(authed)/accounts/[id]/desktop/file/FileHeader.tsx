@@ -78,17 +78,7 @@ function Stat({
   );
 }
 
-export function FileHeader({
-  accountName,
-  industry,
-  fullAddress,
-  ownerLabel,
-  reassign,
-  onFileDays,
-  createdLabel,
-  gapCount,
-  gapSummary,
-}: {
+export type FileHeaderProps = {
   accountName: string;
   industry: string | null;
   /** The composed address — street, city, state, zip. Rendered whole, in
@@ -102,7 +92,24 @@ export function FileHeader({
   gapCount: number;
   /** What the gaps actually are, e.g. "contact, carrier, spend". */
   gapSummary: string | null;
-}) {
+  /** The section switcher, rendered flush to the BOTTOM of the dark band so
+   * the active folder tab's white meets the surface below with no seam.
+   * Supplied by FileBody, which owns which tab is open. */
+  tabs?: ReactNode;
+};
+
+export function FileHeader({
+  accountName,
+  industry,
+  fullAddress,
+  ownerLabel,
+  reassign,
+  onFileDays,
+  createdLabel,
+  gapCount,
+  gapSummary,
+  tabs,
+}: FileHeaderProps) {
   const mapHref = fullAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`
     : null;
@@ -110,7 +117,11 @@ export function FileHeader({
   return (
     <header>
       {/* ── Name band ─────────────────────────────────────────────── */}
-      <div className="flex items-end gap-6 bg-graphite px-4 pb-4 pt-3.5">
+      {/* pb shrinks when tabs are present — they supply the band's bottom
+          edge themselves, and padding under them would break the seam. */}
+      <div
+        className={`flex items-end gap-6 bg-graphite px-4 pt-3.5 ${tabs ? "pb-0" : "pb-4"}`}
+      >
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[27px] font-extrabold leading-none tracking-[-0.02em] text-white">
             {accountName}
@@ -173,6 +184,9 @@ export function FileHeader({
           />
         </div>
       </div>
+
+      {/* Flush to the bottom of the dark band. */}
+      {tabs && <div className="bg-graphite px-4 pt-3">{tabs}</div>}
     </header>
   );
 }
