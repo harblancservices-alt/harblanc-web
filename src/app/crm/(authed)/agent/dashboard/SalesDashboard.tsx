@@ -106,7 +106,32 @@ export function SalesDashboard({
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
         {/* ── The three queues ─────────────────────────────────────── */}
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] items-stretch gap-3">
+        {/* THE ROW IS A BAND, NOT A COLUMN THAT GROWS.
+            min-h-0 on the bodies was not enough on its own: min-h-screen is
+            a MINIMUM, so the flex container still grew with content and the
+            row grew with it — which is why the call list reached 28 rows
+            and pushed everything below it off the screen.
+
+            max-h gives the row a definite height to distribute, so flex-1
+            still fills the space when there is little work (Brent's six
+            tasks look exactly as they did) and the bodies scroll once there
+            is more (Tyler's twenty-seven). items-stretch keeps all three
+            the same height either way, so no column can dwarf its
+            neighbours again.
+
+            min-h-[320px] REPLACES min-h-0 rather than joining it — two
+            min-height classes on one element is a cascade collision, and a
+            320px floor already permits shrinking below content, which is
+            the only thing min-h-0 was there for.
+
+            grid-rows-[minmax(0,1fr)] is the grid half of the same idea and
+            the piece that actually makes the scrollbars appear. max-height
+            on a GRID CONTAINER does not shrink an auto-sized row track: the
+            track still sizes to its tallest content and simply overflows
+            the container, so the row looked bounded while the card bodies
+            were still 2114px tall and had nothing to scroll. An explicit
+            minmax(0,1fr) track gives the cards a real height to fit into. */}
+        <div className="grid min-h-[320px] max-h-[58vh] flex-1 grid-rows-[minmax(0,1fr)] grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)] items-stretch gap-3">
           <ArrivalsQueue companies={arrivals} />
           {/* The agent's WHOLE open book, not just today. Overdue also
               appears in the column to the right — that duplication is

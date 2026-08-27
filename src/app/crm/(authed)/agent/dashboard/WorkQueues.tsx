@@ -127,7 +127,19 @@ export function ArrivalsQueue({ companies }: { companies: AgentCompany[] }) {
         title="New arrivals — triage first"
         count={companies.length === 0 ? "nothing waiting" : String(companies.length)}
       />
-      <div className="flex-1 p-3">
+      {/* THE SCROLL REGION IS THE LIST, NOT THE CARD. The header above
+          stays put; only the rows move under it.
+
+          min-h-0 is the whole fix. A flex item defaults to
+          min-height:auto, which refuses to shrink below its content — so
+          with 28 tasks this body pushed the card, the row and the page
+          taller instead of scrolling, which is what Brent saw: the middle
+          column dwarfing the two beside it and the rest of his list below
+          the fold. Same trap the company file hit.
+
+          No overflow-hidden on the card itself, deliberately — that is
+          what made a sticky child impossible on the assignment board. */}
+      <div className="crm-scroll min-h-0 flex-1 overflow-y-auto p-3">
         {error && (
           <p className="mb-2 rounded-md border border-bad/30 bg-bad-bg px-2.5 py-1.5 text-[12px] font-semibold text-bad">
             {error}
@@ -249,7 +261,19 @@ export function CallQueue({
           </Link>
         }
       />
-      <div className="flex-1 p-3">
+      {/* THE SCROLL REGION IS THE LIST, NOT THE CARD. The header above
+          stays put; only the rows move under it.
+
+          min-h-0 is the whole fix. A flex item defaults to
+          min-height:auto, which refuses to shrink below its content — so
+          with 28 tasks this body pushed the card, the row and the page
+          taller instead of scrolling, which is what Brent saw: the middle
+          column dwarfing the two beside it and the rest of his list below
+          the fold. Same trap the company file hit.
+
+          No overflow-hidden on the card itself, deliberately — that is
+          what made a sticky child impossible on the assignment board. */}
+      <div className="crm-scroll min-h-0 flex-1 overflow-y-auto p-3">
         {items.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-[13px] font-bold text-fg">Nothing open</p>
@@ -343,7 +367,19 @@ export function OverdueQueue({ tasks, nowMs }: { tasks: AgentTask[]; nowMs: numb
         title="Overdue"
         count={tasks.length === 0 ? "nothing late" : String(tasks.length)}
       />
-      <div className="flex-1 p-3">
+      {/* THE SCROLL REGION IS THE LIST, NOT THE CARD. The header above
+          stays put; only the rows move under it.
+
+          min-h-0 is the whole fix. A flex item defaults to
+          min-height:auto, which refuses to shrink below its content — so
+          with 28 tasks this body pushed the card, the row and the page
+          taller instead of scrolling, which is what Brent saw: the middle
+          column dwarfing the two beside it and the rest of his list below
+          the fold. Same trap the company file hit.
+
+          No overflow-hidden on the card itself, deliberately — that is
+          what made a sticky child impossible on the assignment board. */}
+      <div className="crm-scroll min-h-0 flex-1 overflow-y-auto p-3">
         {tasks.length === 0 ? (
           <div className="py-10 text-center">
             <p className="text-[13px] font-bold text-fg">Nothing is late</p>

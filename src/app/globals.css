@@ -315,6 +315,40 @@ input[type="date"]::-webkit-date-and-time-value {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
+/* A scrollbar you can SEE.
+   Brent's complaint about the dashboard's call list was not only that it
+   clipped — it was that nothing on screen said there was more below. An
+   overlay scrollbar that fades out until you hover is exactly the wrong
+   behaviour for a work queue, because the whole point is knowing how much
+   is left. This keeps the track permanently visible on any element that
+   opts in.
+
+   scrollbar-gutter: stable reserves the track's width whether or not it is
+   currently needed, so a list that grows past its bounds does not shift its
+   rows sideways the moment it starts scrolling. */
+.crm-light .crm-scroll {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) var(--inset);
+}
+.crm-light .crm-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.crm-light .crm-scroll::-webkit-scrollbar-track {
+  background: var(--inset);
+  border-radius: 6px;
+}
+.crm-light .crm-scroll::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 6px;
+  /* A ring of card colour so the thumb reads as a rounded bar rather than
+     filling the gutter edge to edge. */
+  border: 2px solid var(--card);
+}
+.crm-light .crm-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-subtle);
+}
+
 /* Date and time inputs keep the NATIVE picker on purpose — it brings the
    platform's own calendar, keyboard entry, locale handling and validation,
    and a hand-rolled replacement would get one of those wrong. What was
