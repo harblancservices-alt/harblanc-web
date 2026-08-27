@@ -2,10 +2,12 @@ import type { ReactNode } from "react";
 import { FileHeader } from "./FileHeader";
 import { StageStrip } from "./StageStrip";
 import { WhatHappened } from "./WhatHappened";
-import { WhoDoICall, type CallPerson } from "./WhoDoICall";
+import type { CallPerson } from "./WhoDoICall";
 import { HistoryPanel } from "./HistoryPanel";
 import { TasksPanel, type FileTask } from "./TasksPanel";
 import { WhatWeKnow } from "./WhatWeKnow";
+import { ContactsTab } from "./ContactsTab";
+import { FileBody } from "./FileBody";
 import { FileCard, SectionHead } from "./chrome";
 import type { BolFacts } from "./bolFacts";
 import type { FileGap } from "./fileGaps";
@@ -79,6 +81,8 @@ export function CompanyFile({
   canReassign,
   nowMs,
   finalizeBanner,
+  shipmentsPanel,
+  shipmentCount,
 }: {
   accountId: string;
   accountName: string;
@@ -103,6 +107,11 @@ export function CompanyFile({
   canReassign: boolean;
   nowMs: number;
   finalizeBanner?: ReactNode;
+  /** ShipmentsTab, rendered on the server by the page and handed down — it
+   * does its own fetch, so this tree neither knows nor cares how loads are
+   * loaded. */
+  shipmentsPanel: ReactNode;
+  shipmentCount: number;
 }) {
   /** The header's sub-line under GAPS — what they actually are, in place of
    * the mockup's "1 blocks Qualified", which would state a rule this app
@@ -140,28 +149,34 @@ export function CompanyFile({
           <WhatHappened accountId={accountId} contacts={composerContacts} stage={stage} />
         </FileCard>
 
-        {/* The three reading panels. `items-start` is deliberate: without it
-            a short Tasks column would stretch to match a long history and
-            hang its footer line in mid-air. */}
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,1.05fr)] items-stretch gap-3">
-          <WhoDoICall
-            accountId={accountId}
-            people={people}
-            companyPhones={companyPhones}
-            companyDefaults={companyDefaults}
-            reps={reps}
-          />
-          <HistoryPanel accountId={accountId} items={activityItems} nowMs={nowMs} />
-          <TasksPanel tasks={tasks} reps={reps} canReassign={canReassign} nowMs={nowMs} />
-        </div>
-
-        <WhatWeKnow
+        {/* The three reading panels and the tabbed record, together in one
+            client component because they share the open-tab state — panel
+            01's "+N more" opens the Contacts tab. See FileBody.tsx. */}
+        <FileBody
           accountId={accountId}
-          facts={facts}
-          gaps={gaps}
-          allFieldsCount={allFieldsCount}
+          people={people}
+          companyPhones={companyPhones}
           companyDefaults={companyDefaults}
           reps={reps}
+          shipmentCount={shipmentCount}
+          historyPanel={
+            <HistoryPanel accountId={accountId} items={activityItems} nowMs={nowMs} />
+          }
+          tasksPanel={
+            <TasksPanel tasks={tasks} reps={reps} canReassign={canReassign} nowMs={nowMs} />
+          }
+          knowPanel={
+            <WhatWeKnow
+              accountId={accountId}
+              facts={facts}
+              gaps={gaps}
+              allFieldsCount={allFieldsCount}
+              companyDefaults={companyDefaults}
+              reps={reps}
+            />
+          }
+          contactsPanel={<ContactsTab accountId={accountId} people={people} />}
+          shipmentsPanel={shipmentsPanel}
         />
       </div>
     </div>

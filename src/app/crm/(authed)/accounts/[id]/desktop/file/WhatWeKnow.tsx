@@ -8,7 +8,7 @@ import { EditCompany } from "../../EditCompany";
 import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
 import type { BolFacts } from "./bolFacts";
 import type { FileGap } from "./fileGaps";
-import { FileCard, SectionHead, Micro } from "./chrome";
+import { Micro } from "./chrome";
 
 /**
  * PANEL 04 — WHAT WE KNOW.
@@ -110,14 +110,13 @@ export function WhatWeKnow({
     });
   }
 
+  // NO CARD AND NO HEADER OF ITS OWN. RecordTabs owns both now — it draws
+  // the 04 chip, the title and the tab strip, and this is one of the three
+  // panels inside it. Keeping the FileCard/SectionHead here would put a
+  // header under a header and a border inside a border, which is exactly
+  // the doubled chrome the Contacts/Tasks sections had this morning.
   return (
-    <FileCard>
-      <SectionHead
-        n="04"
-        title="What we know"
-        count="Shipper record — carrier fields (MC, DOT, insurance, safety) don't render here"
-      />
-
+    <div>
       <div className="grid grid-cols-2">
         {/* ── FROM BOLS ─────────────────────────────────────────────── */}
         <div className="border-r border-line px-4 py-3">
@@ -280,6 +279,6 @@ export function WhatWeKnow({
           the full record — everything above plus the fields nobody has needed yet
         </span>
       </div>
-    </FileCard>
+    </div>
   );
 }

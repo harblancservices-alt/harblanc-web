@@ -50,6 +50,13 @@ export type CallPerson = {
    * page from crm_contacts.last_contacted_at. */
   lastContactLabel: string;
   defaults: ContactDefaults;
+  /** ── Roster fields. Not rendered here — the shortlist deliberately shows
+   * one number and nothing else — but carried on the same type because the
+   * Contacts tab is built from exactly this list and a second, wider type
+   * for the same people is how two views start disagreeing. */
+  role: string | null;
+  isDecisionMaker: boolean;
+  bestTimeToCall: string | null;
 };
 
 function PhoneButton({ label, number }: { label: string | null; number: string }) {
@@ -71,27 +78,52 @@ function PhoneButton({ label, number }: { label: string | null; number: string }
   );
 }
 
+/**
+ * How many people the SHORTLIST shows before handing off to the roster.
+ *
+ * Three, because the shortlist answers "who am I ringing right now" and a
+ * fourth name has never been the answer to that. The most contacts any one
+ * company has today is six, so this bites on very few — but it is what makes
+ * this panel a shortlist rather than the Contacts tab rendered twice, and it
+ * holds when a company finally has fifteen people on it.
+ */
+const SHORTLIST = 3;
+
 export function WhoDoICall({
   accountId,
   people,
   companyPhones,
   companyDefaults,
   reps,
+  onOpenContacts,
 }: {
   accountId: string;
+  /** Everybody on the company. This panel shows the first few; the Contacts
+   * tab shows them all. */
   people: CallPerson[];
   companyPhones: { label: string; number: string }[];
   /** Defaults for the company edit dialog, so "+ number" has somewhere to
    * go — the company line lives on crm_accounts, not on a contact. */
   companyDefaults: CompanyDefaults;
   reps: RepOption[];
+  /** Opens the Contacts tab in the record below. Supplied by FileBody,
+   * which owns that state — see FileBody.tsx for why this is a prop and
+   * not a context. */
+  onOpenContacts: () => void;
 }) {
+  const shown = people.slice(0, SHORTLIST);
+  const overflow = people.length - shown.length;
+  const shortlistLabel =
+    overflow > 0
+      ? `first ${shown.length} of ${people.length}`
+      : `${people.length} ${people.length === 1 ? "person" : "people"}`;
+
   return (
     <FileCard className="flex flex-col">
       <SectionHead
         n="01"
         title="Who do I call"
-        count={people.length === 0 ? "nobody yet" : `${people.length} ${people.length === 1 ? "person" : "people"}`}
+        count={people.length === 0 ? "nobody yet" : shortlistLabel}
         action={
           <ContactDialog
             accountId={accountId}
@@ -132,7 +164,7 @@ export function WhoDoICall({
             />
           </div>
         ) : (
-          people.map((p, i) => {
+          shown.map((p, i) => {
             const phone = p.phones[0] ?? null;
             const meta = [p.title, p.lastContactLabel].filter(Boolean);
             return (
@@ -230,6 +262,20 @@ export function WhoDoICall({
           })
         )}
       </div>
+
+      {/* ── The hand-off to the roster ───────────────────────────────
+          This is what stops panel 01 and the Contacts tab being the same
+          list twice: the shortlist stops, says how many it stopped at, and
+          opens the tab that has the rest. */}
+      {overflow > 0 && (
+        <button
+          type="button"
+          onClick={onOpenContacts}
+          className="border-t border-line px-4 py-2 text-left text-[12px] font-semibold text-accent hover:bg-accent-bg"
+        >
+          + {overflow} more {overflow === 1 ? "person" : "people"} — open Contacts
+        </button>
+      )}
 
       {/* ── The company's own line, pinned to the bottom ─────────────── */}
       <div className="mt-auto flex items-center gap-3 border-t border-line px-4 py-3">

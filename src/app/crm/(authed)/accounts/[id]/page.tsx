@@ -101,6 +101,7 @@ export default async function AccountDetailPage({
     accountTagsRes,
     orgTagsRes,
     bolRes,
+    shipmentCountRes,
   ] = await Promise.all([
     supabase.from("crm_profiles").select("id, full_name, email, is_active, role"),
     supabase
@@ -170,6 +171,15 @@ export default async function AccountDetailPage({
       .eq("matched_shipper_account_id", id)
       .is("deleted_at", null)
       .limit(200),
+ 
+    // How many loads this company has — the Shipments tab's count. An
+    // id-only head query (count exact, no rows), and IN the Promise.all,
+    // unlike the sequential probe this replaces.
+    supabase
+      .from("crm_shipments")
+      .select("id", { count: "exact", head: true })
+      .eq("account_id", id)
+      .is("deleted_at", null),
   ]);
 
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
@@ -446,6 +456,12 @@ export default async function AccountDetailPage({
   const nowMs = serverNow();
   const now = new Date(nowMs);
 
+  // `is_decision_maker` is on the raw rows but not on CrmContact, so it is
+  // read off contactRows. Hoisted above filePeople (2026-08-26) because the
+  // company file's Contacts tab needs it too — it used to be declared in the
+  // mobile block below, which is the only place that wanted it.
+  const decisionMakerIds = new Set(contactRows.filter((c) => c.is_decision_maker).map((c) => c.id));
+
   const createdMs = timestampMs(account.created_at as string);
   const onFileDays = createdMs === null ? 0 : Math.max(0, Math.floor((nowMs - createdMs) / 86_400_000));
   const createdLabel = createdMs
@@ -487,6 +503,10 @@ export default async function AccountDetailPage({
         isPrimary: c.id === (account.primary_contact_id as string | null),
         lastContactLabel:
           status.freshness === "never" ? "never called" : `reached ${status.text.toLowerCase()}`,
+        // Roster fields — rendered by the Contacts tab, not by the shortlist.
+        role: c.role_category ?? null,
+        isDecisionMaker: decisionMakerIds.has(c.id),
+        bestTimeToCall: c.best_time_to_call ?? null,
         defaults: {
           id: c.id,
           name: c.name,
@@ -571,7 +591,6 @@ export default async function AccountDetailPage({
   // `is_decision_maker` is selected and lives on contactRows, but CrmContact
   // (= ContactDefaults + id/name/phones/links) doesn't carry it, so read it
   // off the raw rows rather than widening a shared type for one badge.
-  const decisionMakerIds = new Set(contactRows.filter((c) => c.is_decision_maker).map((c) => c.id));
 
   const mobilePeople: MobilePerson[] = contacts
     .map((c) => ({
@@ -735,6 +754,10 @@ export default async function AccountDetailPage({
           reps={reps}
           canReassign={isOwner}
           nowMs={nowMs}
+          shipmentCount={shipmentCountRes.count ?? 0}
+          shipmentsPanel={
+            <ShipmentsTab accountId={account.id as string} accountName={accountName} />
+          }
           finalizeBanner={
             account.needs_finalize ? (
               <FinalizeBanner defaults={editDefaults} reps={reps} canAssign={isOwner} />
