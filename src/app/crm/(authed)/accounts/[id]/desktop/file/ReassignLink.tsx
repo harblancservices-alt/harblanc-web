@@ -78,7 +78,7 @@ export function ReassignLink({
         disabled={pending}
         onChange={(e) => run(e.target.value || null)}
         onBlur={() => setOpen(false)}
-        className="max-w-[130px] rounded border border-white/25 bg-file-bar px-1.5 py-0.5 text-[11px] text-white outline-none"
+        className="max-w-[130px] rounded border border-white/25 bg-graphite-2 px-1.5 py-0.5 text-[11px] text-white outline-none"
       >
         <option value="">Nobody</option>
         {reps.map((r) => (

@@ -81,8 +81,8 @@ export function FileHeader({
   return (
     <header>
       {/* ── Top strip ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2.5 bg-file-bar px-4 py-2">
-        <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[3px] bg-white text-[11px] font-extrabold text-file-band">
+      <div className="flex items-center gap-2.5 bg-graphite-2 px-4 py-2">
+        <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[3px] bg-white text-[11px] font-extrabold text-graphite">
           H
         </span>
         <Micro className="text-white">Hello Hotshot</Micro>
@@ -117,7 +117,7 @@ export function FileHeader({
       </div>
 
       {/* ── Name band ─────────────────────────────────────────────── */}
-      <div className="flex items-end gap-6 bg-file-band px-4 pb-4 pt-3.5">
+      <div className="flex items-end gap-6 bg-graphite px-4 pb-4 pt-3.5">
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[27px] font-extrabold leading-none tracking-[-0.02em] text-white">
             {accountName}

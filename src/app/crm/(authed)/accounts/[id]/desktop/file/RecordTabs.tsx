@@ -65,16 +65,29 @@ export function RecordTabs({
   shipmentCount: number;
 }) {
   return (
-    <section id="company-record" className="border border-line bg-card">
-      <div className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5">
-        <span className="flex h-[18px] w-[18px] shrink-0 items-center justify-center bg-fg text-[10px] font-bold text-white crm-num">
+    <section id="company-record" className="border border-graphite bg-card">
+      {/* The dark bar carries the number and the title, exactly like the
+          other three panels — this is panel 04 and it has to look like a
+          peer of 01/02/03, not a different kind of thing. */}
+      <div className="flex flex-wrap items-center gap-2 bg-graphite px-3 py-2">
+        <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[2px] bg-white text-[10px] font-bold text-graphite crm-num">
           04
         </span>
-        <Micro className="text-fg">The record</Micro>
+        <Micro className="text-white">The record</Micro>
+        {tab === "know" && (
+          <span className="ml-auto hidden text-[11.5px] text-white/55 xl:block">
+            Shipper record — carrier fields (MC, DOT, insurance, safety) don&apos;t render here
+          </span>
+        )}
+      </div>
 
+      {/* The tabs sit BELOW the bar on white, not inside it. SegmentedTabs
+          is built for a light surface — its inactive chip is an accent
+          outline on --card — and dropping it onto graphite would have meant
+          restyling the one component every tab row in the CRM shares. */}
+      <div className="border-b border-line px-3 py-2">
         <SegmentedTabs
           ariaLabel="Company record"
-          className="ml-1"
           items={(["know", "contacts", "shipments"] as RecordTab[]).map((key) => ({
             key,
             label: LABEL[key],
@@ -84,12 +97,6 @@ export function RecordTabs({
               key === "contacts" ? contactCount : key === "shipments" ? shipmentCount : undefined,
           }))}
         />
-
-        {tab === "know" && (
-          <span className="ml-auto hidden text-[11.5px] text-fg-subtle xl:block">
-            Shipper record — carrier fields (MC, DOT, insurance, safety) don&apos;t render here
-          </span>
-        )}
       </div>
 
       {/* Hidden rather than unmounted: the shipments panel is server-rendered

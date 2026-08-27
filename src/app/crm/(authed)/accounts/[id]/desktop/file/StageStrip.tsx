@@ -73,7 +73,7 @@ export function StageStrip({
   }
 
   return (
-    <div className="border-b border-line bg-card">
+    <div className="border-b border-graphite bg-card">
       <div className="flex items-stretch">
         {/* The row's own label, not a cell — it is what the ten cells are. */}
         <div className="w-[112px] shrink-0 px-4 py-2.5">
@@ -97,7 +97,7 @@ export function StageStrip({
               title={isActive ? `Currently ${LIFECYCLE_LABEL[stage]}` : `Move to ${LIFECYCLE_LABEL[stage]}`}
               className={`min-w-0 flex-1 border-l border-line px-3 py-2.5 text-left transition-colors ${
                 isActive
-                  ? "bg-file-on"
+                  ? "bg-accent"
                   : "bg-card hover:bg-inset disabled:cursor-default"
               }`}
             >

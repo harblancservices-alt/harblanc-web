@@ -90,7 +90,7 @@ export function HistoryPanel({
             <Link
               href={`/crm/accounts/${accountId}/history`}
               prefetch={false}
-              className="text-[12px] text-fg-subtle hover:text-accent hover:underline"
+              className="text-[12px] text-white/60 hover:text-white hover:underline"
             >
               full history · {items.length}
             </Link>

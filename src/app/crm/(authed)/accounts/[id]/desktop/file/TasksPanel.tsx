@@ -66,7 +66,7 @@ function Btn({
 }) {
   const cls =
     variant === "solid"
-      ? "bg-file-on text-white hover:bg-file-on-hover"
+      ? "bg-accent text-white hover:bg-accent-hover"
       : variant === "outline"
         ? "border border-line bg-card text-fg hover:bg-inset"
         : "text-accent hover:underline";

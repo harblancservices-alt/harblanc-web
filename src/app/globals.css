@@ -277,29 +277,18 @@ input[type="date"]::-webkit-date-and-time-value {
   --admin-hover: #5c34b8;
   --admin-soft: #ece3fb;
 
-  /* ── COMPANY FILE ─────────────────────────────────────────────────
-     Brent, 2026-08-26, handing over a mockup: "make the company page
-     look like this inch for inch." Three values it needs that this
-     palette genuinely had no equivalent for, sampled from the image
-     rather than guessed:
+  /* The company file's chrome used to declare three tokens of its own here
+     (--file-bar / --file-band / --file-on, sampled off a mockup). Brent,
+     2026-08-26: "make the boarders and stuff the same color as the side
+     column", and blue "for the buttons obviously".
 
-       --file-bar   the header's top strip
-       --file-band  the header's name band, one step darker
-       --file-on    the CURRENT stage cell, and the one-click call
-                    outcome buttons that share its weight
-
-     Why not reuse what exists. --bar (#14161c) is a near-black; the
-     design's header is a desaturated NAVY and reads as a different
-     material next to it. --steel (#2f5d80) is the closest existing
-     blue to --file-on but is a STATUS hue — it already means "quote
-     requested" on a call chip and "BOL" on a source pill, and a
-     stage cell painted in it would be borrowing a meaning it does
-     not have. These three are chrome for one surface, named for that
-     surface, and deliberately not added to the status family. */
-  --file-bar: #2a3948;
-  --file-band: #1d2d3d;
-  --file-on: #597ea3;
-  --file-on-hover: #4a6d90;
+     All three are gone, because the palette already had every one of them
+     and the mockup's values were within a few points of the real tokens:
+     the header band is the SIDEBAR's own --graphite, the top strip is
+     --graphite-2, and the current stage cell is --accent — which the second
+     mockup sampled at #2f5fd6, an exact match for the CRM accent. The page
+     is no longer a visitor from another design system; it is built from the
+     same tokens as the sidebar it sits next to. */
 }
 
 /* CRM numeric/temporal tier — IBM Plex Mono, the ONE font addition the
@@ -513,11 +502,6 @@ html[data-layout="landscape"] [data-shell="main"] { padding-bottom: 0 !important
   --color-accent-deep: var(--accent-deep);
   --color-bar: var(--bar);
   --color-bar-fg: var(--bar-fg);
-  /* Company-file chrome — see the .crm-light block. */
-  --color-file-bar: var(--file-bar);
-  --color-file-band: var(--file-band);
-  --color-file-on: var(--file-on);
-  --color-file-on-hover: var(--file-on-hover);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

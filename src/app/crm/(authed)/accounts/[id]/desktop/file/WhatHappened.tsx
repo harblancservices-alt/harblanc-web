@@ -240,7 +240,7 @@ export function WhatHappened({
                 type="button"
                 onClick={() => saveCall(o.value)}
                 disabled={pending}
-                className="rounded-md bg-file-on px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-file-on-hover disabled:opacity-55"
+                className="rounded-md bg-accent px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-accent-hover disabled:opacity-55"
               >
                 {o.short}
               </button>
@@ -278,7 +278,7 @@ export function WhatHappened({
             type="button"
             onClick={mode === "note" ? saveNote : saveTask}
             disabled={pending || !text.trim()}
-            className="rounded-md bg-file-on px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-file-on-hover disabled:opacity-55"
+            className="rounded-md bg-accent px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-accent-hover disabled:opacity-55"
           >
             {pending ? "Saving…" : mode === "note" ? "Save note" : "Create task"}
           </button>

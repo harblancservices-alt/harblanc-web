@@ -108,7 +108,7 @@ export function ContactsTab({
             <button
               type="button"
               onClick={open}
-              className="mt-3 rounded-md bg-file-on px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-file-on-hover"
+              className="mt-3 rounded-md bg-accent px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-accent-hover"
             >
               Add the first contact
             </button>

@@ -132,7 +132,7 @@ export function WhoDoICall({
               <button
                 type="button"
                 onClick={open}
-                className="text-[12px] font-bold text-accent hover:underline"
+                className="text-[12px] font-bold text-white/80 hover:text-white hover:underline"
               >
                 + person
               </button>
@@ -156,7 +156,7 @@ export function WhoDoICall({
                 <button
                   type="button"
                   onClick={open}
-                  className="mt-3 rounded-md bg-file-on px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-file-on-hover"
+                  className="mt-3 rounded-md bg-accent px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-accent-hover"
                 >
                   Add the first contact
                 </button>
