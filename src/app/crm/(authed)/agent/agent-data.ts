@@ -1,4 +1,4 @@
-import { timestampMs } from "../_shell/format";
+import { timestampMs, centralDayRange } from "../_shell/format";
 import { createCrmServerClient, type CrmUser } from "@/lib/crm/auth";
 import { contactCountByAccount } from "@/lib/crm/contactCount";
 import { primaryContactByAccount } from "@/lib/crm/primaryContact";
@@ -30,10 +30,31 @@ export type AgentDashboardData = {
    * stored, not queried separately — the same company rows above, plus a
    * contact count. See completeness.ts for why these are never task rows. */
   completeness: CompletenessInput[];
+  /** Calls this agent logged TODAY, and how many of them reached somebody.
+   * The dashboard's "Logged today" metric — the one figure on the strip
+   * that measures effort rather than backlog. */
+  callsToday: number;
+  reachedToday: number;
   /** Server clock, passed to the client so every date label is computed
    * against ONE instant — the same hydration guard the assignment board uses. */
   now: number;
 };
+
+/**
+ * Call outcomes that mean a conversation actually happened.
+ *
+ * Deliberately narrow. "Voicemail" and "No Answer" are dials, not
+ * conversations, and counting them as reached would make the number on the
+ * dashboard flattering and useless. `reached` is the plain one added for
+ * the company file's one-click row; the other three are outcomes that can
+ * only be known BY talking to somebody.
+ */
+const REACHED_OUTCOMES = [
+  "reached",
+  "interested",
+  "meeting_scheduled",
+  "quote_requested",
+] as const;
 
 export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboardData> {
   const supabase = await createCrmServerClient();
@@ -171,5 +192,27 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     createdMs: timestampMs(a.created_at as string | null),
   }));
 
-  return { tasks, companies, completeness, now: Date.now() };
+  /**
+   * Today's calls, counted in CENTRAL time rather than UTC.
+   *
+   * A day boundary matters here: at 8pm Central it is already tomorrow in
+   * UTC, so a UTC-bounded query would zero the agent's counter mid-evening
+   * while they were still working. centralDayRange is the same helper every
+   * other "today" in this CRM uses.
+   */
+  const { startMs, endMs } = centralDayRange(new Date());
+  const { data: callRows } = await supabase
+    .from("crm_calls")
+    .select("outcome")
+    .eq("user_id", user.id)
+    .is("deleted_at", null)
+    .gte("occurred_at", new Date(startMs).toISOString())
+    .lt("occurred_at", new Date(endMs).toISOString());
+
+  const callsToday = (callRows ?? []).length;
+  const reachedToday = (callRows ?? []).filter((c) =>
+    (REACHED_OUTCOMES as readonly string[]).includes((c.outcome as string | null) ?? ""),
+  ).length;
+
+  return { tasks, companies, completeness, callsToday, reachedToday, now: Date.now() };
 }
