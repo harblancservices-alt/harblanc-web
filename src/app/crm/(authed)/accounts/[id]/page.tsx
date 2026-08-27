@@ -19,6 +19,7 @@ import { ShipmentsTab } from "./ShipmentsTab";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
 import { CompanyFile } from "./desktop/file/CompanyFile";
 import { bolFacts, type BolRow } from "./desktop/file/bolFacts";
+import type { BolDoc } from "./desktop/file/BolViewer";
 import { fileGaps } from "./desktop/file/fileGaps";
 import type { CallPerson } from "./desktop/file/WhoDoICall";
 import type { FileTask } from "./desktop/file/TasksPanel";
@@ -27,7 +28,6 @@ import { DETAILS_FIELDS } from "./details-fields";
 import { serverNow } from "@/lib/crm/serverNow";
 import { lastContactStatus } from "../../_shell/format";
 import type { IdentityLink } from "./desktop/IdentityCard";
-import type { WheelContact } from "./desktop/ContactsWheel";
 import { timestampMs } from "../../_shell/format";
 import { MobileProfile } from "./mobile/MobileProfile";
 import type { MobilePerson } from "./mobile/MobilePeople";
@@ -166,7 +166,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_bol_entries")
       .select(
-        "bol_number, shipper_address, consignee_name, consignee_address, commodity, weight, carrier, pickup_date",
+        "id, document_id, bol_number, shipper_address, consignee_name, consignee_address, commodity, weight, carrier, pickup_date",
       )
       .eq("matched_shipper_account_id", id)
       .is("deleted_at", null)
@@ -565,8 +565,82 @@ export default async function AccountDetailPage({
     assigneeName: t.assigneeName ?? null,
   }));
 
+  const bolRows = (bolRes.data ?? []) as {
+    id: string;
+    document_id: string | null;
+    bol_number: string | null;
+    shipper_address: string | null;
+    consignee_name: string | null;
+    consignee_address: string | null;
+    commodity: string | null;
+    weight: string | null;
+    carrier: string | null;
+    pickup_date: string | null;
+  }[];
+
+  /**
+   * THE BOL PDFs THEMSELVES — company -> crm_bol_entries -> crm_documents.
+   *
+   * NOT company -> crm_documents, which is how every other document surface
+   * in this CRM finds files. `crm_documents.account_id` is NULL on 13 of the
+   * 14 BOL PDFs: they were uploaded through the BOL Center, land under a
+   * `bol-center/` storage path, and carry no company. Filtering documents by
+   * account_id finds ONE of the fourteen. The parsed entry is the only thing
+   * holding both ends — matched_shipper_account_id and document_id — so the
+   * join goes through it.
+   *
+   * A SECOND QUERY, and deliberately a conditional one. It cannot join in
+   * the Promise.all above because it needs ids that query returns, and
+   * making it unconditional would put a sequential round-trip on all 99
+   * company pages to serve the 6 that have a shipper-matched BOL. It is
+   * skipped entirely when there are no entries, which is the normal case.
+   */
+  const bolDocIds = bolRows.map((b) => b.document_id).filter((v): v is string => !!v);
+  const bolDocRows = bolDocIds.length
+    ? ((
+        await supabase
+          .from("crm_documents")
+          .select("id, file_name, storage_path, mime_type, size_bytes")
+          .in("id", bolDocIds)
+          .is("deleted_at", null)
+      ).data ?? [])
+    : [];
+  const docById = new Map(
+    (bolDocRows as {
+      id: string;
+      file_name: string;
+      storage_path: string;
+      mime_type: string | null;
+      size_bytes: number | null;
+    }[]).map((d) => [d.id, d]),
+  );
+
+  /** Newest first, so the switcher opens on the most recent load. Same
+   * tolerance for a TEXT pickup_date as bolFacts: unparseable sorts last
+   * rather than throwing. */
+  const bolDocs: BolDoc[] = bolRows
+    .map((b) => {
+      const doc = b.document_id ? docById.get(b.document_id) : undefined;
+      if (!doc) return null;
+      return {
+        entryId: b.id,
+        bolNumber: (b.bol_number ?? "").trim() || null,
+        pickupDate: (b.pickup_date ?? "").trim() || null,
+        fileName: doc.file_name,
+        storagePath: doc.storage_path,
+        mimeType: doc.mime_type,
+        sizeBytes: doc.size_bytes,
+      };
+    })
+    .filter((d): d is BolDoc => d !== null)
+    .sort((a, b) => {
+      const at = Date.parse(a.pickupDate ?? "");
+      const bt = Date.parse(b.pickupDate ?? "");
+      return (Number.isNaN(bt) ? -Infinity : bt) - (Number.isNaN(at) ? -Infinity : at);
+    });
+
   const facts = bolFacts(
-    ((bolRes.data ?? []) as {
+    (bolRows as {
       bol_number: string | null;
       shipper_address: string | null;
       consignee_name: string | null;
@@ -750,6 +824,7 @@ export default async function AccountDetailPage({
           activityItems={activityItems}
           tasks={fileTasks}
           facts={facts}
+          bolDocs={bolDocs}
           allFieldsCount={DETAILS_FIELDS.length}
           companyDefaults={editDefaults}
           reps={reps}

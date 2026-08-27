@@ -7,6 +7,7 @@ import { WhatWeKnow } from "./WhatWeKnow";
 import { ContactsTab } from "./ContactsTab";
 import { FileBody } from "./FileBody";
 import type { BolFacts } from "./bolFacts";
+import type { BolDoc } from "./BolViewer";
 import type { FileGap } from "./fileGaps";
 import type { CrmActivityLogItem } from "../../ActivityLogSection";
 import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
@@ -71,6 +72,7 @@ export function CompanyFile({
   activityItems,
   tasks,
   facts,
+  bolDocs,
   allFieldsCount,
   companyDefaults,
   reps,
@@ -96,6 +98,7 @@ export function CompanyFile({
   activityItems: CrmActivityLogItem[];
   tasks: FileTask[];
   facts: BolFacts;
+  bolDocs: BolDoc[];
   allFieldsCount: number;
   companyDefaults: CompanyDefaults;
   reps: RepOption[];
@@ -153,6 +156,7 @@ export function CompanyFile({
           <WhatWeKnow
             accountId={accountId}
             facts={facts}
+            bolDocs={bolDocs}
             gaps={gaps}
             allFieldsCount={allFieldsCount}
             companyDefaults={companyDefaults}

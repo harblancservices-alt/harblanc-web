@@ -9,6 +9,7 @@ import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
 import type { BolFacts } from "./bolFacts";
 import type { FileGap } from "./fileGaps";
 import { FileCard, SectionHead, Micro } from "./chrome";
+import { BolViewer, type BolDoc } from "./BolViewer";
 
 /**
  * PANEL 04 — WHAT WE KNOW.
@@ -68,6 +69,7 @@ function Row({
 export function WhatWeKnow({
   accountId,
   facts,
+  bolDocs,
   gaps,
   allFieldsCount,
   companyDefaults,
@@ -75,6 +77,9 @@ export function WhatWeKnow({
 }: {
   accountId: string;
   facts: BolFacts;
+  /** The BOL PDFs themselves, newest first — joined company ->
+   * crm_bol_entries -> crm_documents in page.tsx. See BolViewer. */
+  bolDocs: BolDoc[];
   gaps: FileGap[];
   /** How many detail fields the record has in total — the footer's honest
    * "there is more than this" count. */
@@ -120,9 +125,19 @@ export function WhatWeKnow({
         title="What we know"
         count="Shipper record — carrier fields (MC, DOT, insurance, safety) don't render here"
       />
-      <div className="grid grid-cols-2">
+      {/* Two halves: the document on the left, what was read off it — and
+          then what we know beyond it — on the right. `items-stretch` so the
+          viewer's own column fills the taller side rather than floating. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-stretch">
+        {/* ══ LEFT: the bill of lading itself ══════════════════════ */}
+        <div className="border-r border-line-strong">
+          <BolViewer docs={bolDocs} />
+        </div>
+
+        {/* ══ RIGHT: parsed facts, then the company record ═════════ */}
+        <div className="flex min-w-0 flex-col">
         {/* ── FROM BOLS ─────────────────────────────────────────────── */}
-        <div className="border-r border-line px-4 py-3">
+        <div className="px-4 py-3">
           <p className="mb-1">
             <Micro className="text-fg-muted">From BOLs</Micro>
             <span className="ml-2 text-[11.5px] text-fg-subtle">
@@ -175,8 +190,11 @@ export function WhatWeKnow({
           )}
         </div>
 
-        {/* ── GAPS ──────────────────────────────────────────────────── */}
-        <div className="px-4 py-3">
+        {/* ── THE COMPANY RECORD ───────────────────────────────────
+            Beneath the parsed facts rather than beside them: the BOL says
+            what they shipped, this says what we know about them as a
+            customer. Two different kinds of knowledge, read in that order. */}
+        <div className="border-t border-line-strong px-4 py-3">
           <p className="mb-1">
             <Micro className="text-fg-muted">Gaps</Micro>
             <span className="ml-2 text-[11.5px] text-fg-subtle">
@@ -267,6 +285,7 @@ export function WhatWeKnow({
               </div>
             ))
           )}
+        </div>
         </div>
       </div>
 
