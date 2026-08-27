@@ -180,9 +180,16 @@ export async function logCall(formData: FormData): Promise<ActionResult> {
   const followupRequired = str(formData, "followup_required") === "on";
   const reminderDate = optStr(formData, "reminder_date");
   const reminderTime = optStr(formData, "reminder_time");
+  /* TIME IS OPTIONAL NOW. LogCallDialog still sends both, so its behaviour
+     is unchanged. The composer's one-tap chips (Tomorrow / Friday / Next
+     week) give a DATE and no time, and requiring a time would have meant
+     either inventing a picker nobody asked for or silently dropping the
+     follow-up the rep just set. Local midday, the same instant the task
+     composer stores a date at, so a timezone shift cannot roll it onto the
+     wrong day. */
   const reminderAt =
-    followupRequired && reminderDate && reminderTime
-      ? centralInputToIso(`${reminderDate}T${reminderTime}`)
+    followupRequired && reminderDate
+      ? centralInputToIso(`${reminderDate}T${reminderTime || "12:00"}`)
       : null;
 
   const supabase = await createCrmServerClient();
@@ -319,6 +326,13 @@ export async function logCall(formData: FormData): Promise<ActionResult> {
       contact_id: contactId,
       user_id: user.id,
       outcome,
+      /* HOW IT WENT, when they got through. A second answer needs a second
+         column: `outcome` is what every existing surface reads for "did
+         you connect", and overloading it would make a timeline chip say
+         "Wants a quote" where it used to say whether the phone was
+         answered. `disposition` has existed all along, is read nowhere
+         else and held 0 of 52 rows — so this needed no migration. */
+      disposition: optStr(formData, "disposition"),
       duration_seconds: durationSeconds,
       summary,
       notes,
@@ -357,6 +371,9 @@ export async function logCall(formData: FormData): Promise<ActionResult> {
       contactId,
       subjectName,
       followupAt: reminderAt,
+      /* The composer drafts this from the note and the outcome. Absent
+         from every other caller, which keeps "Follow up with X". */
+      title: optStr(formData, "followup_title"),
       existingTaskId: null,
     });
     if (followupTaskId) {

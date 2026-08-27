@@ -40,10 +40,16 @@ export async function syncFollowupTask(
     subjectName: string;
     /** ISO timestamp, or null to clear. */
     followupAt: string | null;
+    /** Overrides "Follow up with X". The call composer drafts a real title
+     * from the note and the outcome ("Send a quote — flatbed rates"), which
+     * is the difference between a task you can act on and one you have to
+     * open to understand. */
+    title?: string | null;
     existingTaskId: string | null;
   },
 ): Promise<string | null> {
   const { orgId, userId, accountId, contactId, subjectName, followupAt, existingTaskId } = input;
+  const titleOverride = input.title?.trim() || null;
 
   if (!followupAt) {
     if (existingTaskId) {
@@ -76,7 +82,7 @@ export async function syncFollowupTask(
       org_id: orgId,
       account_id: accountId,
       contact_id: contactId,
-      title: `Follow up with ${subjectName}`,
+      title: titleOverride ?? `Follow up with ${subjectName}`,
       task_type: "Follow-up call",
       due_at: followupAt,
       priority: DEFAULT_PRIORITY,
