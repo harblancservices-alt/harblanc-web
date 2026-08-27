@@ -4,6 +4,7 @@ import { ContactDialog } from "../../ContactDialog";
 import { digitsForTel } from "../../../../_shell/contactFields";
 import type { CallPerson } from "./WhoDoICall";
 import { FileCard, SectionHead } from "./chrome";
+import { phoneKey, sharedNumbers } from "./sharedNumbers";
 
 /**
  * THE CONTACTS TAB — the full roster.
@@ -92,12 +93,19 @@ function Missing({
 export function ContactsTab({
   accountId,
   companyName,
+  companyPhones = [],
   people,
 }: {
   accountId: string;
   companyName?: string;
+  /** The company's own numbers, so a switchboard carried by exactly one
+   * person is still recognised as shared — see sharedNumbers. */
+  companyPhones?: { number: string }[];
   people: CallPerson[];
 }) {
+  /** Which numbers are the switchboard rather than somebody's desk. */
+  const shared = sharedNumbers(people, companyPhones);
+
   if (people.length === 0) {
     return (
       <FileCard>
@@ -211,20 +219,32 @@ export function ContactsTab({
                 <Cell>
                   {p.phones.length > 0 ? (
                     <span className="flex flex-col gap-0.5">
-                      {p.phones.map((ph, i) => (
-                        <a
-                          key={`${ph.number}-${i}`}
-                          href={`tel:${digitsForTel(ph.number)}`}
-                          className="text-[12px] font-semibold text-fg hover:text-accent crm-num"
-                        >
-                          {ph.number}
-                          {ph.label && (
+                      {/* A SHARED LINE AND A DIRECT LINE DO NOT LOOK THE
+                          SAME. All six of Metallic's contacts carry the
+                          company switchboard — true, but six identical
+                          numbers in a column read as a bug and give a rep
+                          no way to spot the one person who has a desk
+                          line. Shared numbers go quiet and say so; a
+                          direct number keeps the full weight, so it is the
+                          thing your eye lands on. */}
+                      {p.phones.map((ph, i) => {
+                        const isShared = shared.has(phoneKey(ph.number));
+                        return (
+                          <a
+                            key={`${ph.number}-${i}`}
+                            href={`tel:${digitsForTel(ph.number)}`}
+                            title={isShared ? "The company's main line — not a direct number" : undefined}
+                            className={`text-[12px] crm-num hover:text-accent ${
+                              isShared ? "font-normal text-fg-subtle" : "font-semibold text-fg"
+                            }`}
+                          >
+                            {ph.number}
                             <span className="ml-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-fg-subtle">
-                              {ph.label}
+                              {isShared ? "shared" : ph.label}
                             </span>
-                          )}
-                        </a>
-                      ))}
+                          </a>
+                        );
+                      })}
                     </span>
                   ) : (
                     <Missing label="+ phone" accountId={accountId} companyName={companyName} person={p} />

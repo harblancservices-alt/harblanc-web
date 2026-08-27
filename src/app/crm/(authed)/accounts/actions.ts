@@ -821,6 +821,33 @@ function contactFieldsFromForm(fd: FormData) {
  * role a rep had already set. Recognised title ⇒ set the bucket. Anything
  * else ⇒ leave the column exactly as it was.
  */
+/**
+ * The site columns to write, re-checked against the company.
+ *
+ * The picker only ever offers the chosen company's own sites, but a
+ * submitted pairing is client data and must not be trusted: a stale form or
+ * a tampered request could otherwise file somebody at a site belonging to a
+ * different customer. Same rule sendTask applies to contact-against-company.
+ *
+ * Returns {} — leaving the column untouched — when the id does not belong
+ * to this account, rather than silently writing null over a good value.
+ */
+async function siteColumnsForAccount(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  accountId: string,
+  locationId: string | null,
+): Promise<{ location_id?: string | null }> {
+  if (locationId === null) return { location_id: null };
+  const { data } = await supabase
+    .from("crm_account_locations")
+    .select("id")
+    .eq("id", locationId)
+    .eq("account_id", accountId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  return data ? { location_id: locationId } : {};
+}
+
 function roleColumnsFromTitle(title: string | null): { role_category?: string } {
   const category = roleFromTitle(title);
   return category ? { role_category: category } : {};
@@ -842,6 +869,7 @@ export async function createContact(
       account_id: accountId,
       ...fields,
       ...roleColumnsFromTitle(fields.title),
+      ...(await siteColumnsForAccount(supabase, accountId, optStr(formData, "location_id"))),
     })
     .select("id")
     .single();
@@ -930,7 +958,11 @@ export async function updateContact(
 
   const { error } = await supabase
     .from("crm_contacts")
-    .update({ ...fields, ...roleColumnsFromTitle(fields.title) })
+    .update({
+      ...fields,
+      ...roleColumnsFromTitle(fields.title),
+      ...(await siteColumnsForAccount(supabase, accountId, optStr(formData, "location_id"))),
+    })
     .eq("id", contactId);
 
   if (error) {

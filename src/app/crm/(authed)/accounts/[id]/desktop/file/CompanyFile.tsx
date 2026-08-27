@@ -171,7 +171,12 @@ export function CompanyFile({
           reps,
         }}
         contactsPanel={
-          <ContactsTab accountId={accountId} companyName={accountName} people={people} />
+          <ContactsTab
+            accountId={accountId}
+            companyName={accountName}
+            companyPhones={companyPhones}
+            people={people}
+          />
         }
         shipmentsPanel={shipmentsPanel}
       />

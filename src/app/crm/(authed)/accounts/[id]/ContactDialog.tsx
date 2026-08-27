@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../../_shell/Modal";
@@ -19,6 +19,7 @@ import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
 import { createContact, updateContact } from "../actions";
 import { toDatetimeLocal } from "../../_shell/format";
 import { CONTACT_ROLE_PRESETS, ROLE_OTHER, isPresetTitle } from "./contactRoles";
+import { listCompanySites, type CompanySite } from "./location-actions";
 
 export type ContactDefaults = {
   id?: string;
@@ -36,6 +37,10 @@ export type ContactDefaults = {
   role_category?: string | null;
   /** A ContactMood slug (see _shell/mood.ts), or null/unset. */
   current_mood?: string | null;
+  /** crm_account_locations.id — which of the company's sites this person is
+   * at. Null for most contacts; only meaningful where a company has more
+   * than one. */
+  location_id?: string | null;
 };
 
 /**
@@ -82,13 +87,23 @@ export type ContactDefaults = {
  * call and the follow-up date moved behind one disclosure. Nothing was
  * removed — an edit still reaches every field it ever could.
  *
- * ── WHAT IS NOT HERE, AND WHY ─────────────────────────────────────────
+ * ── 5. THE SITE THEY ARE AT ───────────────────────────────────────────
  *
- * "The site or address they're at" is NOT built. crm_account_locations
- * exists (11 rows, one per company) but crm_contacts has no column pointing
- * at it — no location_id, no site, no address. Rather than invent a shape in
- * the `custom` jsonb blob, the field is left out pending Brent's call on a
- * one-column migration. See the handover note.
+ * Built 2026-08-27, having been refused twice before on purpose:
+ * crm_account_locations existed but crm_contacts had no column pointing at
+ * it, and inventing a shape in the `custom` jsonb blob would have been worse
+ * than saying so. It now has one (location_id, nullable, on delete set
+ * null).
+ *
+ * The field only appears when the company has MORE THAN ONE site. Asking
+ * "which site?" of a company with a single address is a question with one
+ * answer, and today that is almost every company — 11 locations across 11
+ * companies. The picker earns its place the moment a customer has a second
+ * dock, and stays out of the way until then.
+ *
+ * The chosen site is re-checked against the company server-side
+ * (siteColumnsForAccount in ../actions.ts) rather than trusted from the
+ * form, the same rule the task composer applies to contact-against-company.
  */
 export function ContactDialog({
   accountId,
@@ -118,6 +133,25 @@ export function ContactDialog({
   const initialRole = isPresetTitle(d.title) ? (d.title as string) : d.title ? ROLE_OTHER : "";
   const [role, setRole] = useState<string>(initialRole);
 
+  /** The company's own sites, loaded when the dialog opens rather than
+   * threaded through a dozen call sites that would never read them. Empty
+   * until then, and the field simply does not render — which is also the
+   * right answer for the majority of companies, which have one site or
+   * none and for whom "which site?" is not a question. */
+  const [sites, setSites] = useState<CompanySite[]>([]);
+  const [siteId, setSiteId] = useState<string>(d.location_id ?? "");
+
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    void listCompanySites(accountId).then((rows) => {
+      if (live) setSites(rows);
+    });
+    return () => {
+      live = false;
+    };
+  }, [open, accountId]);
+
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -146,6 +180,7 @@ export function ContactDialog({
       {trigger(() => {
         setError(null);
         setRole(initialRole);
+        setSiteId(d.location_id ?? "");
         setOpen(true);
       })}
 
@@ -203,6 +238,26 @@ export function ContactDialog({
           )}
 
           <PhonesEditor defaultValue={d.phones} />
+
+          {/* WHICH SITE. Only rendered when the company actually has more
+              than one — asking "which site?" of a company with a single
+              address is a question with one answer, and a control with one
+              option is noise. */}
+          {sites.length > 1 && (
+            <SelectField
+              label="Site they're at"
+              name="location_id"
+              defaultValue={siteId}
+              onChange={(e) => setSiteId(e.target.value)}
+            >
+              <option value="">Not sure / head office</option>
+              {sites.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </SelectField>
+          )}
 
           {mode === "create" && (
             <TextareaField
