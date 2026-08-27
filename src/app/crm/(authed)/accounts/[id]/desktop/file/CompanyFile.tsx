@@ -121,7 +121,14 @@ export function CompanyFile({
           .join(", ") + (gaps.length > 3 ? ` +${gaps.length - 3}` : "");
 
   return (
-    <div className="bg-canvas">
+    /* A full-height flex COLUMN, so the panels below can fill the screen
+       without anybody hardcoding how tall the chrome above them is. The
+       first attempt used min-h-[calc(100vh-350px)] and overshot by 72px:
+       the real offset is 422 on this company and it MOVES — the composer
+       grows when there are contacts to pick from, the header grows when the
+       subtitle wraps. A number that has to be re-derived per company is the
+       wrong tool. */
+    <div className="flex min-h-screen flex-col bg-canvas">
       {/* The header is rendered by FileBody, not here: Brent's folder tabs
           live INSIDE the dark band and need to know which section is open,
           and that state belongs to FileBody. Its props are threaded through

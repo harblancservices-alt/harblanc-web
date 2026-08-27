@@ -142,21 +142,39 @@ export function FileBody({
           into — see the note above about what that costs. */}
       <StageStrip accountId={accountId} current={stage} />
 
-      <div className="flex flex-col gap-3 p-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
         {finalizeBanner}
 
         {/* Hidden rather than unmounted: the shipments panel is already in
             the payload, and keeping the others mounted means a half-typed
             gap value survives a glance at Contacts. */}
-        <div hidden={tab !== "overview"}>
-          <div className="flex flex-col gap-3">
+        <div hidden={tab !== "overview"} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
             {/* The composer — Overview only, per Brent. */}
             <FileCard>
               <SectionHead title="What happened" />
               <WhatHappened accountId={accountId} contacts={composerContacts} stage={stage} />
             </FileCard>
 
-            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,1.05fr)] items-stretch gap-3">
+            {/* THE CARDS USE THE HEIGHT THEY HAVE. They used to size to
+                their content and stop, leaving ~400px of empty canvas
+                beneath on a tall monitor.
+
+                flex-1 in a chain that starts at CompanyFile's min-h-screen,
+                NOT a calc: a hardcoded offset has to know how tall the
+                chrome above it is, and that moves per company — the
+                composer grows when there are contacts to pick from, the
+                header grows when the subtitle wraps. The first attempt used
+                calc(100vh-350px) and overshot the viewport by 72px on the
+                first company it was measured against.
+
+                min-h-0 on every link in the chain because a flex item's
+                default min-height:auto refuses to shrink below its content,
+                which is what makes a nested flex column silently overflow
+                instead of fitting. items-stretch does the rest — each card
+                ends in a footer pinned with mt-auto or a flex-1 body, so
+                they grow downward rather than floating. */}
+            <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1.55fr)_minmax(0,1.05fr)] items-stretch gap-3">
               <WhoDoICall
                 accountId={accountId}
                 people={people}
@@ -171,15 +189,15 @@ export function FileBody({
           </div>
         </div>
 
-        <div hidden={tab !== "know"}>
+        <div hidden={tab !== "know"} className="flex min-h-0 flex-1 flex-col">
           <WhatWeKnow {...knowProps} active={tab === "know"} />
         </div>
-        <div hidden={tab !== "contacts"}>{contactsPanel}</div>
+        <div hidden={tab !== "contacts"} className="flex min-h-0 flex-1 flex-col">{contactsPanel}</div>
         {/* ShipmentsTab brings its own body and empty state but no card —
             it was built as a tab panel inside the old profile's chrome. It
             gets the same FileCard + header as its peers here so the four
             tabs do not each look like a different kind of surface. */}
-        <div hidden={tab !== "shipments"}>
+        <div hidden={tab !== "shipments"} className="flex min-h-0 flex-1 flex-col">
           <FileCard>
             <SectionHead
               title="Shipments"

@@ -61,6 +61,26 @@ function stamp(iso: string, nowMs: number): string {
   return day;
 }
 
+/**
+ * Date only, no time — for the system events at the bottom.
+ *
+ * They get a different form from the written entries on purpose. "Yesterday
+ * 1:35 PM" in a one-line row is both longer than the row can hold (it was
+ * overlapping the text beside it) and more precision than a system event
+ * deserves: nobody needs the minute the record was created. The written
+ * entries keep the full stamp because when somebody was spoken to is the
+ * whole point of the panel.
+ */
+function shortStamp(iso: string): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return "";
+  return new Date(t).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "America/Chicago",
+  });
+}
+
 /** The middle segment of an entry's header — "call · reached", "note". */
 function descriptor(item: CrmActivityLogItem): string {
   if (item.type === "call") return item.tag ? `call · ${item.tag.toLowerCase()}` : "call";
@@ -83,7 +103,6 @@ export function HistoryPanel({
   return (
     <FileCard className="flex flex-col">
       <SectionHead
-        n="02"
         title="Notes & what happened"
         action={
           items.length > 0 ? (
@@ -108,44 +127,62 @@ export function HistoryPanel({
           </div>
         ) : null}
 
-        {written.map((item, i) => {
-          const newest = i === 0;
-          const desc = descriptor(item);
-          return (
-            <article
-              key={item.id}
-              className={
-                newest
-                  ? "mb-3 border-l-[3px] border-accent bg-inset px-3 py-2.5"
-                  : "border-t border-line py-3 first:border-t-0 first:pt-0"
-              }
-            >
-              <p className="text-[12px] font-bold text-fg">
-                {stamp(item.occurredAt, nowMs)}
-                {desc && <span className="font-semibold text-fg-muted"> · {desc}</span>}
-                {!newest && item.author && (
-                  <span className="font-normal text-fg-subtle"> · {item.author}</span>
-                )}
-              </p>
-
-              {item.body && (
-                <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] leading-[1.55] text-fg-muted">
-                  {item.body}
+        {/* ── WHAT A PERSON DID: one card each ──────────────────────
+            Every written entry is its own bordered card with the timestamp
+            leading its header, because the panel's job is "when did we last
+            speak to these people and what was said". A flat list of rows
+            with the date in a narrow gutter buried that — the date was the
+            smallest thing on a line it was supposed to organise. */}
+        <div className="flex flex-col gap-2.5">
+          {written.map((item, i) => {
+            const newest = i === 0;
+            const desc = descriptor(item);
+            return (
+              <article
+                key={item.id}
+                className={
+                  newest
+                    ? // The newest is the one you came to read. Tinted ground
+                      // and an accent rule instead of a border — it reads as
+                      // lifted rather than as one more card in the stack.
+                      "border-l-[3px] border-accent bg-inset px-3.5 py-3"
+                    : "rounded-md border border-line bg-card px-3.5 py-3"
+                }
+              >
+                <p className="text-[12px]">
+                  <span className="font-bold text-fg">{stamp(item.occurredAt, nowMs)}</span>
+                  {desc && <span className="font-semibold text-fg-muted"> · {desc}</span>}
+                  {item.author && <span className="text-fg-subtle"> · {item.author}</span>}
                 </p>
-              )}
 
-              {newest && item.author && (
-                <p className="mt-1.5 text-[11px] text-fg-subtle">{item.author}</p>
-              )}
-            </article>
-          );
-        })}
+                {item.body && (
+                  <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] leading-[1.6] text-fg-muted">
+                    {item.body}
+                  </p>
+                )}
+              </article>
+            );
+          })}
+        </div>
 
+        {/* ── WHAT THE SYSTEM RECORDED: demoted to one quiet line ────
+            Present for provenance, never competing with the notes above.
+            No card, no border, smaller and greyer, and a date-only stamp —
+            the difference between "somebody wrote this" and "the record
+            changed" should be obvious without reading a word of it. */}
         {events.length > 0 && (
-          <div className={written.length > 0 ? "mt-2 border-t border-line pt-2" : ""}>
+          <div
+            className={`flex flex-col gap-1 ${
+              written.length > 0 ? "mt-3 border-t border-line pt-2.5" : ""
+            }`}
+          >
             {events.map((e) => (
-              <p key={e.id} className="flex gap-3 py-[3px] text-[11.5px] text-fg-subtle">
-                <span className="w-[88px] shrink-0 whitespace-nowrap crm-num">{stamp(e.occurredAt, nowMs)}</span>
+              <p key={e.id} className="flex items-baseline gap-2.5 text-[11px] text-fg-subtle">
+                {/* shrink-0 with no fixed width: the old w-[88px] could not
+                    hold a long stamp and the text ran straight over it. */}
+                <span className="shrink-0 whitespace-nowrap crm-num">
+                  {shortStamp(e.occurredAt)}
+                </span>
                 <span className="min-w-0 flex-1">
                   {e.title}
                   {e.body ? ` — ${e.body}` : ""}

@@ -123,7 +123,6 @@ export function TasksPanel({
   return (
     <FileCard className="flex flex-col">
       <SectionHead
-        n="03"
         title="Tasks"
         count={tasks.length === 0 ? "nothing open" : `${tasks.length} open`}
       />

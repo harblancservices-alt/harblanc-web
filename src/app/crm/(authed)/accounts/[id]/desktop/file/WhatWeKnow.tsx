@@ -131,7 +131,7 @@ export function WhatWeKnow({
   // What we know is a page-level tab now, so it is a card in its own right
   // like the three on Overview.
   return (
-    <FileCard>
+    <FileCard className="flex min-h-0 flex-1 flex-col">
       <SectionHead
         title="What we know"
         count="Shipper record — carrier fields (MC, DOT, insurance, safety) don't render here"
@@ -146,7 +146,7 @@ export function WhatWeKnow({
           label-plus-value rows whose longest line is capped for readability
           anyway. Even so 1.25fr, not 2fr — past that the document is all
           letterbox and the fields are a thin strip miles away. */}
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-stretch xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-stretch xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         {/* ══ LEFT: the bill of lading itself, no chrome ═══════════
             The only line is the divider between the halves, and it belongs
             to this grid rather than to the viewer. */}
@@ -155,7 +155,7 @@ export function WhatWeKnow({
         </div>
 
         {/* ══ RIGHT: parsed facts, then the company record ═════════ */}
-        <div className="flex min-w-0 flex-col">
+        <div className="flex min-w-0 flex-col overflow-y-auto">
         {/* ── The fields read off the open document ─────────────────── */}
         {openDoc && <ParsedFields doc={openDoc} total={bolDocs.length} />}
 

@@ -65,21 +65,12 @@ export function FileCard({
   );
 }
 
-/**
- * A panel's header — a faint tinted strip with a hairline under it.
- *
- * `n` renders the numbered chip. Omitting it gives the same strip without a
- * number, which is what the composer uses: "What happened" is where you
- * WRITE, not one of the four things you read, so it deliberately sits
- * outside the 01-04 sequence.
- */
+/** A panel's header — a faint tinted strip with a hairline under it. */
 export function SectionHead({
-  n,
   title,
   count,
   action,
 }: {
-  n?: string;
   title: string;
   /** The muted figure beside the title — "3 people", "2 open". */
   count?: ReactNode;
@@ -88,11 +79,6 @@ export function SectionHead({
 }) {
   return (
     <div className="flex items-center gap-2 border-b border-line bg-inset px-3 py-2">
-      {n && (
-        <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[2px] bg-fg text-[10px] font-bold text-white crm-num">
-          {n}
-        </span>
-      )}
       <Micro className="text-fg">{title}</Micro>
       {count !== undefined && count !== null && (
         <span className="min-w-0 truncate text-[11.5px] text-fg-subtle">{count}</span>

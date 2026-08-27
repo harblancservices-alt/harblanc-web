@@ -121,7 +121,6 @@ export function WhoDoICall({
   return (
     <FileCard className="flex flex-col">
       <SectionHead
-        n="01"
         title="Who do I call"
         count={people.length === 0 ? "nobody yet" : shortlistLabel}
         action={
