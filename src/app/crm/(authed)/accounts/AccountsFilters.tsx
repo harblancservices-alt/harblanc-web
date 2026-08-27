@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { LIFECYCLE_STAGES, LIFECYCLE_LABEL } from "./lifecycle";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
-import { BTN_NEUTRAL, BTN_PRIMARY } from "../_shell/ui";
-import { CONTROL, CONTROL_SIZE } from "../_shell/compactForm";
+import { BTN_NEUTRAL } from "../_shell/ui";
+import { CONTROL_SIZE } from "../_shell/compactForm";
 import { StyledSelect } from "../_shell/form";
+import { ListSearch } from "../_shell/ListSearch";
 
 const SORT_OPTIONS = [
   { value: "", label: "Newest first" },
@@ -59,10 +60,34 @@ export function AccountsFilters({
     startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname));
   }
 
-  function onSearchSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    push({ q: search.trim() });
-  }
+  /**
+   * SEARCH APPLIES AS YOU TYPE. It used to need the button beside it, so
+   * typing a company name and seeing the list not move read as "there is no
+   * search on this page" — which is exactly what Brent reported. The button
+   * is gone.
+   *
+   * Still the SERVER query, not a browser filter: this page searches
+   * crm_accounts.search_tsv, which covers industry, carrier, DOT and MC as
+   * well as name and city. Filtering the loaded rows instead would have been
+   * simpler and would have silently dropped all of that.
+   *
+   * Debounced, because every apply is a real round trip and one per
+   * keystroke would queue six requests for "Fritz". The timer is cleared on
+   * every change, so only the pause at the end of typing sends anything.
+   */
+  const settled = useRef(q);
+  useEffect(() => {
+    const next = search.trim();
+    if (next === settled.current) return;
+    const timer = setTimeout(() => {
+      settled.current = next;
+      push({ q: next });
+    }, 250);
+    return () => clearTimeout(timer);
+    // `push` is recreated every render and would restart the timer on each
+    // keystroke; the query string it closes over is in the deps that matter.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, q, stage, rep, tag, sort]);
 
   function clearAll() {
     setSearch("");
@@ -73,23 +98,12 @@ export function AccountsFilters({
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-      <form onSubmit={onSearchSubmit} className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-xs">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search companies…"
-          aria-label="Search companies"
-          className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
-        />
-        <button
-          type="submit"
-          disabled={pending}
-          className={`inline-flex h-9 shrink-0 items-center rounded-md px-3 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
-        >
-          Search
-        </button>
-      </form>
+      <ListSearch
+        value={search}
+        onChange={setSearch}
+        label="Search companies"
+        placeholder="Search by name, city or state…"
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <StyledSelect

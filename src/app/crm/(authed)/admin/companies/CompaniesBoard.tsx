@@ -11,6 +11,8 @@ import { SourcePill } from "../../_shell/SourcePill";
 import { temperatureOf } from "@/lib/crm/temperature";
 import { TemperatureDot } from "../../_shell/TemperatureDot";
 import { stageLabel, stageTone } from "../../accounts/lifecycle";
+import { ListSearch } from "../../_shell/ListSearch";
+import { filterCompanies, searchTokens } from "../../_shell/companySearch";
 import { assignCompanies } from "../assign-actions";
 import { batchTaskSpec } from "./assignmentTask";
 import type { CompanyAgent } from "./companies-data";
@@ -58,6 +60,7 @@ export function CompaniesBoard({
   // keeps its tab, its count and its attention dot; it is just no longer
   // where the page starts.
   const [filter, setFilter] = useState<string>("all");
+  const [query, setQuery] = useState("");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -74,8 +77,21 @@ export function CompaniesBoard({
   // built to be.
 
   const sorted = useMemo(() => sortForAdmin(rows), [rows]);
-  const counts = useMemo(() => countByOwner(rows, agents.map((a) => a.id)), [rows, agents]);
-  const visible = useMemo(() => sorted.filter((r) => matchesOwner(r, filter)), [sorted, filter]);
+  /** SEARCH FIRST, THEN THE TAB. Doing it in this order is what makes the
+   * tab counts describe what a click would actually show: search "houston"
+   * and each tab reports how many of ITS companies match, so you can see
+   * which agent already owns the one you are looking for. Counting all rows
+   * and filtering only the table would leave the tabs advertising rows that
+   * are not there. */
+  const searched = useMemo(() => filterCompanies(sorted, query), [sorted, query]);
+  const counts = useMemo(
+    () => countByOwner(searched, agents.map((a) => a.id)),
+    [searched, agents],
+  );
+  const visible = useMemo(
+    () => searched.filter((r) => matchesOwner(r, filter)),
+    [searched, filter],
+  );
 
   const visibleIds = visible.map((r) => r.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
@@ -199,8 +215,24 @@ export function CompaniesBoard({
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-3">
           <h2 className="text-[15px] font-bold tracking-tight text-fg">Companies</h2>
           <p className="text-[12.5px] text-fg-muted">
-            {rows.length} in the org · {counts[UNASSIGNED] ?? 0} with no owner
+            {searchTokens(query).length > 0
+              ? `${searched.length} of ${rows.length} match`
+              : `${rows.length} in the org · ${counts[UNASSIGNED] ?? 0} with no owner`}
           </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+          <ListSearch
+            value={query}
+            onChange={setQuery}
+            label="Search companies"
+            placeholder="Search by name, city or state…"
+            hint={
+              searchTokens(query).length > 0
+                ? `${visible.length} shown`
+                : null
+            }
+          />
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
