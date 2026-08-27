@@ -17,8 +17,15 @@ import { type CrmBolDocument } from "./BolSection";
 import { CompanyProfileSection } from "./CompanyProfileSection";
 import { ShipmentsTab } from "./ShipmentsTab";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
-import { fetchAccountLocations } from "./locations-data";
-import { DesktopProfile } from "./desktop/DesktopProfile";
+import { CompanyFile } from "./desktop/file/CompanyFile";
+import { bolFacts, type BolRow } from "./desktop/file/bolFacts";
+import { fileGaps } from "./desktop/file/fileGaps";
+import type { CallPerson } from "./desktop/file/WhoDoICall";
+import type { FileTask } from "./desktop/file/TasksPanel";
+import { ReassignLink } from "./desktop/file/ReassignLink";
+import { DETAILS_FIELDS } from "./details-fields";
+import { serverNow } from "@/lib/crm/serverNow";
+import { lastContactStatus } from "../../_shell/format";
 import type { IdentityLink } from "./desktop/IdentityCard";
 import type { WheelContact } from "./desktop/ContactsWheel";
 import { timestampMs } from "../../_shell/format";
@@ -70,7 +77,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url, dba, year_founded, ownership_type",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url, dba, year_founded, ownership_type, current_carrier",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -93,7 +100,7 @@ export default async function AccountDetailPage({
     documentsRes,
     accountTagsRes,
     orgTagsRes,
-    locations,
+    bolRes,
   ] = await Promise.all([
     supabase.from("crm_profiles").select("id, full_name, email, is_active, role"),
     supabase
@@ -129,7 +136,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_tasks")
       .select(
-        "id, title, notes, task_type, due_at, priority, status, completed_at, reminder_at, account_id, contact_id, assigned_user_id",
+        "id, title, notes, task_type, due_at, priority, status, completed_at, reminder_at, account_id, contact_id, assigned_user_id, definition_of_done",
       )
       .eq("account_id", id)
       .is("deleted_at", null)
@@ -146,10 +153,23 @@ export default async function AccountDetailPage({
       .limit(200),
     supabase.from("crm_account_tags").select("tag_id").eq("account_id", id),
     supabase.from("crm_tags").select("id, label, color").order("label", { ascending: true }),
-    // Desktop layout only — the mobile tree still renders the self-fetching
-    // LocationsSection. Folded into this Promise.all so it costs no extra
-    // round-trip latency, and shares the SAME helper LocationsSection uses.
-    fetchAccountLocations(supabase, id),
+    // fetchAccountLocations lived here until 2026-08-26. It existed purely
+    // for the desktop LocationsCard, which the company file replaced — the
+    // address it needed is in the header now. Mobile still renders the
+    // self-fetching LocationsSection, so nothing lost a location; this page
+    // simply stopped paying for a query nothing on it read.
+    // The BOLs this company SHIPPED — panel 04's left half. Matched as the
+    // shipper specifically: a company that appears on a BOL as the
+    // consignee received that freight, it did not tender it, and listing
+    // somebody else's shipment as this company's lane would be wrong.
+    supabase
+      .from("crm_bol_entries")
+      .select(
+        "bol_number, shipper_address, consignee_name, consignee_address, commodity, weight, carrier, pickup_date",
+      )
+      .eq("matched_shipper_account_id", id)
+      .is("deleted_at", null)
+      .limit(200),
   ]);
 
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
@@ -253,17 +273,11 @@ export default async function AccountDetailPage({
     uploaderName: d.user_id ? profileName(profileById.get(d.user_id)) : null,
   }));
 
-  // Does this company have ANY loads? The Loads section does not render at
-  // all when it has none (98 of 99 companies today), so the page has to know
-  // before it decides to render the panel. An id-only probe, capped at one
-  // row — the panel itself still does its own full fetch when it renders.
-  const { data: shipmentProbe } = await supabase
-    .from("crm_shipments")
-    .select("id")
-    .eq("account_id", account.id as string)
-    .is("deleted_at", null)
-    .limit(1);
-  const hasShipments = (shipmentProbe ?? []).length > 0;
+  // The crm_shipments probe that used to sit here went on 2026-08-26 with
+  // the desktop Loads panel it gated. It was a SEQUENTIAL await — outside
+  // the Promise.all above — so every company page paid a full round-trip for
+  // it, and 98 of 99 companies got `false` back. Mobile's Loads tab still
+  // fetches its own.
 
   // COMMODITY PHOTOS came out of the UI on 2026-08-26 (zero rows across all
   // 99 companies). The query, the storage signing round-trip and the mapping
@@ -408,37 +422,9 @@ export default async function AccountDetailPage({
       .map((l) => ({ label: l.label || "Link", href: normalizeHref(l.url) })),
   ];
 
-  // The rail's contact wheel: primary contact first (tinted + PRIMARY pill),
-  // everyone else in their existing created_at order.
-  const wheelContacts: WheelContact[] = contacts
-    .map((c) => ({
-      id: c.id,
-      name: c.name,
-      title: c.title ?? null,
-      email: c.email ?? null,
-      phone: c.phones[0]?.number ?? null,
-      isPrimary: c.id === (account.primary_contact_id as string | null),
-      // The card is the contact profile now, so it carries what the retired
-      // standalone page owned: the edit dialog's defaults, plus the three
-      // facts it displayed.
-      defaults: {
-        id: c.id,
-        name: c.name,
-        title: c.title ?? null,
-        email: c.email ?? null,
-        phones: c.phones,
-        links: c.links,
-        best_time_to_call: c.best_time_to_call ?? null,
-        notes: c.notes ?? null,
-        next_followup_at: c.next_followup_at ?? null,
-        role_category: c.role_category ?? null,
-        current_mood: c.current_mood ?? null,
-      },
-      role: c.role_category ?? null,
-      mood: c.current_mood ?? null,
-      bestTimeToCall: c.best_time_to_call ?? null,
-    }))
-    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+  // The desktop contact WHEEL derivation stood here. The company file's
+  // panel 01 builds `filePeople` from the same contacts further down, so
+  // this was the same list shaped for a component nothing renders.
 
   // The next-follow-up banner is the soonest OPEN, DATED task on this
   // company — the same crm_tasks rows the Tasks tab lists, so "Mark done"
@@ -452,6 +438,120 @@ export default async function AccountDetailPage({
     .split(",")
     .map((c) => c.trim())
     .filter(Boolean);
+
+  // ── COMPANY FILE derivations (2026-08-26 "inch for inch" rebuild) ────
+  // Same discipline as the two blocks around it: reshaped from what this
+  // page already loads, plus the one new BOL query above. ONE instant is
+  // read for the whole page and threaded down — see lib/crm/serverNow.ts.
+  const nowMs = serverNow();
+  const now = new Date(nowMs);
+
+  const createdMs = timestampMs(account.created_at as string);
+  const onFileDays = createdMs === null ? 0 : Math.max(0, Math.floor((nowMs - createdMs) / 86_400_000));
+  const createdLabel = createdMs
+    ? new Date(createdMs).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        timeZone: "America/Chicago",
+      })
+    : null;
+
+  /** The header subtitle's second half, and the only place city/state are
+   * shown on this page. Falls back to nothing rather than a stray comma. */
+  const headerPlace = [accountCity, accountState].filter(Boolean).join(", ") || null;
+
+  const filePeople: CallPerson[] = contacts
+    .map((c) => {
+      const lastMs = timestampMs(
+        contactRows.find((r) => r.id === c.id)?.last_contacted_at ?? null,
+      );
+      const status = lastContactStatus(lastMs, now);
+      return {
+        id: c.id,
+        name: c.name,
+        title: c.title ?? null,
+        email: c.email ?? null,
+        phones: c.phones,
+        isPrimary: c.id === (account.primary_contact_id as string | null),
+        lastContactLabel:
+          status.freshness === "never" ? "never called" : `reached ${status.text.toLowerCase()}`,
+        defaults: {
+          id: c.id,
+          name: c.name,
+          title: c.title ?? null,
+          email: c.email ?? null,
+          phones: c.phones,
+          links: c.links,
+          best_time_to_call: c.best_time_to_call ?? null,
+          notes: c.notes ?? null,
+          next_followup_at: c.next_followup_at ?? null,
+          role_category: c.role_category ?? null,
+          current_mood: c.current_mood ?? null,
+        },
+      };
+    })
+    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+
+  /** The composer's "who am I logging this against" list — the same people,
+   * flattened to what a <select> needs. */
+  const composerContacts = filePeople.map((p) => ({
+    id: p.id,
+    name: p.name,
+    phoneLabel: p.phones[0]?.label || null,
+  }));
+
+  /** The company's own numbers. `phones` is the modern jsonb column; the
+   * legacy `phone` text column is folded in so a company that predates the
+   * migration still shows a line rather than an empty footer. */
+  const fileCompanyPhones =
+    phones.length > 0
+      ? phones
+      : companyPhone
+        ? [{ label: "Main", number: companyPhone }]
+        : [];
+
+  const fileGapList = fileGaps({
+    id: account.id as string,
+    name: accountName,
+    city: accountCity,
+    state: accountState,
+    address: accountAddress,
+    industry: account.industry as string | null,
+    contactCount: contacts.length,
+    currentCarrier: account.current_carrier as string | null,
+    annualFreightSpend: account.annual_freight_spend as number | null,
+  });
+
+  const fileTasks: FileTask[] = openTasks.map((t) => ({
+    id: t.id,
+    title: t.title,
+    notes: t.notes ?? null,
+    definitionOfDone: (t as { definition_of_done?: string | null }).definition_of_done ?? null,
+    dueAt: t.due_at ?? null,
+    assigneeName: t.assigneeName ?? null,
+  }));
+
+  const facts = bolFacts(
+    ((bolRes.data ?? []) as {
+      bol_number: string | null;
+      shipper_address: string | null;
+      consignee_name: string | null;
+      consignee_address: string | null;
+      commodity: string | null;
+      weight: string | null;
+      carrier: string | null;
+      pickup_date: string | null;
+    }[]).map<BolRow>((b) => ({
+      bolNumber: b.bol_number,
+      shipperAddress: b.shipper_address,
+      consigneeName: b.consignee_name,
+      consigneeAddress: b.consignee_address,
+      commodity: b.commodity,
+      weight: b.weight,
+      carrier: b.carrier,
+      pickupDate: b.pickup_date,
+    })),
+  );
 
   // ── MOBILE derivations (2026-08-23 redesign) ─────────────────────────
   // Same discipline as the desktop block above: everything here is reshaped
@@ -577,97 +677,57 @@ export default async function AccountDetailPage({
           trying to be both, so a change here can never reach desktop. */}
       <div className="lg:hidden">{mobileTree}</div>
 
-      {/* DESKTOP — the 2026-08-22 design-handoff rebuild, hybrid skin
-          (handoff layout + structure, CRM `.crm-light` tokens). */}
-      <div className="hidden lg:block">
-        {account.needs_finalize && (
-          <div className="px-6 pt-4">
-            <FinalizeBanner defaults={editDefaults} reps={reps} canAssign={isOwner} />
-          </div>
-        )}
+      {/* DESKTOP — THE COMPANY FILE (2026-08-26). Brent handed over a
+          mockup with "make the company page look like this inch for inch",
+          and this is it: dark header, ten-cell stage strip, the composer at
+          the top, then 01 who do I call / 02 what happened / 03 tasks, then
+          04 what we know.
 
-        <DesktopProfile
+          It replaces desktop/DesktopProfile.tsx and the tree beneath it,
+          built the same morning. Those files stay on disk — the mobile tree
+          still imports several of them — but nothing on desktop renders
+          them any more. See file/CompanyFile.tsx for what survived.
+
+          NO PAGE GUTTER: the header and stage strip run edge to edge, so
+          this tree supplies its own padding rather than sitting inside the
+          shell's usual px-6. */}
+      <div className="hidden lg:block">
+        <CompanyFile
           accountId={account.id as string}
           accountName={accountName}
           industry={account.industry as string | null}
-          city={accountCity}
-          state={account.state as string | null}
-          stage={stage}
-          ownerId={currentRepId}
-          ownerLabel={currentRepLabel}
-          currentUserId={user.id}
-          isAdmin={isOwner}
-          editDefaults={editDefaults}
-          reps={reps}
-          canDelete={isOwner}
-          email={companyEmail}
-          phones={phones}
+          place={headerPlace}
           fullAddress={fullAddress}
-          links={desktopLinks}
-          contacts={wheelContacts}
-          // "At a glance" and the profile grid merged into one set — the six
-          // firmographics were already a subset of the ten.
-          details={{
-            industry: account.industry as string | null,
-            dba: account.dba as string | null,
-            yearFounded: account.year_founded as number | null,
-            companyType: account.company_type as string | null,
-            companySize: account.company_size as string | null,
-            annualFreightSpend: account.annual_freight_spend as number | null,
-            ownershipType: account.ownership_type as string | null,
-            linkedinUrl: account.linkedin_url as string | null,
-            source: account.source as string | null,
-            dotNumber: account.dot_number as string | null,
-            mcNumber: account.mc_number as string | null,
-            contextNotes: account.context_notes as string | null,
-          }}
-          commodities={commodityChips}
-          attachedTags={attachedTags}
-          orgTags={orgTags}
-          followUp={
-            nextFollowUpTask
-              ? {
-                  taskId: nextFollowUpTask.id,
-                  title: nextFollowUpTask.title,
-                  notes: nextFollowUpTask.notes,
-                  dueAt: nextFollowUpTask.due_at as string,
-                }
-              : null
-          }
-          activityItems={activityItems}
-          notesCount={humanNotes.length}
-          strayContacts={contactOptions}
-          locations={locations}
-          custom={account.custom as Record<string, unknown> | null}
-          notesPanel={
-            <NotesTab
+          stage={stage}
+          ownerLabel={currentRepLabel}
+          reassign={
+            <ReassignLink
               accountId={account.id as string}
-              accountName={accountName}
-              notes={humanNotes}
-              contactOptions={contactOptions}
-              currentUser={currentUser}
-            />
-          }
-          shipmentsPanel={<ShipmentsTab accountId={account.id as string} accountName={accountName} />}
-          hasShipments={hasShipments}
-          tasksPanel={
-            <TasksTab
-              accountId={account.id as string}
-              tasks={tasks}
+              ownerId={currentRepId}
+              currentUserId={user.id}
+              isAdmin={isOwner}
               reps={reps}
-              contacts={contactOptions}
-              canAssignOthers={isOwner}
-              currentUser={currentUser}
             />
           }
-          documentsPanel={
-            <FilesTab
-              accountId={account.id as string}
-              orgId={user.orgId}
-              documents={documents}
-            />
+          onFileDays={onFileDays}
+          createdLabel={createdLabel}
+          gaps={fileGapList}
+          people={filePeople}
+          companyPhones={fileCompanyPhones}
+          composerContacts={composerContacts}
+          activityItems={activityItems}
+          tasks={fileTasks}
+          facts={facts}
+          allFieldsCount={DETAILS_FIELDS.length}
+          companyDefaults={editDefaults}
+          reps={reps}
+          canReassign={isOwner}
+          nowMs={nowMs}
+          finalizeBanner={
+            account.needs_finalize ? (
+              <FinalizeBanner defaults={editDefaults} reps={reps} canAssign={isOwner} />
+            ) : null
           }
-          hasDocuments={documents.length > 0}
         />
       </div>
     </>
