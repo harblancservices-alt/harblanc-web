@@ -155,7 +155,7 @@ export function CompanyFile({
         shipmentCount={shipmentCount}
         finalizeBanner={finalizeBanner}
         historyPanel={
-          <HistoryPanel accountId={accountId} items={activityItems} nowMs={nowMs} />
+          <HistoryPanel items={activityItems} nowMs={nowMs} />
         }
         tasksPanel={
           <TasksPanel tasks={tasks} reps={reps} canReassign={canReassign} nowMs={nowMs} />
