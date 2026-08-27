@@ -1,7 +1,7 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { getCompanyVisibility, applyCompanyVisibility } from "../_shell/companyVisibility";
-import { PageShell, Card, EmptyState } from "../_shell/ui";
-import { IconCompanies } from "../_shell/icons";
+import { PageShell, Card, EmptyState, BTN_EDIT } from "../_shell/ui";
+import { IconCompanies, IconPlus } from "../_shell/icons";
 import { AccountsFilters } from "./AccountsFilters";
 import { CompanyListCard, type CompanyCardData } from "./CompanyListCard";
 import { CompanyTable } from "./CompanyTable";
@@ -9,6 +9,7 @@ import { firstName, titleCaseWords } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
+import { AddCompany } from "./AddCompany";
 import { AddContactDialog } from "../contacts/AddContactDialog";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
 import { excludeUnclaimedProspects } from "../_shell/unclaimedCompanies";
@@ -238,7 +239,33 @@ export default async function CompaniesPage({
             : "Showing only companies assigned to you."
           : `${cards.length} compan${cards.length === 1 ? "y" : "ies"} in your org.`
       }
-      actions={<AddContactDialog companies={companyOptions} />}
+      // THE PAGE'S PRIMARY ACTION CREATES THE THING THE PAGE IS ABOUT.
+      // Until now this read <AddContactDialog> alone, so the Companies list
+      // was the one page in the CRM with no way to create a company — while
+      // Contacts, inverted, led with "Add company". AddCompany already
+      // existed for exactly this slot (its own docstring calls itself "the
+      // primary create action on the Companies list"); it had simply been
+      // dropped. Add contact stays as the secondary, because filing a person
+      // you just met against a company you are already looking at is a real
+      // path — it is just not what this page is for.
+      actions={
+        <>
+          <AddCompany reps={reps} />
+          <AddContactDialog
+            companies={companyOptions}
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={open}
+                className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${BTN_EDIT}`}
+              >
+                <IconPlus width={16} height={16} />
+                Add contact
+              </button>
+            )}
+          />
+        </>
+      }
     >
       <Card className="p-4">
         <AccountsFilters q={q} stage={stage} rep={rep} tag={tagFilter} sort={sort} reps={reps} tags={allTags} />

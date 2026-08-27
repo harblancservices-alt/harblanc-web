@@ -51,7 +51,12 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
 
   let companiesQuery = supabase
     .from("crm_accounts")
-    .select("id, name, city, state, address, industry")
+    // `source` is not decoration on the gaps rows it feeds. Brent's reason:
+    // a row that says BOL means a bill of lading is already sitting inside
+    // that company, so the pill tells an agent there is something to READ
+    // before they start filling anything in. Omitting it here was why every
+    // company on this board rendered SourcePill's unknown "—".
+    .select("id, name, city, state, address, industry, source")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
@@ -152,6 +157,7 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
       state: string | null;
       address: string | null;
       industry: string | null;
+      source: string | null;
     }[]
   ).map((a) => ({
     id: a.id,
@@ -160,6 +166,7 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
     state: a.state ?? null,
     address: a.address ?? null,
     industry: a.industry ?? null,
+    source: a.source ?? null,
     contactCount: contactCounts.get(a.id) ?? 0,
   }));
 

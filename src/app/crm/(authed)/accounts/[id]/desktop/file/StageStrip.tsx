@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateLifecycleStatus } from "../../../actions";
 import {
@@ -32,6 +32,23 @@ import { Micro } from "./chrome";
  * Both still prompt — the dialog opens, and nothing is written unless a
  * reason is given. The server re-checks, because a UI gate is not
  * enforcement.
+ *
+ * ── THE CARET IS NOW A REAL MENU ──────────────────────────────────────
+ *
+ * The active cell used to draw a ▼ and carry `disabled`, so it was the one
+ * cell on the strip that promised a dropdown and then refused to be clicked.
+ * Brent's call was to keep the arrow and build the menu behind it rather
+ * than delete the arrow.
+ *
+ * So this is an ADDITION, not a replacement. Clicking any OTHER cell still
+ * moves the company straight to that stage, exactly as before. Clicking the
+ * current cell now opens a list of all ten, which is the same move by a
+ * different route — useful when the target stage is at the far end of a
+ * 1500px row and you would rather read a list than aim.
+ *
+ * Both routes go through the same pick(), so Lost and Disqualified still
+ * open StageReasonDialog from the menu just as they do from the strip. There
+ * is no second path to a terminal stage and no second copy of that rule.
  */
 export function StageStrip({
   accountId,
@@ -46,6 +63,26 @@ export function StageStrip({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reasonFor, setReasonFor] = useState<LifecycleStage | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close on an outside click or Escape. Both handlers are callbacks, not
+  // effect bodies — the effect itself only subscribes.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
 
   function commit(stage: LifecycleStage, why?: string) {
     setBusy(stage);
@@ -63,6 +100,7 @@ export function StageStrip({
   }
 
   function pick(stage: LifecycleStage) {
+    setMenuOpen(false);
     if (stage === active || pending) return;
     setError(null);
     if (stageNeedsReason(stage)) {
@@ -88,14 +126,28 @@ export function StageStrip({
           const num = String(i + 1).padStart(2, "0");
 
           return (
-            <button
+            <div
               key={stage}
+              // The wrapper carries flex-1 so the cells stay equal fractions
+              // exactly as before; only the active one needs `relative`, but
+              // every cell is wrapped the same way so the row has no special
+              // case in its layout.
+              className="relative flex min-w-0 flex-1"
+              ref={isActive ? menuRef : undefined}
+            >
+            <button
               type="button"
-              onClick={() => pick(stage)}
-              disabled={pending || isActive}
+              onClick={() => (isActive ? setMenuOpen((v) => !v) : pick(stage))}
+              disabled={pending}
               aria-current={isActive ? "step" : undefined}
-              title={isActive ? `Currently ${LIFECYCLE_LABEL[stage]}` : `Move to ${LIFECYCLE_LABEL[stage]}`}
-              className={`min-w-0 flex-1 border-l border-line px-3 py-2.5 text-left transition-colors ${
+              aria-haspopup={isActive ? "menu" : undefined}
+              aria-expanded={isActive ? menuOpen : undefined}
+              title={
+                isActive
+                  ? `Currently ${LIFECYCLE_LABEL[stage]} — open the full stage list`
+                  : `Move to ${LIFECYCLE_LABEL[stage]}`
+              }
+              className={`w-full min-w-0 border-l border-line px-3 py-2.5 text-left transition-colors ${
                 isActive
                   ? "bg-accent"
                   : "bg-card hover:bg-inset disabled:cursor-default"
@@ -116,10 +168,77 @@ export function StageStrip({
                 }`}
               >
                 <span className="truncate">{LIFECYCLE_LABEL[stage]}</span>
-                {isActive && <span aria-hidden className="shrink-0 text-[9px]">▼</span>}
+                {isActive && (
+                  <span
+                    aria-hidden
+                    className={`shrink-0 text-[9px] transition-transform ${menuOpen ? "rotate-180" : ""}`}
+                  >
+                    ▼
+                  </span>
+                )}
                 {isBusy && <span className="shrink-0 text-[10px] font-normal">…</span>}
               </span>
             </button>
+
+            {/* ── The menu the caret always promised ──────────────────
+                Anchored to its own cell. Cells past the halfway mark
+                open right-aligned, because a 260px menu hanging off
+                DISQUALIFIED (the last of ten) would leave the viewport. */}
+            {isActive && menuOpen && (
+              <div
+                role="menu"
+                aria-label="Move to stage"
+                className={`absolute top-full z-30 mt-1 w-[260px] overflow-hidden rounded-md border border-line-strong bg-card shadow-e3 ${
+                  i >= SELECTABLE_LIFECYCLE_STAGES.length / 2 ? "right-0" : "left-0"
+                }`}
+              >
+                <div className="border-b border-line px-3 py-2">
+                  <Micro className="block text-fg-muted">Move to stage</Micro>
+                </div>
+                {SELECTABLE_LIFECYCLE_STAGES.map((s, si) => {
+                  const isCurrent = s === active;
+                  const needsReason = stageNeedsReason(s);
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      role="menuitem"
+                      onClick={() => pick(s)}
+                      disabled={pending || isCurrent}
+                      className={`flex w-full items-center gap-2.5 border-t border-line px-3 py-2 text-left first:border-t-0 transition-colors ${
+                        isCurrent
+                          ? "cursor-default bg-inset"
+                          : "hover:bg-inset disabled:opacity-60"
+                      }`}
+                    >
+                      <span className="w-[18px] shrink-0 text-[10px] text-fg-subtle crm-num">
+                        {String(si + 1).padStart(2, "0")}
+                      </span>
+                      <span
+                        className={`min-w-0 flex-1 truncate text-[12.5px] font-bold ${
+                          needsReason && !isCurrent ? "text-fg-subtle" : "text-fg"
+                        }`}
+                      >
+                        {LIFECYCLE_LABEL[s]}
+                      </span>
+                      {isCurrent && (
+                        <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-accent">
+                          current
+                        </span>
+                      )}
+                      {/* Same warning the strip carries, for the same
+                          reason — the reason gate is the one stage rule
+                          this app enforces, so it is stated wherever a
+                          terminal stage can be chosen. */}
+                      {!isCurrent && needsReason && (
+                        <span className="shrink-0 text-[10px] text-fg-subtle">needs reason</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            </div>
           );
         })}
       </div>

@@ -141,10 +141,15 @@ export default async function ContactsPage({
           ? `${cards.length} contact${cards.length === 1 ? "" : "s"} at the companies you own.`
           : `${cards.length} contact${cards.length === 1 ? "" : "s"} across every company.`
       }
+      // Add contact leads here, Add company leads on /crm/accounts — each
+      // page's primary creates the thing that page is about. These two were
+      // the wrong way round: Contacts led with "Add company" while Companies
+      // had no company action at all. Both are kept on both pages, because
+      // the cross-link is genuinely useful; only the order changed.
       actions={
         <>
-          <AddCompany reps={reps} />
           <AddContactDialog companies={companyOptions} />
+          <AddCompany reps={reps} variant="secondary" />
         </>
       }
     >
