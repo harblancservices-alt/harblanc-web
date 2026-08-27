@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { logCall } from "../../../../calls/actions";
 import {
@@ -21,7 +21,6 @@ import {
   type LifecycleStage,
 } from "../../../lifecycle";
 import { updateLifecycleStatus } from "../../../actions";
-import { Micro } from "./chrome";
 
 /**
  * "WHAT HAPPENED" — the composer, and the reason this page exists.
@@ -63,16 +62,55 @@ type Mode = "call" | "note" | "task";
 
 /** Button treatment per outcome weight. Exactly one filled — the outcome a
  * rep is trying for — so the row has a target rather than five equal blues. */
-/* Unpicked. Every outcome sits quiet until it is chosen; only the picked
-   one takes its semantic colour, so the row reads as a question with one
-   answer rather than seven competing buttons. */
-const OUTCOME_IDLE = "border-line-strong bg-card text-fg hover:bg-inset";
+/* UNPICKED, and deliberately quiet. This was white with a full border,
+   which made seven unanswered options shout as loudly as the one that had
+   been chosen. A tinted surface with no border until you approach it reads
+   as "available" rather than "active" — Brent's principle: colour
+   communicates state, it does not decorate.
 
+   Hover and focus are explicit because a quiet control still has to prove
+   it is a control. */
+const OUTCOME_IDLE =
+  "border-transparent bg-inset text-fg-muted hover:border-line-strong hover:bg-card hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+
+
+
+/**
+ * A STEP, not a label. The four things a call is — got through, how it
+ * went, what next, save — used to be four identical grey micro-captions,
+ * so the panel read as a form of equal-weight controls instead of a
+ * sequence. A numbered marker and a real heading make the order legible
+ * without a word of explanation.
+ */
+function Step({ n, children, done }: { n: number; children: ReactNode; done?: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        aria-hidden
+        className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10.5px] font-extrabold crm-num ${
+          done ? "bg-accent text-white" : "bg-inset text-fg-subtle"
+        }`}
+      >
+        {n}
+      </span>
+      <span className="text-[12.5px] font-bold tracking-[-0.01em] text-fg">{children}</span>
+    </div>
+  );
+}
+
+/* PICKED. Semantic weight, and each carries its own ring so the chosen
+   answer is unmistakable from across the row.
+
+   `neutral` used to be white-with-a-border, which is what an unanswered
+   control looks like — and once the idle treatment went quiet it became
+   LIGHTER than the options beside it. A chosen answer with no signal of
+   its own now takes the same dark fill the mode toggle uses for "this is
+   the one", so state is never carried by absence. */
 const OUTCOME_BUTTON: Record<OutcomeWeight, string> = {
-  good: "border-ok bg-ok text-white hover:bg-ok/90",
-  bad: "border-bad/50 bg-bad-bg text-bad hover:border-bad",
-  warn: "border-warn/50 bg-warn-bg text-warn hover:border-warn",
-  neutral: "border-line-strong bg-card text-fg hover:bg-inset",
+  good: "border-ok bg-ok text-white ring-2 ring-ok/30 hover:bg-ok/90",
+  bad: "border-bad bg-bad-bg text-bad ring-2 ring-bad/25 hover:bg-bad-bg/80",
+  warn: "border-warn bg-warn-bg text-warn ring-2 ring-warn/25 hover:bg-warn-bg/80",
+  neutral: "border-fg bg-fg text-white ring-2 ring-fg/20 hover:bg-fg/90",
 };
 
 export function WhatHappened({
@@ -131,10 +169,6 @@ export function WhatHappened({
     setTitleTouched(false);
     router.refresh();
   }
-
-  /** Who the follow-up is about, for the line under it. */
-  const contactLabel =
-    contacts.find((c) => c.id === contactId)?.name ?? "this company";
 
   /**
    * Re-draft from the note and the outcome, unless the rep has typed their
@@ -283,7 +317,7 @@ export function WhatHappened({
           </label>
         ) : (
           <span className="rounded-md border border-dashed border-line-strong px-2.5 py-2 text-[12px] text-fg-subtle">
-            Nobody on file — this logs against the company
+            Nobody on file
           </span>
         )}
 
@@ -331,9 +365,9 @@ export function WhatHappened({
 
       {mode === "call" ? (
         <div className="flex flex-col gap-3 px-4 pb-3.5 pt-2">
-          {/* ROW 1 — the connection. */}
+          {/* STEP 1 — the connection. */}
           <div>
-            <Micro className="block text-fg">Did you get through?</Micro>
+            <Step n={1} done={Boolean(gotThrough)}>Did you get through?</Step>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {GOT_THROUGH_OUTCOMES.map((o) => {
                 const on = gotThrough === o.value;
@@ -343,7 +377,7 @@ export function WhatHappened({
                     type="button"
                     onClick={() => pickGotThrough(o.value)}
                     disabled={pending}
-                    className={`rounded-md border px-3.5 py-2 text-[12.5px] font-bold transition-colors disabled:opacity-55 ${
+                    className={`rounded-md border px-3.5 py-2 text-[12.5px] font-bold transition-all disabled:opacity-55 ${
                       on ? OUTCOME_BUTTON[callOutcomeWeight(o.value)] : OUTCOME_IDLE
                     }`}
                   >
@@ -354,11 +388,11 @@ export function WhatHappened({
             </div>
           </div>
 
-          {/* ROW 2 — only once somebody actually picked up. You cannot have
+          {/* STEP 2 — only once somebody actually picked up. You cannot have
               a result from a voicemail. */}
           {gotThrough === RESULT_ROW_REQUIRES && (
             <div>
-              <Micro className="block text-fg">How did it go?</Micro>
+              <Step n={2} done={Boolean(result)}>How did it go?</Step>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {RESULT_OUTCOMES.map((o) => {
                   const on = result === o.value;
@@ -368,7 +402,7 @@ export function WhatHappened({
                       type="button"
                       onClick={() => pickResult(o.value)}
                       disabled={pending}
-                      className={`rounded-md border px-3.5 py-2 text-[12.5px] font-bold transition-colors disabled:opacity-55 ${
+                      className={`rounded-md border px-3.5 py-2 text-[12.5px] font-bold transition-all disabled:opacity-55 ${
                         on ? OUTCOME_BUTTON[callOutcomeWeight(o.value)] : OUTCOME_IDLE
                       }`}
                     >
@@ -380,21 +414,10 @@ export function WhatHappened({
             </div>
           )}
 
-          {/* THE FOLLOW-UP, once an outcome makes one sensible. */}
+          {/* STEP 3 - what happens next, once an outcome makes one sensible. */}
           {showFollowup && (
             <div className="border-t border-line pt-3">
-              <div className="flex flex-wrap items-baseline gap-2">
-                <Micro className="text-fg">Follow up</Micro>
-                {/* IT NOTICES, IT NEVER DECIDES. The chip is drawn already
-                    selected and this line says where it came from, so a
-                    wrong read costs one tap rather than a missed customer.
-                    Never applied silently, never applied unseen. */}
-                {detected && (
-                  <span className="text-[11.5px] font-semibold text-accent">
-                    we noticed &ldquo;{detected.label}&rdquo; in your note
-                  </span>
-                )}
-              </div>
+              <Step n={3} done={Boolean(followupDate)}>What next?</Step>
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <input
@@ -406,24 +429,44 @@ export function WhatHappened({
                   placeholder="What needs doing next?"
                   aria-label="Follow-up title"
                   disabled={pending}
-                  className="min-w-0 flex-1 rounded-md border border-line bg-card px-3 py-2 text-[12.5px] text-fg outline-none focus:border-accent disabled:opacity-60"
+                  className="min-w-0 flex-1 basis-56 rounded-md border border-line bg-card px-3 py-2 text-[12.5px] text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:opacity-60"
                 />
 
-                {followupChips.map((c) => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    onClick={() => setFollowupDate(c.date)}
-                    disabled={pending}
-                    className={`rounded-md border px-3 py-2 text-[12px] font-bold transition-colors disabled:opacity-55 ${
-                      followupDate === c.date
-                        ? "border-accent bg-accent text-white"
-                        : "border-line-strong bg-card text-fg hover:bg-inset"
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
+                {followupChips.map((c) => {
+                  const on = followupDate === c.date;
+                  return (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => setFollowupDate(c.date)}
+                      disabled={pending}
+                      /* IT NOTICES, IT NEVER DECIDES - and the noticing is
+                         now carried by the chip itself. A reading taken
+                         from the note wears a marker and an accent tint in
+                         BOTH states, so it is identifiable before it is
+                         chosen and still identifiable after. Nothing is
+                         applied silently or unseen; a wrong read is still
+                         one tap to correct. */
+                      title={c.fromNote ? `Read from your note: \u201c${c.label}\u201d` : undefined}
+                      className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-[12px] font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-55 ${
+                        on
+                          ? "border-accent bg-accent text-white ring-2 ring-accent/25"
+                          : c.fromNote
+                            ? "border-accent/45 bg-accent-bg text-accent hover:border-accent"
+                            : OUTCOME_IDLE
+                      }`}
+                    >
+                      {c.fromNote && (
+                        <span
+                          aria-hidden
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${on ? "bg-white" : "bg-accent"}`}
+                        />
+                      )}
+                      {c.label}
+                      {c.fromNote && <span className="sr-only"> &mdash; read from your note</span>}
+                    </button>
+                  );
+                })}
 
                 <label className="flex items-center gap-1.5 text-[12px] text-fg-subtle">
                   <span className="sr-only">Pick a date</span>
@@ -432,71 +475,71 @@ export function WhatHappened({
                     value={followupDate}
                     onChange={(e) => setFollowupDate(e.target.value)}
                     disabled={pending}
-                    className="rounded-md border border-line-strong bg-card px-2 py-1.5 text-[12px] text-fg outline-none focus:border-accent disabled:opacity-60"
+                    className="rounded-md border border-line bg-inset px-2 py-1.5 text-[12px] text-fg outline-none focus:border-accent disabled:opacity-60"
                   />
                 </label>
 
-                {followupDate && (
-                  <button
-                    type="button"
-                    onClick={() => setFollowupDate("")}
-                    className="text-[11.5px] font-semibold text-fg-subtle hover:text-fg"
-                  >
-                    No follow-up
-                  </button>
-                )}
+                {/* A REAL OPTION, not a text link that only exists once you
+                    have already picked a day. "No follow-up" is one of the
+                    answers to "what next?", so it sits in the row with the
+                    others and shows as chosen when it is. */}
+                <button
+                  type="button"
+                  onClick={() => setFollowupDate("")}
+                  disabled={pending}
+                  aria-pressed={!followupDate}
+                  className={`rounded-md border px-3 py-2 text-[12px] font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-55 ${
+                    followupDate
+                      ? OUTCOME_IDLE
+                      : "border-fg bg-fg text-white ring-2 ring-fg/20"
+                  }`}
+                >
+                  No follow-up
+                </button>
               </div>
-
-              <p className="mt-1.5 text-[11.5px] text-fg-subtle">
-                {followupDate
-                  ? `Assigned to you \u00b7 ${contactLabel}`
-                  : "Pick a day and it becomes a dated task on your board."}
-              </p>
             </div>
           )}
 
-          {/* ONE SAVE writes the call, the outcome and the follow-up. */}
-          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-3">
-            <button
-              type="button"
-              onClick={saveCall}
-              disabled={pending || !gotThrough}
-              className="rounded-md bg-accent px-3.5 py-2 text-[13px] font-bold text-white transition-colors hover:bg-accent-hover disabled:pointer-events-none disabled:opacity-50"
-            >
-              {pending ? "Saving\u2026" : "Save the call"}
-            </button>
-            <span className="text-[12px] text-fg-muted">
-              {!gotThrough
-                ? "Pick what happened, then save."
-                : followupDate
-                  ? "Saves the call, the outcome and the follow-up task together."
-                  : "Saves the call and the outcome."}
-            </span>
+          {/* STEP 4 - one save writes the call, the outcome and the task. */}
+          <div className="border-t border-line pt-3">
+            <Step n={4}>Save it</Step>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={saveCall}
+                disabled={pending || !gotThrough}
+                className="rounded-md bg-accent px-5 py-2.5 text-[13.5px] font-bold text-white shadow-sm transition-colors hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:pointer-events-none disabled:opacity-40"
+              >
+                {pending ? "Saving\u2026" : "Save the call"}
+              </button>
 
-            <label
-              className={`ml-auto flex items-center gap-2 text-[12.5px] ${
-                canAdvance ? "text-fg" : "cursor-not-allowed text-fg-subtle"
-              }`}
-              title={
-                canAdvance && nextStage
-                  ? `Moves this company to ${LIFECYCLE_LABEL[nextStage]}`
-                  : nextStage
-                    ? `${LIFECYCLE_LABEL[nextStage]} needs a reason \u2014 use the stage strip`
-                    : "This company is already at the end of the funnel"
-              }
-            >
-              <input
-                type="checkbox"
-                checked={advance && canAdvance}
-                disabled={pending || !canAdvance}
-                onChange={(e) => setAdvance(e.target.checked)}
-                className="h-3.5 w-3.5 accent-accent"
-              />
-              advance stage after saving
-              {canAdvance && nextStage && (
-                <span className="text-fg-subtle">&rarr; {LIFECYCLE_LABEL[nextStage]}</span>
-              )}
-            </label>
+              {/* Subordinate to the save, and only as loud as it needs to
+                  be: a tick, not a second decision. */}
+              <label
+                className={`flex items-center gap-2 text-[12px] ${
+                  canAdvance ? "text-fg-muted" : "cursor-not-allowed text-fg-subtle"
+                }`}
+                title={
+                  canAdvance && nextStage
+                    ? `Moves this company to ${LIFECYCLE_LABEL[nextStage]}`
+                    : nextStage
+                      ? `${LIFECYCLE_LABEL[nextStage]} needs a reason \u2014 use the stage strip`
+                      : "This company is already at the end of the funnel"
+                }
+              >
+                <input
+                  type="checkbox"
+                  checked={advance && canAdvance}
+                  disabled={pending || !canAdvance}
+                  onChange={(e) => setAdvance(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-accent"
+                />
+                advance stage after saving
+                {canAdvance && nextStage && (
+                  <span className="font-semibold text-fg">&rarr; {LIFECYCLE_LABEL[nextStage]}</span>
+                )}
+              </label>
+            </div>
           </div>
         </div>
       ) : (
@@ -530,12 +573,14 @@ export function WhatHappened({
  * It carries the rep's own word ("Friday"), not a formatted date, so what
  * is on screen matches what they typed.
  */
-function buildChips(detected: DetectedDate | null): { key: string; label: string; date: string }[] {
+function buildChips(
+  detected: DetectedDate | null,
+): { key: string; label: string; date: string; fromNote?: boolean }[] {
   const now = new Date();
   const ymd = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
   const plus = (days: number) => ymd(new Date(now.getTime() + days * 86_400_000));
 
-  const chips = [
+  const chips: { key: string; label: string; date: string; fromNote?: boolean }[] = [
     { key: "tomorrow", label: "Tomorrow", date: plus(1) },
     { key: "next-week", label: "Next week", date: plus(7) },
     { key: "two-weeks", label: "2 weeks", date: plus(14) },
@@ -552,9 +597,17 @@ function buildChips(detected: DetectedDate | null): { key: string; label: string
   const collision = chips.find((c) => c.date === detected.date);
   if (collision) {
     collision.label = detected.label;
+    /* `fromNote` is what carries the detection to the screen now that the
+       sentence is gone. Marked here whether the reading got its own chip
+       or landed on a preset, so the badge appears either way. */
+    collision.fromNote = true;
     return chips;
   }
 
   // Second position: after Tomorrow, where it is seen without hunting.
-  return [chips[0], { key: "detected", label: detected.label, date: detected.date }, ...chips.slice(1)];
+  return [
+    chips[0],
+    { key: "detected", label: detected.label, date: detected.date, fromNote: true },
+    ...chips.slice(1),
+  ];
 }
