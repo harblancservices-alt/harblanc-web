@@ -57,7 +57,7 @@ export function UpcomingBills({ rows, closeHref }: { rows: RecurringExpenseRow[]
     <div className="rounded-xl border border-line bg-card shadow-e1">
       <div className="border-b border-line px-4 py-3">
         <div className="text-[14px] font-semibold text-fg">Upcoming bills</div>
-        <div className="text-[12px] text-fg-muted">What's coming due, nearest first</div>
+        <div className="text-[12px] text-fg-muted">What&apos;s coming due, nearest first</div>
       </div>
       <div className="divide-y divide-line">
         {BUCKET_ORDER.filter((b) => groups.has(b)).map((bucket) => (

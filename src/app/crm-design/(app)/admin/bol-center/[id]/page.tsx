@@ -8,7 +8,7 @@ import { Badge, Breadcrumb, Button, Card, CardHead, SegmentedControl, TEXT, Text
 import { Tabs } from "../../../../_design/Tabs";
 import { Modal } from "../../../../_design/Modal";
 import { BOL_STATUS_DESCRIPTION, BOL_STATUS_LABEL, BOL_STATUS_TONE } from "../../../../_lib/bolStatus";
-import { firstName, formatDateTime } from "../../../../_lib/format";
+import { formatDateTime } from "../../../../_lib/format";
 import { BolDocumentViewer } from "../../../../_shared/BolDocumentViewer";
 import { IconCheck, IconMapPin } from "../../../../_design/icons";
 import type { BolCompanyRole, BolExtraction, BolReleaseSelection, BolStatus } from "../../../../_lib/types";
@@ -20,11 +20,17 @@ export default function BolDetailPage() {
   const bol = useBolRecord(params.id);
   const { runExtraction, setBolStatus } = useStore();
   const [tab, setTab] = useState<TabKey>("extraction");
+  // Hoisted ABOVE the notFound() early return. Called after it, this hook
+  // ran on some renders and not others, so a record arriving or vanishing
+  // between renders changed the hook order -- the crash rules-of-hooks
+  // exists to prevent. The hook already accepts null/undefined and the
+  // component returns before using `reviewer` when there is no record, so
+  // the rendered output is unchanged.
+  const reviewer = useTeamMemberById(bol?.assignedReviewerId);
 
   if (!bol) return notFound();
 
   const pending = bol.docNumber === "—";
-  const reviewer = useTeamMemberById(bol.assignedReviewerId);
 
   const nextAction = (() => {
     if (bol.status === "new") return { label: "Run AI Extraction", onClick: () => runExtraction(bol.id) };

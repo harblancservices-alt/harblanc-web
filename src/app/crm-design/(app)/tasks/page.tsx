@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useStore, useTeamMemberById } from "../../_lib/store";
 import { Badge, Card, CardHead, EmptyState, PAGE_WIDTH, PageHeader, TEXT } from "../../_design/ui";
@@ -11,15 +11,21 @@ import type { TaskItem } from "../../_lib/types";
 export default function TasksPage() {
   const { tasks, toggleTask } = useStore();
 
+  // One instant for the whole render, read once at mount. Calling Date.now()
+  // or new Date() during render is the React Compiler purity error: the
+  // compiler may cache or replay a render, so two values computed from
+  // separate clock reads can disagree about what "now" is.
+  const [nowMs] = useState(() => Date.now());
+
   const groups = useMemo(() => {
-    const now = Date.now();
+    const todayKey = new Date(nowMs).toDateString();
     const open = tasks.filter((t) => t.status === "open");
     const done = tasks.filter((t) => t.status === "done");
-    const overdue = open.filter((t) => t.dueAt && new Date(t.dueAt).getTime() < now && new Date(t.dueAt).toDateString() !== new Date().toDateString());
-    const dueToday = open.filter((t) => t.dueAt && new Date(t.dueAt).toDateString() === new Date().toDateString());
+    const overdue = open.filter((t) => t.dueAt && new Date(t.dueAt).getTime() < nowMs && new Date(t.dueAt).toDateString() !== todayKey);
+    const dueToday = open.filter((t) => t.dueAt && new Date(t.dueAt).toDateString() === todayKey);
     const upcoming = open.filter((t) => !overdue.includes(t) && !dueToday.includes(t));
     return { overdue, dueToday, upcoming, done };
-  }, [tasks]);
+  }, [tasks, nowMs]);
 
   return (
     <div className={PAGE_WIDTH}>

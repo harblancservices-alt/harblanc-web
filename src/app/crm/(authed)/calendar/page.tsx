@@ -9,6 +9,7 @@ import {
 } from "../_shell/format";
 import { callOutcomeLabel } from "../calls/outcomes";
 import { CalendarView, type CalendarItem } from "./CalendarView";
+import { serverNow } from "@/lib/crm/serverNow";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +102,7 @@ export default async function CrmCalendarPage() {
   }));
   const contactNameById = new Map(contactRows.map((c) => [c.id, c.name]));
 
-  const now = Date.now();
+  const now = serverNow();
 
   const taskItems: CalendarItem[] = ((tasksRes.data ?? []) as TaskRow[])
     .map((t): CalendarItem | null => {

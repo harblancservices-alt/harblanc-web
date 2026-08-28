@@ -610,12 +610,14 @@ export async function getServiceFull(serviceId: string): Promise<MaintenanceServ
     .maybeSingle<{ id: string; service_date: string | null; odometer: number | null; total_cost: number | string | null; notes: string | null }>();
   if (!svc) return null;
 
-  let { data: partRows, error: partsError } = await sb
+  const firstPartsAttempt = await sb
     .from("repair_entries")
     .select(ENTRY_COLUMNS_FULL)
     .eq("service_id", serviceId)
     .is("deleted_at", null)
     .returns<EntryRow[]>();
+  const partsError = firstPartsAttempt.error;
+  let partRows = firstPartsAttempt.data;
   if (partsError && isMissingColumnError(partsError, "sub_category")) {
     ({ data: partRows } = await sb.from("repair_entries").select(ENTRY_COLUMNS_BASE).eq("service_id", serviceId).is("deleted_at", null).returns<EntryRow[]>());
   }
@@ -768,12 +770,14 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
 
   const sb = createServiceRoleClient();
 
-  let { data: focused, error: focusedError } = await sb
+  const firstFocusedAttempt = await sb
     .from("repair_entries")
     .select(ENTRY_COLUMNS_FULL)
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle<EntryRow>();
+  const focusedError = firstFocusedAttempt.error;
+  let focused = firstFocusedAttempt.data;
   if (focusedError && isMissingColumnError(focusedError, "sub_category")) {
     ({ data: focused } = await sb
       .from("repair_entries")
@@ -784,7 +788,7 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
   }
   if (!focused) return null;
 
-  let siblingsQuery = sb
+  const siblingsQuery = sb
     .from("repair_entries")
     .select(SIBLING_COLUMNS_FULL)
     .eq("service_id", focused.service_id)

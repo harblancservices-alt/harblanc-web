@@ -18,8 +18,8 @@ import {
 } from "../../../_design/ui";
 import { Tabs } from "../../../_design/Tabs";
 import { Modal } from "../../../_design/Modal";
-import { STAGE_LABEL, STAGE_ORDER, STAGE_TONE } from "../../../_lib/lifecycle";
-import { daysAgoLabel, firstName, formatDate, relativeTime } from "../../../_lib/format";
+import { STAGE_LABEL, STAGE_ORDER } from "../../../_lib/lifecycle";
+import { firstName, formatDate, relativeTime } from "../../../_lib/format";
 import type { LifecycleStage } from "../../../_lib/types";
 import {
   IconActivity,
@@ -38,7 +38,6 @@ import { AddContactDrawer } from "../../../_shared/AddContactDrawer";
 import { LogActivityModal } from "../../../_shared/LogActivityModal";
 import { GenerateDocumentDrawer } from "../../../_shared/GenerateDocumentDrawer";
 
-const STAGE_TONE_MAP = { neutral: "neutral", accent: "accent", success: "success", danger: "danger" } as const;
 
 type TabKey = "overview" | "contacts" | "activity" | "documents" | "tasks" | "intelligence";
 

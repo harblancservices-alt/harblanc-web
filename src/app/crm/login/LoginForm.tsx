@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 /**
@@ -14,7 +14,6 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
  * provisioned directly in Supabase.
  */
 export function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const initialError =
     params.get("error") === "no_access"

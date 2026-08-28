@@ -46,12 +46,18 @@ export default function AdminActivityLogPage() {
   const [action, setAction] = useState<AuditAction | "">("");
   const [range, setRange] = useState<"" | "7" | "30" | "90">("");
 
+  // One instant for the whole render, read once at mount. Calling Date.now()
+  // or new Date() during render is the React Compiler purity error: the
+  // compiler may cache or replay a render, so two values computed from
+  // separate clock reads can disagree about what "now" is.
+  const [nowMs] = useState(() => Date.now());
+
   const filtered = useMemo(() => {
     let rows = auditLog;
     if (actor) rows = rows.filter((r) => r.actorId === actor);
     if (action) rows = rows.filter((r) => r.action === action);
     if (range) {
-      const cutoff = Date.now() - Number(range) * 86_400_000;
+      const cutoff = nowMs - Number(range) * 86_400_000;
       rows = rows.filter((r) => new Date(r.occurredAt).getTime() >= cutoff);
     }
     if (q.trim()) {
@@ -59,7 +65,7 @@ export default function AdminActivityLogPage() {
       rows = rows.filter((r) => r.summary.toLowerCase().includes(needle) || (r.detail ?? "").toLowerCase().includes(needle));
     }
     return rows;
-  }, [auditLog, q, actor, action, range]);
+  }, [auditLog, q, actor, action, range, nowMs]);
 
   function openTarget(row: AuditLogItem) {
     if (row.targetUserId) router.push(`/crm-design/admin/accounts/${row.targetUserId}`);

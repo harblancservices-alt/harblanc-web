@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BTN_NEUTRAL, BTN_ACTION, EmptyState } from "../../_shell/ui";
-import { LABEL, CONTROL } from "../../_shell/form";
+import { CONTROL } from "../../_shell/form";
 import { IconContacts, IconMail, IconMore, IconPhone, IconPlus } from "../../_shell/icons";
 import { digitsForTel, type PhoneEntry, type LinkEntry } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";

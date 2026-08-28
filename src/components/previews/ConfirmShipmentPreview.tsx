@@ -1,5 +1,3 @@
-import Link from "next/link";
-import Image from "next/image";
 import { company } from "@/lib/company";
 import { IntakeForm } from "@/app/quote/accept/[token]/IntakeForm";
 import {

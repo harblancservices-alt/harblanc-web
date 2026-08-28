@@ -43,7 +43,7 @@ export default async function TmsV2SettingsPage() {
 
       <Card>
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Profit goals</p>
-        <p className="mt-1 text-[13px] text-fg-muted">Drives Performance's goal bar and Today's pace.</p>
+        <p className="mt-1 text-[13px] text-fg-muted">Drives Performance&apos;s goal bar and Today&apos;s pace.</p>
         <ProfitGoalsForm settings={settings} disabled={false} />
         <div className="mt-4 border-t border-line pt-4">
           <p className="text-[13px] text-fg-muted">Cash on hand — compared against the goal total to show the shortfall.</p>
@@ -59,7 +59,7 @@ export default async function TmsV2SettingsPage() {
 
       <Card>
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Account &amp; identity</p>
-        <p className="mt-1 text-[13px] text-fg-muted">The carrier identity used on emails, quotes, and paperwork — same source as /admin's Settings page (src/lib/company.ts).</p>
+        <p className="mt-1 text-[13px] text-fg-muted">The carrier identity used on emails, quotes, and paperwork — same source as /admin&apos;s Settings page (src/lib/company.ts).</p>
         <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Field label="Legal name" value={company.legalName} />
           <Field label="MC number" value={company.mc} mono />

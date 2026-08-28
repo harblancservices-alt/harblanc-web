@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useStore, useTeamMemberById } from "../../../_lib/store";
-import { Badge, Button, Card, CardHead, EmptyState, INPUT, PAGE_WIDTH, PageHeader, SegmentedControl, TEXT, TextLink } from "../../../_design/ui";
+import { Badge, Button, Card, CardHead, EmptyState, INPUT, PageHeader, SegmentedControl, TEXT, TextLink } from "../../../_design/ui";
 import { Tabs } from "../../../_design/Tabs";
 import { Modal } from "../../../_design/Modal";
 import { IconMic, IconSearch } from "../../../_design/icons";

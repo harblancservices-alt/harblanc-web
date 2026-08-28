@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listLoads, listArchivedLoads, type LoadStatus, type LoadSortKey, type LoadWithFinancials } from "@/lib/data/loads";
+import { listLoads, listArchivedLoads, type LoadStatus, type LoadWithFinancials } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { getDispatchSettingsSummary } from "@/lib/data/settings";

@@ -179,7 +179,7 @@ export function ReceivablesListClient({ rows, fromPath }: { rows: CarrierReceiva
       <div className="flex flex-col gap-2.5 lg:hidden">
         {visibleRows.length === 0 ? (
           <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
-            <p className="text-[13px] text-fg-muted">No outstanding carrier receivables — every delivered or TONU'd load is paid.</p>
+            <p className="text-[13px] text-fg-muted">No outstanding carrier receivables — every delivered or TONU&apos;d load is paid.</p>
           </div>
         ) : (
           visibleRows.map((r) => (

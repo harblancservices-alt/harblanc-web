@@ -22,6 +22,14 @@ export default function DashboardPage() {
   const { companies, tasks, activities, prospects, currentUser, toggleTask } = useStore();
   const [addOpen, setAddOpen] = useState(false);
 
+  // One instant for the whole render, read once at mount. Calling Date.now()
+  // or new Date() during render is the React Compiler purity error: the
+  // compiler may cache or replay a render, so two values computed from
+  // separate clock reads can disagree about what "now" is. All four counters
+  // below now measure against the same moment.
+  const [nowMs] = useState(() => Date.now());
+  const todayKey = new Date(nowMs).toDateString();
+
   // Auto-computed and ranked — no manual priority tagging drives this order.
   // See _lib/actionItems.ts for the signals (overdue > due today > going
   // stale > new prospect > due soon) and how each is scored.
@@ -30,10 +38,10 @@ export default function DashboardPage() {
     [tasks, companies, activities, prospects, currentUser],
   );
 
-  const overdue = tasks.filter((t) => t.status === "open" && t.dueAt && new Date(t.dueAt) < new Date()).length;
-  const dueToday = tasks.filter((t) => t.status === "open" && t.dueAt && new Date(t.dueAt).toDateString() === new Date().toDateString()).length;
+  const overdue = tasks.filter((t) => t.status === "open" && t.dueAt && new Date(t.dueAt).getTime() < nowMs).length;
+  const dueToday = tasks.filter((t) => t.status === "open" && t.dueAt && new Date(t.dueAt).toDateString() === todayKey).length;
   const activeCustomers = companies.filter((c) => c.stage === "active_customer").length;
-  const newThisWeek = companies.filter((c) => Date.now() - new Date(c.createdAt).getTime() < 7 * 86_400_000).length;
+  const newThisWeek = companies.filter((c) => nowMs - new Date(c.createdAt).getTime() < 7 * 86_400_000).length;
 
   // Personal, not org-wide (Brent's call): "jump back to what I just did,"
   // not a firehose of everyone's activity. The full org-wide feed still

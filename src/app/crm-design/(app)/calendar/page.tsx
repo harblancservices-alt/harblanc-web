@@ -13,13 +13,32 @@ type DayEvent = { id: string; label: string; companyId: string | null; tone: "da
  * engine. */
 export default function CalendarPage() {
   const { tasks, contacts, companies } = useStore();
-  const [selectedDay, setSelectedDay] = useState<number | null>(new Date().getDate());
+  // One instant for the whole render, read once at mount. `today` was a bare
+  // new Date() during render, which is the purity error AND the reason the
+  // compiler could not preserve the eventsByDay memo below -- its year/month
+  // inputs were derived from an impure read, so it could not prove them
+  // stable.
+  const [nowMs] = useState(() => Date.now());
+  const [selectedDay, setSelectedDay] = useState<number | null>(() => new Date(nowMs).getDate());
 
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  const firstWeekday = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Derived inside a memo returning PRIMITIVES. The compiler could not
+  // preserve the eventsByDay memo while `year`/`month` were read off a Date
+  // object held in scope -- it cannot prove a mutable object is never
+  // mutated later, so it gave up optimizing the whole component. Numbers out
+  // of a memo keyed on a number are provably stable.
+  const { year, month, firstWeekday, daysInMonth, monthLabel, todayDate } = useMemo(() => {
+    const d = new Date(nowMs);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    return {
+      year: y,
+      month: m,
+      firstWeekday: new Date(y, m, 1).getDay(),
+      daysInMonth: new Date(y, m + 1, 0).getDate(),
+      monthLabel: d.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+      todayDate: d.getDate(),
+    };
+  }, [nowMs]);
 
   const eventsByDay = useMemo(() => {
     const map = new Map<number, DayEvent[]>();
@@ -42,7 +61,6 @@ export default function CalendarPage() {
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
-  const monthLabel = today.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const selectedEvents = selectedDay ? (eventsByDay.get(selectedDay) ?? []) : [];
 
   return (
@@ -62,7 +80,7 @@ export default function CalendarPage() {
           <div className="grid grid-cols-7 gap-px bg-[var(--cd-border)]">
             {cells.map((day, i) => {
               const events = day ? (eventsByDay.get(day) ?? []) : [];
-              const isToday = day === today.getDate();
+              const isToday = day === todayDate;
               return (
                 <button
                   key={i}

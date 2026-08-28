@@ -130,7 +130,7 @@ function AddExpenseModal({
   return (
     <Modal open={open} onClose={onClose} title="Add expense">
       <form action={formAction} className="flex flex-col gap-3">
-        <p className="text-[13px] text-fg-muted">There's no trip-level expense log — pick which of this trip's loads the charge belongs to.</p>
+        <p className="text-[13px] text-fg-muted">There&apos;s no trip-level expense log — pick which of this trip&apos;s loads the charge belongs to.</p>
         <SelectField label="Load" name="load_id" value={loadId} onChange={(e) => setLoadId(e.target.value)}>
           {loads.map((l) => (
             <option key={l.id} value={l.id}>
@@ -211,7 +211,7 @@ function OdometerModal({ open, onClose, trip, onSaved }: { open: boolean; onClos
   return (
     <Modal open={open} onClose={onClose} title="Edit odometer">
       <form action={formAction} className="flex flex-col gap-3">
-        <p className="text-[13px] text-fg-muted">Start/end bookends drive this trip's PC miles and PC diesel cost into its net.</p>
+        <p className="text-[13px] text-fg-muted">Start/end bookends drive this trip&apos;s PC miles and PC diesel cost into its net.</p>
         <Field label="Start odometer" name="start_odometer" type="number" min="0" defaultValue={trip.startOdometer != null ? String(trip.startOdometer) : ""} />
         <Field label="End odometer" name="end_odometer" type="number" min="0" defaultValue={trip.endOdometer != null ? String(trip.endOdometer) : ""} />
         <FormError message={state.error} />

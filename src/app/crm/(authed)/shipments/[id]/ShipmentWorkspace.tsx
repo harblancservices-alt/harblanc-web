@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Card, BTN_PRIMARY, BTN_EDIT } from "../../_shell/ui";
+import { Card, BTN_EDIT } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { AsyncSearchPicker } from "../../_shell/AsyncSearchPicker";
 import { formatDate, titleCaseWords, formatPhone, formatStateCase, stripCommas } from "../../_shell/format";
@@ -12,7 +12,7 @@ import { LocationPickerModal } from "./LocationPickerModal";
 import { CarrierFormDialog } from "../../carriers/CarrierFormDialog";
 import { updateShipment, searchCustomers, createAccountLocation, softDeleteShipment } from "../actions";
 import { listCarriers, getCarrier } from "../carriers-actions";
-import { SHIPMENT_STATUSES, SHIPMENT_STATUS_LABEL, shipmentStatusTone } from "../statusMeta";
+import { SHIPMENT_STATUSES, SHIPMENT_STATUS_LABEL } from "../statusMeta";
 import { EQUIPMENT_TYPES } from "../equipmentType";
 import type {
   CrmAccountLocation,

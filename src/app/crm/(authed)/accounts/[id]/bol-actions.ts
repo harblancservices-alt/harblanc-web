@@ -5,7 +5,6 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-const STORAGE_BUCKET = "crm-documents";
 
 /**
  * Record the metadata row for a BOL that was already uploaded straight from

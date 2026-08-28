@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useStore } from "../../_lib/store";
-import { EmptyState, PAGE_WIDTH, PAGE_WIDTH_FULL, PageHeader, TEXT } from "../../_design/ui";
+import { EmptyState, PAGE_WIDTH, PAGE_WIDTH_FULL, PageHeader } from "../../_design/ui";
 import { IconShield } from "../../_design/icons";
 
 const TABS: { href: string; label: string; exact: boolean }[] = [

@@ -1,5 +1,3 @@
-import Link from "next/link";
-import Image from "next/image";
 import { company } from "@/lib/company";
 import { JourneyMap } from "@/components/quote/JourneyMap";
 import { Footer } from "@/components/site/Footer";

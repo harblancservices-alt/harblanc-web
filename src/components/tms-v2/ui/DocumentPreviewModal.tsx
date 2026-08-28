@@ -141,8 +141,17 @@ function PinchZoomStage({ children }: { children: React.ReactNode }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState<Transform>({ scale: 1, x: 0, y: 0 });
+  // Mirrored into a ref so the gesture handlers can read the latest
+  // transform without being re-created on every change. Written in an
+  // EFFECT, not during render: the React Compiler may discard or replay a
+  // render, and a ref written from one that never commits would leave the
+  // handlers reasoning about a transform the user never saw. Every read of
+  // this ref happens inside a wheel/pointer/tap handler, well after commit,
+  // so deferring the write to an effect changes nothing they observe.
   const transformRef = useRef(transform);
-  transformRef.current = transform;
+  useEffect(() => {
+    transformRef.current = transform;
+  }, [transform]);
   const userInteracted = useRef(false);
 
   const clamp = useCallback((next: Transform, forceCenter = false): Transform => {
