@@ -69,6 +69,7 @@ export function CompanyFile({
   companyPhones,
   composerContacts,
   quickTasks,
+  taskOwnerLabel,
   activityItems,
   tasks,
   facts,
@@ -96,6 +97,7 @@ export function CompanyFile({
   companyPhones: { label: string; number: string }[];
   composerContacts: { id: string; name: string; phoneLabel: string | null }[];
   quickTasks: QuickTask[];
+  taskOwnerLabel: string | null;
   activityItems: CrmActivityLogItem[];
   tasks: FileTask[];
   facts: BolFacts;
@@ -152,6 +154,7 @@ export function CompanyFile({
         stage={stage}
         composerContacts={composerContacts}
         quickTasks={quickTasks}
+        taskOwnerLabel={taskOwnerLabel}
         people={people}
         companyPhones={companyPhones}
         companyDefaults={companyDefaults}

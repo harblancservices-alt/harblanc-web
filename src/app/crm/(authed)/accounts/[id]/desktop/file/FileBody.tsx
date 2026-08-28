@@ -83,6 +83,7 @@ export function FileBody({
   stage,
   composerContacts,
   quickTasks,
+  taskOwnerLabel,
   people,
   companyPhones,
   companyDefaults,
@@ -102,6 +103,7 @@ export function FileBody({
   /** Passed through to the composer's Task tab — see WhatHappened's note on
    * why this is threaded rather than fetched there. */
   quickTasks: QuickTask[];
+  taskOwnerLabel: string | null;
   people: CallPerson[];
   companyPhones: { label: string; number: string }[];
   companyDefaults: CompanyDefaults;
@@ -163,6 +165,7 @@ export function FileBody({
                 contacts={composerContacts}
                 stage={stage}
                 quickTasks={quickTasks}
+                taskOwnerLabel={taskOwnerLabel}
               />
             </FileCard>
 

@@ -435,6 +435,21 @@ export default async function AccountDetailPage({
   const currentRepId = account.assigned_user_id as string | null;
   const currentRepLabel = reps.find((r) => r.id === currentRepId)?.label ?? null;
 
+  /* THE COMPOSER'S "for ..." LINE. Three cases, decided here because this
+   * is where both the owner and the viewer are known:
+   *   · somebody else owns it  -> their name, the case the line exists for
+   *   · the viewer owns it     -> null, and nothing renders; naming
+   *                               yourself on your own company is noise
+   *   · nobody owns it         -> say so, because createTask falls back to
+   *                               the creator and "it will come to you" is
+   *                               the surprising half of that */
+  const taskOwnerLabel =
+    currentRepId === null
+      ? "you — nobody owns this company yet"
+      : currentRepId === user.id
+        ? null
+        : currentRepLabel;
+
   // ── Desktop-only derivations (2026-08-22 design-handoff rebuild) ───────
   // Every value below is shaped from data this page ALREADY loads — nothing
   // new is queried and nothing is written differently. The mobile tree below
@@ -854,6 +869,7 @@ export default async function AccountDetailPage({
           companyPhones={fileCompanyPhones}
           composerContacts={composerContacts}
           quickTasks={quickTasks}
+          taskOwnerLabel={taskOwnerLabel}
           activityItems={activityItems}
           tasks={fileTasks}
           facts={facts}

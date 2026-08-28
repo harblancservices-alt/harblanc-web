@@ -121,6 +121,7 @@ export function WhatHappened({
   contacts,
   stage,
   quickTasks,
+  taskOwnerLabel,
 }: {
   accountId: string;
   contacts: { id: string; name: string; phoneLabel: string | null }[];
@@ -140,6 +141,9 @@ export function WhatHappened({
      failure entirely: nothing in this panel calls the server until the
      rep presses save, which is the moment they expect a round trip. */
   quickTasks: QuickTask[];
+  /** WHO A TASK MADE HERE WILL BELONG TO. Null when the viewer owns this
+   * company — see the line's own note for why that case says nothing. */
+  taskOwnerLabel: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -672,6 +676,25 @@ export function WhatHappened({
                 className="rounded-md border border-line-strong bg-card px-2 py-1.5 text-[12px] text-fg outline-none focus:border-accent disabled:opacity-60"
               />
             </label>
+          )}
+
+          {/* WHO IT IS FOR — a statement, not a control.
+              Brent could not tell where an admin's task went: created on
+              somebody else's company it goes to THEM (createTask resolves
+              the company's owner), and every agent surface filters on
+              assigned_user_id, so the wrong answer was invisible from both
+              sides. This says the answer before the button is pressed.
+
+              NOTHING IS SHOWN WHEN THE OWNER IS THE VIEWER. The line
+              exists to name a destination that is not the obvious one; an
+              agent on their own company already knows, and "for you" on a
+              panel we have spent several rounds thinning out is noise. The
+              page decides that and sends null.
+
+              Deliberately quiet — muted, small, no border, no fill — so it
+              cannot compete with the red Create task beside it. */}
+          {mode === "task" && taskOwnerLabel && (
+            <span className="shrink-0 text-[11.5px] text-fg-subtle">for {taskOwnerLabel}</span>
           )}
 
           {mode === "task" &&
