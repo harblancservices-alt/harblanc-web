@@ -333,7 +333,7 @@ export function WhatHappened({
               value={contactId}
               onChange={(e) => setContactId(e.target.value)}
               disabled={pending}
-              className="appearance-none rounded-md border border-line bg-card py-2 pl-6 pr-7 text-[12.5px] font-semibold text-fg outline-none focus:border-accent disabled:opacity-60"
+              className="appearance-none rounded-md border border-line-strong bg-card py-2 pl-6 pr-7 text-[12.5px] font-semibold text-fg outline-none focus:border-accent disabled:opacity-60"
             >
               {contacts.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -355,7 +355,16 @@ export function WhatHappened({
             </span>
           </label>
         ) : (
-          <span className="rounded-md border border-dashed border-line-strong px-2.5 py-2 text-[12px] text-fg-subtle">
+          /* THE DASH STAYS — it is the app's own mark for a fixable
+             blank (see the "+ phone" slot on the company profile), so it
+             is carrying meaning, not decoration. Only the colour moves.
+             It is a step DARKER than the inputs beside it rather than the
+             same, because a dashed border reads lighter than a solid one
+             at the same value: matching the token would not have matched
+             the appearance. --line-strong is the top of the border scale,
+             so this borrows the next real token down the neutral ramp
+             rather than inventing a hex. */
+          <span className="rounded-md border border-dashed border-fg-subtle px-2.5 py-2 text-[12px] text-fg-subtle">
             Nobody on file
           </span>
         )}
@@ -401,7 +410,7 @@ export function WhatHappened({
           }}
           placeholder={placeholder}
           disabled={pending}
-          className="w-full rounded-md border border-line bg-card px-3 py-2.5 text-[13px] text-fg outline-none placeholder:text-fg-subtle focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:opacity-60"
+          className="w-full rounded-md border border-line-strong bg-card px-3 py-2.5 text-[13px] text-fg outline-none placeholder:text-fg-subtle focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:opacity-60"
         />
       </div>
 
@@ -471,7 +480,7 @@ export function WhatHappened({
                   placeholder="What needs doing next?"
                   aria-label="Follow-up title"
                   disabled={pending}
-                  className="min-w-0 flex-1 basis-56 rounded-md border border-line bg-card px-3 py-2 text-[12.5px] text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:opacity-60"
+                  className="min-w-0 flex-1 basis-56 rounded-md border border-line-strong bg-card px-3 py-2 text-[12.5px] text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 disabled:opacity-60"
                 />
 
                 {followupChips.map((c) => {
@@ -519,7 +528,7 @@ export function WhatHappened({
                       setFollowupDate(e.target.value);
                     }}
                     disabled={pending}
-                    className="rounded-md border border-line bg-inset px-2 py-1.5 text-[12px] text-fg outline-none focus:border-accent disabled:opacity-60"
+                    className="rounded-md border border-line-strong bg-inset px-2 py-1.5 text-[12px] text-fg outline-none focus:border-accent disabled:opacity-60"
                   />
                 </label>
 
