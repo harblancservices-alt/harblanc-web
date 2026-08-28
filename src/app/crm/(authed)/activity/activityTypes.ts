@@ -98,13 +98,26 @@ export const ACTIVITY_STYLE: Record<ActivityCategory, ActivityTypeStyle> = {
   },
 };
 
-/** The categories offered as filters and metric tiles, in reading order. */
+/**
+ * The categories offered as filters and metric tiles, in reading order.
+ *
+ * "deal" was missing from this list until 2026-08-28, which meant there was
+ * no Deals tile, no Deals column on the admin scoreboard, and ?type=deal was
+ * rejected as an unknown filter — even though ACTIVITY_STYLE defined the
+ * badge and three kinds mapped to it. Nothing looked broken only because the
+ * org has logged no deals yet; the first one would simply not have appeared.
+ *
+ * This list must stay complete: the metric counts are one SQL COUNT per
+ * category, and a category missing here is a set of rows counted nowhere.
+ * activityCounting.test.ts asserts that against the kind map.
+ */
 export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
   "call",
   "task",
   "company",
   "contact",
   "note",
+  "deal",
   "other",
 ];
 
@@ -151,6 +164,17 @@ export function kindsForCategory(category: ActivityCategory): string[] {
   return Object.entries(KIND_CATEGORY)
     .filter(([, c]) => c === category)
     .map(([kind]) => kind);
+}
+
+/**
+ * Every kind this build knows how to categorise.
+ *
+ * "Other" is the unmapped remainder, which cannot be written as an IN list —
+ * it is the complement of this one. Counting it in SQL needs exactly that:
+ * NOT IN (everything mapped).
+ */
+export function allMappedKinds(): string[] {
+  return Object.keys(KIND_CATEGORY);
 }
 
 /**

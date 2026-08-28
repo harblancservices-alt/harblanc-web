@@ -1,6 +1,8 @@
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
 import {
+  ACTIVITY_CATEGORIES,
+  allMappedKinds,
   categoryForKind,
   kindsForCategory,
   viewHref,
@@ -63,10 +65,18 @@ export type ActivityFeedItem = {
 export type ActivityMetrics = {
   total: number;
   byCategory: Record<ActivityCategory, number>;
-  /** Distinct companies and people actually called in the period. Real,
-   * because crm_calls carries account_id and contact_id per call. */
-  uniqueCompaniesCalled: number;
-  uniqueContactsCalled: number;
+  /**
+   * Distinct companies and people actually called in the period. Real,
+   * because crm_calls carries account_id and contact_id per call.
+   *
+   * NULL when the period holds more calls than DISTINCT_SCAN_CAP. PostgREST
+   * cannot express count(distinct ...), so these are deduped from a narrow
+   * two-column scan; past the cap that scan is incomplete and the honest
+   * answer is "not available", not a number that is quietly too low. Every
+   * other metric on this page is an exact SQL count and is never null.
+   */
+  uniqueCompaniesCalled: number | null;
+  uniqueContactsCalled: number | null;
   /** Events in the period with no actor — system/bulk intake. Surfaced so a
    * total never quietly absorbs work nobody did. */
   unattributed: number;
@@ -86,6 +96,67 @@ export type ActivityQuery = {
 };
 
 export const PAGE_SIZE = 50;
+
+/**
+ * How many call rows the distinct scan will read before giving up.
+ *
+ * The unique-companies / unique-people figures are distinct counts, and
+ * PostgREST cannot express count(distinct ...). They are deduped from a
+ * two-column scan instead, which is cheap because calls are by far the
+ * lowest-volume source — the whole org logs tens of them a week. If a period
+ * ever exceeds this, the scan is incomplete and those two figures report as
+ * unavailable rather than short.
+ */
+export const DISTINCT_SCAN_CAP = 2000;
+
+/**
+ * Rows in the period that nobody is credited with, counted across all three
+ * sources in SQL rather than off a fetched page.
+ *
+ * This is the number that exposed the undercount: it read 2 for a week that
+ * actually held 75, because the 73 bulk-intake rows were older than the
+ * capped fetch reached back to.
+ */
+async function countUnattributed(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  startIso: string,
+  endIso: string,
+  wantLogged: boolean,
+  wantCalls: boolean,
+  wantNotes: boolean,
+): Promise<number> {
+  const [act, call, note] = await Promise.all([
+    wantLogged
+      ? supabase
+          .from("crm_activities")
+          .select("id", { count: "exact", head: true })
+          .not("kind", "in", `(${CRM_ACTIVITY.call},${CRM_ACTIVITY.noteAdded})`)
+          .is("user_id", null)
+          .gte("occurred_at", startIso)
+          .lte("occurred_at", endIso)
+      : Promise.resolve({ count: 0 }),
+    wantCalls
+      ? supabase
+          .from("crm_calls")
+          .select("id", { count: "exact", head: true })
+          .is("deleted_at", null)
+          .is("user_id", null)
+          .gte("occurred_at", startIso)
+          .lte("occurred_at", endIso)
+      : Promise.resolve({ count: 0 }),
+    wantNotes
+      ? supabase
+          .from("crm_notes")
+          .select("id", { count: "exact", head: true })
+          .is("deleted_at", null)
+          .eq("is_ai", false)
+          .is("user_id", null)
+          .gte("created_at", startIso)
+          .lte("created_at", endIso)
+      : Promise.resolve({ count: 0 }),
+  ]);
+  return (act.count ?? 0) + (call.count ?? 0) + (note.count ?? 0);
+}
 
 /** A Central-day window as ISO instants, so a "day" means the same thing
  * here as everywhere else in this CRM. */
@@ -220,7 +291,7 @@ export async function loadActivity(q: ActivityQuery): Promise<{
 
   // A failed read must not render as an empty period — "nobody did
   // anything" and "we could not look" are different answers.
-  const failed = Boolean(actRes.error || callRes.error || noteRes.error);
+  const fetchFailed = Boolean(actRes.error || callRes.error || noteRes.error);
 
   const profileById = new Map(((profRes.data ?? []) as ProfileRow[]).map((p) => [p.id, p]));
 
@@ -276,26 +347,139 @@ export async function loadActivity(q: ActivityQuery): Promise<{
     b.occurredAt.localeCompare(a.occurredAt),
   );
 
-  // Metrics describe the whole PERIOD, not the page — they are counted off
-  // the merged set before slicing, so paging never changes a total.
-  const byCategory = {
-    call: 0, task: 0, company: 0, contact: 0, note: 0, deal: 0, other: 0,
-  } as Record<ActivityCategory, number>;
-  for (const i of merged) byCategory[i.category] += 1;
+  /*
+   * METRICS DESCRIBE THE WHOLE PERIOD, and now actually do.
+   *
+   * They used to be counted off `merged` — the rows this call had fetched —
+   * which is capped per source so the page can stay paginated. That made
+   * every number the size of the FETCH rather than the size of the period.
+   * On the week of 2026-08-24 the org logged 275 activity rows against a
+   * 100-row cap, so the dashboard reported roughly a third of the real work
+   * and the unattributed banner read 2 where the truth was 75. Brent found
+   * it by asking why two numbers disagreed.
+   *
+   * So the counts are COUNT queries now — `head: true`, no rows returned,
+   * one round trip each and they run in parallel with everything else. The
+   * capped fetch above still exists and is still capped, because it feeds
+   * the rendered feed, which stays paginated. Counting and showing are two
+   * different jobs and this is the line between them.
+   */
+  const inWindow = <T extends { gte: (c: string, v: string) => T; lte: (c: string, v: string) => T }>(
+    qb: T,
+    dateCol: string,
+  ): T => qb.gte(dateCol, startIso).lte(dateCol, endIso);
 
-  const companiesCalled = new Set<string>();
-  const contactsCalled = new Set<string>();
-  for (const c of fromCalls) {
-    if (c.accountId) companiesCalled.add(c.accountId);
-    if (c.contactId) contactsCalled.add(c.contactId);
+  /** A crm_activities count, always excluding the call/note duplicates the
+   *  dedicated tables already own, and honouring the agent filter. */
+  const countActivities = (build: (qb: ReturnType<typeof activityCountBase>) => ReturnType<typeof activityCountBase>) => {
+    let qb = build(activityCountBase());
+    if (q.agentId) qb = qb.eq("user_id", q.agentId);
+    return qb;
+  };
+  function activityCountBase() {
+    return inWindow(
+      supabase
+        .from("crm_activities")
+        .select("id", { count: "exact", head: true })
+        .not("kind", "in", `(${CRM_ACTIVITY.call},${CRM_ACTIVITY.noteAdded})`),
+      "occurred_at",
+    );
   }
 
+  /* Derived, never hand-listed: a category typed out here and forgotten in
+     ACTIVITY_CATEGORIES (or the reverse) is a set of rows counted nowhere.
+     "call" and "note" come from their own tables; "other" is the complement
+     and is counted separately. */
+  const LOGGED_CATEGORIES = ACTIVITY_CATEGORIES.filter(
+    (c) => c !== "call" && c !== "note" && c !== "other",
+  );
+  const mapped = allMappedKinds();
+
+  let callCountQ = inWindow(
+    supabase.from("crm_calls").select("id", { count: "exact", head: true }).is("deleted_at", null),
+    "occurred_at",
+  );
+  if (q.agentId) callCountQ = callCountQ.eq("user_id", q.agentId);
+
+  let noteCountQ = inWindow(
+    supabase
+      .from("crm_notes")
+      .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .eq("is_ai", false),
+    "created_at",
+  );
+  if (q.agentId) noteCountQ = noteCountQ.eq("user_id", q.agentId);
+
+  /* The distinct figures. PostgREST has no count(distinct ...), so this is a
+     narrow two-column scan over the period's calls, deduped here. Capped —
+     and when the cap is reached the answer becomes null rather than a number
+     that is silently short, which is the exact failure being fixed. */
+  let distinctScanQ = inWindow(
+    supabase.from("crm_calls").select("account_id, contact_id").is("deleted_at", null),
+    "occurred_at",
+  ).limit(DISTINCT_SCAN_CAP);
+  if (q.agentId) distinctScanQ = distinctScanQ.eq("user_id", q.agentId);
+
+  const [
+    callCountRes,
+    noteCountRes,
+    otherCountRes,
+    distinctRes,
+    ...loggedCountRes
+  ] = await Promise.all([
+    wantCalls ? callCountQ : Promise.resolve({ count: 0, error: null }),
+    wantNotes ? noteCountQ : Promise.resolve({ count: 0, error: null }),
+    wantLogged && (!q.category || q.category === "other")
+      ? countActivities((qb) => qb.not("kind", "in", `(${mapped.join(",")})`))
+      : Promise.resolve({ count: 0, error: null }),
+    wantCalls ? distinctScanQ : Promise.resolve({ data: [], error: null }),
+    ...LOGGED_CATEGORIES.map((cat) =>
+      wantLogged && (!q.category || q.category === cat)
+        ? countActivities((qb) => qb.in("kind", kindsForCategory(cat)))
+        : Promise.resolve({ count: 0, error: null }),
+    ),
+  ]);
+
+  const byCategory = {
+    call: callCountRes.count ?? 0,
+    note: noteCountRes.count ?? 0,
+    other: otherCountRes.count ?? 0,
+    task: 0, company: 0, contact: 0, deal: 0,
+  } as Record<ActivityCategory, number>;
+  LOGGED_CATEGORIES.forEach((cat, i) => {
+    byCategory[cat] = loggedCountRes[i]?.count ?? 0;
+  });
+
+  const distinctRows = (distinctRes.data ?? []) as { account_id: string | null; contact_id: string | null }[];
+  const scanTruncated = distinctRows.length >= DISTINCT_SCAN_CAP;
+  const companiesCalled = new Set<string>();
+  const contactsCalled = new Set<string>();
+  for (const r of distinctRows) {
+    if (r.account_id) companiesCalled.add(r.account_id);
+    if (r.contact_id) contactsCalled.add(r.contact_id);
+  }
+
+  /* UNATTRIBUTED, over the whole period too. Only meaningful org-wide: with
+     an agent selected every row has that agent as its actor by definition,
+     so the honest answer is zero rather than a number about somebody else. */
+  const unattributed = q.agentId
+    ? 0
+    : await countUnattributed(supabase, startIso, endIso, wantLogged, wantCalls, wantNotes);
+
+  const countsFailed =
+    Boolean(callCountRes.error) ||
+    Boolean(noteCountRes.error) ||
+    Boolean(otherCountRes.error) ||
+    Boolean(distinctRes.error) ||
+    loggedCountRes.some((r) => Boolean(r.error));
+
   const metrics: ActivityMetrics = {
-    total: merged.length,
+    total: Object.values(byCategory).reduce((a, b) => a + b, 0),
     byCategory,
-    uniqueCompaniesCalled: companiesCalled.size,
-    uniqueContactsCalled: contactsCalled.size,
-    unattributed: merged.filter((i) => !i.actorId).length,
+    uniqueCompaniesCalled: scanTruncated ? null : companiesCalled.size,
+    uniqueContactsCalled: scanTruncated ? null : contactsCalled.size,
+    unattributed,
   };
 
   const start = q.page * PAGE_SIZE;
@@ -325,14 +509,15 @@ export async function loadActivity(q: ActivityQuery): Promise<{
     metrics,
     hasMore,
     rangeLabel: label,
-    failed,
+    failed: fetchFailed || countsFailed,
   };
 }
 
 export type AgentScorecard = AgentOption & {
   total: number;
   byCategory: Record<ActivityCategory, number>;
-  uniqueCompaniesCalled: number;
+  /** Null past DISTINCT_SCAN_CAP — see ActivityMetrics. */
+  uniqueCompaniesCalled: number | null;
 };
 
 /**

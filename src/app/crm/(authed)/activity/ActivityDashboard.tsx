@@ -239,11 +239,21 @@ export function ActivityDashboard({
             stated beside it rather than left to be worked out. */}
         {metrics.byCategory.call > 0 && (
           <p className="border-t border-line px-3 py-2 text-[12px] text-fg-muted">
-            <span className="font-bold text-fg">{metrics.byCategory.call}</span> calls reached{" "}
-            <span className="font-bold text-fg">{metrics.uniqueCompaniesCalled}</span>{" "}
-            {metrics.uniqueCompaniesCalled === 1 ? "company" : "companies"} and{" "}
-            <span className="font-bold text-fg">{metrics.uniqueContactsCalled}</span>{" "}
-            {metrics.uniqueContactsCalled === 1 ? "person" : "people"}.
+            <span className="font-bold text-fg">{metrics.byCategory.call}</span> calls
+            {metrics.uniqueCompaniesCalled === null || metrics.uniqueContactsCalled === null ? (
+              // Too many calls in the period to dedupe reliably. Say so
+              // rather than print a number that is quietly short.
+              <> · too many to count reach across this period</>
+            ) : (
+              <>
+                {" "}
+                reached{" "}
+                <span className="font-bold text-fg">{metrics.uniqueCompaniesCalled}</span>{" "}
+                {metrics.uniqueCompaniesCalled === 1 ? "company" : "companies"} and{" "}
+                <span className="font-bold text-fg">{metrics.uniqueContactsCalled}</span>{" "}
+                {metrics.uniqueContactsCalled === 1 ? "person" : "people"}.
+              </>
+            )}
           </p>
         )}
 

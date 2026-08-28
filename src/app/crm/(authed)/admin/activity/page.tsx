@@ -123,7 +123,7 @@ export default async function AdminActivityPage({
                       </td>
                     ))}
                     <td className="crm-num px-3 py-2 text-right font-semibold text-fg-muted">
-                      {r.uniqueCompaniesCalled}
+                      {r.uniqueCompaniesCalled ?? "—"}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <Link
