@@ -59,11 +59,17 @@ export type CrmShipmentBolPdfData = {
    * blank in every column, including this one, since they're for hand-
    * written additional items the shipment's own dimensions don't describe. */
   dimensions: { lengthIn: number | null; widthIn: number | null; heightIn: number | null };
-  /** Third-party freight-charges bill-to — no UI/DB source yet on the
-   * shipment-parented BOL (unlike the standalone /crm/bill-of-lading
-   * generator's showBillTo/billToName/billToAddress), so this is always
-   * null today and the box below prints "N/A". Typed and rendered now so
-   * wiring a real source later is a data-plumbing change only. */
+  /** Third-party freight-charges bill-to. ALWAYS NULL, AND THAT IS THE
+   * INTENDED STATE — Brent closed this on 2026-08-27: "im not worried
+   * about the actual contents of 3rd party we just leave it blank for
+   * now". Harblanc does not bill a third party, so there is no billing
+   * entity to source and none is to be invented; the box prints "N/A",
+   * which is the honest answer.
+   *
+   * SETTLED, NOT PENDING. The fields stay in the type so the box has
+   * something to render and so a future decision has somewhere to land,
+   * not because wiring one is outstanding work. Do not add a UI field, a
+   * column, or a data source for this without Brent asking for it. */
   billToName: string | null;
   billToAddress: string | null;
   freightChargeTerms: string | null;
@@ -120,6 +126,19 @@ const styles = StyleSheet.create({
   cols2: { flexDirection: "row", gap: 16 },
   col: { flex: 1 },
   boxSolid: { border: "1.5pt solid #000", padding: 7 },
+  /* PAIRED BOXES RULE OFF AT THE SAME HEIGHT.
+     `cols2` is a flex row, so its two `col` children already stretch to the
+     taller of the two. The BOX inside each column did not — it sized to its
+     own content, so "Third Party Bill To" (one line: N/A) drew a short box
+     whose bottom edge floated well above the Carrier box beside it. Brent,
+     2026-08-27: "fix the box not being parrellel to the carrier box. its
+     short. and misaligned."
+     flexGrow makes the box take the column's full stretched height, so both
+     boxes in a row start and finish on the same two lines. Applied to every
+     paired box, not just the one that was complained about - Ship From /
+     Ship To have the identical latent defect and only look right today
+     because their contents happen to be the same number of lines. */
+  boxFill: { flexGrow: 1 },
   heading: {
     fontSize: 8.5,
     fontWeight: 700,
@@ -229,7 +248,7 @@ function PartyBox({
   return (
     <View style={styles.col}>
       <Text style={styles.headingNoBorder}>{title}</Text>
-      <View style={styles.boxSolid}>
+      <View style={[styles.boxSolid, styles.boxFill]}>
         <Text style={styles.fieldLine}>{party.name || "—"}</Text>
         <Text style={styles.fieldLine}>{party.address || "—"}</Text>
         <Text style={styles.fieldLine}>{cityStateZip(party.city, party.state, party.zip) || "—"}</Text>
@@ -254,7 +273,7 @@ function BillToBox({ name, address }: { name: string | null; address: string | n
   return (
     <View style={styles.col}>
       <Text style={styles.heading}>Third Party Bill To</Text>
-      <View style={styles.boxSolid}>
+      <View style={[styles.boxSolid, styles.boxFill]}>
         {hasBillTo ? (
           <>
             <Text style={styles.fieldLine}>{name || "—"}</Text>
@@ -335,7 +354,7 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
         <View style={[styles.section, styles.cols2]}>
           <View style={styles.col}>
             <Text style={styles.heading}>Carrier</Text>
-            <View style={styles.boxSolid}>
+            <View style={[styles.boxSolid, styles.boxFill]}>
               <Text style={styles.fieldLine}>{data.carrier.name || "—"}</Text>
               <View style={styles.cols2}>
                 <View style={{ flex: 1 }}>

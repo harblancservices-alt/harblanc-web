@@ -433,6 +433,9 @@ export async function generateBol(bolId: string): Promise<GenerateDocResult> {
       widthIn: shipmentRow.width_in,
       heightIn: shipmentRow.height_in,
     },
+    // Deliberately null - there is no third-party billing entity by design
+    // and the BOL prints "N/A". Settled 2026-08-27; see
+    // CrmShipmentBolPDF's billToName comment before changing this.
     billToName: null,
     billToAddress: null,
     freightChargeTerms: detail.freightChargeTerms,
