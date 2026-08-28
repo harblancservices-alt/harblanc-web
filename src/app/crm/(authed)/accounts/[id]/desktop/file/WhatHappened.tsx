@@ -164,6 +164,10 @@ export function WhatHappened({
   const [followupTitle, setFollowupTitle] = useState<string>("");
   /* Once the rep edits the title we stop rewriting it under them. */
   const [titleTouched, setTitleTouched] = useState(false);
+  /* Whether the box has the caret right now. Paired with titleTouched it
+     is what lets the drafted title step aside on click without being
+     destroyed — see the input's own note. */
+  const [titleFocused, setTitleFocused] = useState(false);
   /* Same for the date. Until the rep picks a day themselves, the DATE
      BELONGS TO THE DETECTOR — which means the detector can also take it
      back when the words it read are no longer there. Without this the
@@ -190,6 +194,7 @@ export function WhatHappened({
     setFollowupDate("");
     setFollowupTitle("");
     setTitleTouched(false);
+    setTitleFocused(false);
     setDateTouched(false);
   }
 
@@ -471,8 +476,29 @@ export function WhatHappened({
               <Step n={3} done={Boolean(followupDate)}>What next?</Step>
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
+                {/* THE PREFILL GETS OUT OF THE WAY — Brent, 2026-08-28:
+                    "follow up prefills into the whats next box. remove
+                    those words when it is clicked on."
+
+                    It clears by NOT BEING SHOWN while the box is focused
+                    and still untouched, rather than by being wiped. The
+                    difference matters in three places:
+
+                      · click in on the untouched draft -> the box is empty
+                        and the placeholder shows, so he types over nothing
+                      · click in AFTER typing -> titleTouched is true, so
+                        his own text is shown and never cleared
+                      · click in, type nothing, click away -> the draft was
+                        never destroyed, so it simply reappears, and the
+                        task still saves with its proper name instead of a
+                        blank one bought by a stray click
+
+                    followupTitle stays the single source of truth
+                    throughout; this only decides what is on screen. */}
                 <input
-                  value={followupTitle}
+                  value={titleFocused && !titleTouched ? "" : followupTitle}
+                  onFocus={() => setTitleFocused(true)}
+                  onBlur={() => setTitleFocused(false)}
                   onChange={(e) => {
                     setTitleTouched(true);
                     setFollowupTitle(e.target.value);
