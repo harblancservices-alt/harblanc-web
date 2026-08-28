@@ -61,7 +61,29 @@ export function Modal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
-      onClick={() => !busy && onClose()}
+      /* THE SCRIM SWALLOWS ITS EVENTS. This modal is NOT portalled — it
+         renders in the DOM wherever its trigger lives, which for several
+         dialogs is inside a click-to-navigate row. CompanyTable wraps every
+         row in ClickableRow (href=/crm/accounts/<id>) and puts
+         CompanyRowActions — and therefore the contact dialog — inside it,
+         so the whole dialog was mounting inside a <tr> whose onClick calls
+         router.push.
+
+         The panel already stopped its own clicks (below), but the SCRIM did
+         not: a click on the dim area closed the dialog and then carried on
+         up to the row, which navigated. From the rep's side the dialog
+         "didn't just close out", it went somewhere. Same for Enter on a
+         non-interactive element, via that row's onKeyDown.
+
+         Stopping both here fixes it for every dialog at once rather than
+         per call site. Portalling would also fix it, but this modal's
+         colours come from the .crm-light scope it is rendered inside, and
+         moving it to document.body would strip every token off it. */
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!busy) onClose();
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
       role="presentation"
     >
       <div
