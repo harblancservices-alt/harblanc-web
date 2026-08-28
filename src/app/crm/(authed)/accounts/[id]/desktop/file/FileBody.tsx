@@ -232,13 +232,21 @@ export function FileBody({
               }
             />
             <div className="min-h-0 flex-1 overflow-auto">{shipmentsPanel}</div>
-        {/* DOCUMENTS. The same FilesTab the phone renders -- mobile had a
+          </FileCard>
+        </div>
+
+        {/* DOCUMENTS. The same FilesTab the phone renders — mobile had a
             documents surface and desktop only ever showed BOLs, buried
-            inside What we know. One component, both trees. */}
+            inside What we know. One component, both trees.
+
+            A SIBLING of the other tab panels, which it was not when it
+            shipped: it was nested INSIDE the shipments FileCard, so it was
+            hidden whenever tab !== "shipments" and, since tab can never be
+            "shipments" and "documents" at once, it never rendered at all.
+            The tab existed and opened onto nothing. JSX stayed balanced,
+            which is why tsc and the build were happy. */}
         <div hidden={tab !== "documents"} className="flex min-h-0 flex-1 flex-col">
           {documentsPanel}
-        </div>
-          </FileCard>
         </div>
       </div>
     </>
