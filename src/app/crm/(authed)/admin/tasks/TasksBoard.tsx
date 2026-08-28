@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { titleCaseWords } from "../../_shell/format";
 import { deleteTask, reassignTask, setTaskDueDate } from "../../tasks/actions";
 import { Modal } from "../../_shell/Modal";
-import { IconTrash } from "../../_shell/icons";
-import { BTN_DANGER, BTN_NEUTRAL } from "../../_shell/ui";
+import { BTN_DANGER, BTN_NEUTRAL, DeleteIconButton } from "../../_shell/ui";
 import { dueLabel, dueTint } from "../../agent/agentWork";
 import { centralDateKey } from "../../_shell/format";
 import type { DueTaskRow } from "../dueReport";
@@ -350,17 +349,13 @@ function TaskCard({
           always in the DOM rather than hover-revealed so it is reachable
           by keyboard and on touch. `draggable={false}` keeps a press on
           the icon from starting a card drag instead. */}
-      <button
-        type="button"
-        draggable={false}
+      <DeleteIconButton
+        label={`task "${card.title}"`}
         onClick={() => setConfirm(true)}
         disabled={pending || removing}
-        aria-label={`Delete task "${card.title}"`}
-        title="Delete this task"
-        className="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-[4px] text-bad/70 transition-colors hover:bg-bad-bg hover:text-bad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40 disabled:opacity-40"
-      >
-        <IconTrash width={15} height={15} />
-      </button>
+        draggable={false}
+        className="absolute right-1.5 top-1.5"
+      />
 
       {/* pr-7 keeps a long title from running under the button above. */}
       <p className="flex items-start gap-1.5 pr-7 text-[13px] font-bold leading-snug text-fg">

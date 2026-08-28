@@ -6,8 +6,8 @@ import { formatDateTime } from "../_shell/format";
 import { deleteUpgradeRequest, updateUpgradeStatus } from "./actions";
 import { statusStyle, type UpgradeStatus } from "./status";
 import { Modal } from "../_shell/Modal";
-import { BTN_SUCCESS, BTN_EDIT, BTN_DANGER, BTN_NEUTRAL } from "../_shell/ui";
-import { IconCheck, IconTrash } from "../_shell/icons";
+import { BTN_SUCCESS, BTN_EDIT, BTN_DANGER, BTN_NEUTRAL, DeleteIconButton } from "../_shell/ui";
+import { IconCheck } from "../_shell/icons";
 
 export type CrmUpgradeAttachment = {
   id: string;
@@ -246,16 +246,11 @@ export function UpgradeRequestCard({
           {statusPill}
           {ownerActions}
           {canDelete && (
-            <button
-              type="button"
-              disabled={pending || removing}
+            <DeleteIconButton
+              label="this request"
               onClick={() => setConfirmDelete(true)}
-              aria-label="Delete this request"
-              title="Delete this request"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-bad/70 transition-colors hover:bg-bad-bg hover:text-bad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40 disabled:opacity-40"
-            >
-              <IconTrash width={15} height={15} />
-            </button>
+              disabled={pending || removing}
+            />
           )}
         </div>
       </div>

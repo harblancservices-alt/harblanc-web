@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Card } from "../../_shell/ui";
+import { Card, DeleteIconButton, BTN_DANGER, BTN_NEUTRAL } from "../../_shell/ui";
+import { Modal } from "../../_shell/Modal";
+import { deleteContact } from "../../accounts/actions";
 import { SegmentedTabs } from "../../_shell/SegmentedTabs";
 import { ListSearch } from "../../_shell/ListSearch";
 import { searchTokens } from "../../_shell/companySearch";
@@ -27,11 +29,19 @@ import {
  * same pattern: Card + filter row of SegmentedTabs + one dense table,
  * unowned-first, coldest-first, rows linking through to the record.
  *
- * READ-ONLY, unlike Companies. There is no select mode and no assign rail:
- * a contact has no owner of its own — it inherits one from its company — so
- * the way to reassign a contact is to reassign the company, on the Companies
- * tab. Adding a second, contact-shaped assignment path here would create two
- * answers to "who owns this".
+ * NO ASSIGNMENT HERE, unlike Companies. There is no select mode and no
+ * assign rail: a contact has no owner of its own — it inherits one from its
+ * company — so the way to reassign a contact is to reassign the company, on
+ * the Companies tab. Adding a second, contact-shaped assignment path here
+ * would create two answers to "who owns this".
+ *
+ * The one write it does own is DELETE (Brent, 2026-08-28: "under
+ * administration under 'contact' we need a delete feature on the list line.
+ * not on the company profile"). It reuses accounts/actions.ts::deleteContact
+ * — the same owner-only soft delete the company profile already called —
+ * rather than a second delete path with its own idea of what removal means.
+ *
+ * DESKTOP ONLY, deliberately. See the phone list below.
  */
 export function ContactsTable({
   rows,
@@ -48,6 +58,29 @@ export function ContactsTable({
   const router = useRouter();
   const [filter, setFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
+  /** The row awaiting confirmation. Holding the ROW, not just an id, so the
+   * dialog can name the person — a misclick on the wrong line is caught by
+   * reading the name back, which an "Are you sure?" cannot do. */
+  const [confirming, setConfirming] = useState<AdminContactRow | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function remove() {
+    if (!confirming) return;
+    setRemoving(true);
+    setError(null);
+    // accountId is "" for a contact with no company: deleteContact only uses
+    // it to clear a primary-contact pointer and to revalidate, and both are
+    // no-ops for an empty id.
+    const res = await deleteContact(confirming.id, confirming.accountId ?? "");
+    setRemoving(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setConfirming(null);
+    router.refresh();
+  }
 
   const sorted = useMemo(() => sortContactsForAdmin(rows), [rows]);
   // Roster first so somebody with nothing still gets a tab; ownerNamesOf
@@ -166,6 +199,16 @@ export function ContactsTable({
                   </>
                 }
                 meta={row.ownerName ? `Owner: ${row.ownerName}` : "Company has no owner"}
+                /* NO DELETE ON THE PHONE LIST, deliberately. These
+                   actions sit in a 6px-gap cluster at the right edge —
+                   exactly where a thumb lands — and that cluster is
+                   tap-to-call and tap-to-email, the two things this list was
+                   optimised for in the field. A destructive control one
+                   thumb-width from "call" is a misfire waiting to happen,
+                   and the misfire deletes a person. Deleting a contact is an
+                   admin desk action; it lives on the desktop table only. If
+                   it is ever wanted on a phone it needs swipe-to-reveal or an
+                   overflow menu, not a third icon in this row. */
                 actions={
                   <>
                     <CallAction
@@ -267,10 +310,23 @@ export function ContactsTable({
                         {contact.text}
                       </span>
                     </td>
-                    <td className="w-28 px-2 py-2.5 text-right">
-                      <span className="invisible whitespace-nowrap text-[12px] font-semibold text-accent underline-offset-2 group-hover:visible">
-                        Open &rsaquo;
-                      </span>
+                    <td className="w-36 px-2 py-2.5">
+                      {/* stopPropagation on the wrapper: the whole <tr> is a
+                          link to the contact, and a click meant for Delete
+                          must not also navigate away from the list. */}
+                      <div
+                        className="flex items-center justify-end gap-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="invisible whitespace-nowrap text-[12px] font-semibold text-accent underline-offset-2 group-hover:visible">
+                          Open &rsaquo;
+                        </span>
+                        <DeleteIconButton
+                          label={titleCaseWords(row.name)}
+                          onClick={() => setConfirming(row)}
+                          disabled={removing}
+                        />
+                      </div>
                     </td>
                   </tr>
                 );
@@ -279,6 +335,58 @@ export function ContactsTable({
           </table>
         </div>
         </>
+      )}
+
+      {/* Same confirmation shape as Admin -> Tasks and the Upgrades board.
+          It NAMES the person and their company: on a dense table of similar
+          rows, "Delete this contact?" confirms nothing useful, whereas
+          reading back "Mike Bischof at Metallic Products Corporation" is
+          what actually catches a click on the wrong line. */}
+      {confirming && (
+        <Modal
+          open
+          onClose={() => !removing && setConfirming(null)}
+          busy={removing}
+          title="Delete contact"
+        >
+          <p className="text-[13.5px] leading-relaxed text-fg">
+            Delete <span className="font-semibold">{titleCaseWords(confirming.name)}</span>
+            {confirming.companyName ? (
+              <>
+                {" "}
+                at <span className="font-semibold">{titleCaseWords(confirming.companyName)}</span>
+              </>
+            ) : null}
+            ? They come off every list straight away.
+          </p>
+          <p className="mt-2 text-[12.5px] text-fg-muted">
+            Calls and notes already logged against them are kept, so the
+            company&rsquo;s history stays intact.
+          </p>
+          {error && (
+            <p className="mt-3 rounded-md border border-bad/30 bg-bad-bg px-2.5 py-1.5 text-[12px] font-semibold text-bad">
+              {error}
+            </p>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirming(null)}
+              disabled={removing}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={removing}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_DANGER}`}
+            >
+              {removing ? "Deleting…" : "Delete contact"}
+            </button>
+          </div>
+        </Modal>
       )}
     </Card>
   );

@@ -1,5 +1,6 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import Link from "next/link";
+import { IconTrash } from "./icons";
 
 /**
  * CRM page-content primitives — white cards on shadow-e2, resolved
@@ -399,5 +400,53 @@ export function EmptyState({
       </div>
       {action}
     </div>
+  );
+}
+
+/**
+ * THE delete affordance. One small red trash icon, everywhere something can
+ * be removed from a list — Admin -> Tasks cards, the Upgrades board, and
+ * Admin -> Contacts rows.
+ *
+ * Extracted because there were about to be three near-identical copies of
+ * it, and a second visual language for "remove this" is how a destructive
+ * control ends up looking like a different, less serious one on one screen
+ * than another. Brent asked for the Admin -> Tasks trash specifically; this
+ * IS that button, so asking for it elsewhere cannot drift from it.
+ *
+ * ALWAYS IN THE DOM, never hover-revealed: a hover-only destructive control
+ * is unreachable by keyboard and invisible on touch.
+ *
+ * `label` names the thing being deleted so the accessible name is
+ * "Delete contact Mike Bischof", not five identical "Delete" buttons.
+ * `className` exists for placement only (Admin -> Tasks absolutely positions
+ * it into a card corner); the look is not overridable.
+ */
+export function DeleteIconButton({
+  label,
+  onClick,
+  disabled,
+  className = "",
+  draggable,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  className?: string;
+  /** Admin -> Tasks passes false so a press on the icon cannot start a card drag. */
+  draggable?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      draggable={draggable}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={`Delete ${label}`}
+      title={`Delete ${label}`}
+      className={`inline-flex h-7 w-7 items-center justify-center rounded-[4px] text-bad/70 transition-colors hover:bg-bad-bg hover:text-bad focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40 disabled:opacity-40 ${className}`}
+    >
+      <IconTrash width={15} height={15} />
+    </button>
   );
 }
