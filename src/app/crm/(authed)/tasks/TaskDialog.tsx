@@ -16,6 +16,7 @@ import type { RepOption } from "../accounts/CompanyDialog";
 import { TASK_PRIORITIES, PRIORITY_LABEL, DEFAULT_PRIORITY } from "./priority";
 import { TaskTypeField } from "./TaskTypeField";
 import { createTask, updateTask } from "./actions";
+import { TASK_DAY_START, defaultTaskDueDateInput } from "./snooze";
 
 export type TaskDefaults = {
   id?: string;
@@ -196,7 +197,15 @@ export function TaskDialog({
               name="due_at"
               type="datetime-local"
               autoFocus={initialFocus === "due_at"}
-              defaultValue={toDatetimeLocal(d.due_at)}
+              /* On CREATE, prefilled with tomorrow 08:00 Central so a new
+                 task is dated by default and the date is visible before
+                 saving. On EDIT the task's own date wins — a default must
+                 never overwrite a decision somebody already made. */
+              defaultValue={
+                mode === "create" && !d.due_at
+                  ? `${defaultTaskDueDateInput()}T${TASK_DAY_START}`
+                  : toDatetimeLocal(d.due_at)
+              }
             />
             <Field
               label="Reminder (CST)"

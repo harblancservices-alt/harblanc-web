@@ -7,6 +7,8 @@ import { FormError } from "../_shell/form";
 import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
 import { sendTask } from "../admin/assign-actions";
 import { isDuplicateQuickTask, normalizeQuickTask } from "../admin/quickTasks";
+import { TASK_DAY_START, defaultTaskDueDateInput } from "./snooze";
+import { centralInputToIso } from "../_shell/format";
 import { addQuickTask, removeQuickTask, type QuickTask } from "../admin/quick-task-actions";
 
 /**
@@ -91,10 +93,18 @@ export function TaskComposer({
   const [who, setWho] = useState(
     assignee.kind === "self" ? assignee.id : assignee.team[0]?.id ?? "",
   );
-  // DUE DEFAULTS TO EMPTY (2026-08-26) — undated work lands in the Inbox on
-  // Workspace → Tasks and gets planned there, matching what assignment does.
-  // A date is still allowed, for work that genuinely can't move.
-  const [due, setDue] = useState("");
+  /* DUE DEFAULTS TO TOMORROW 08:00 CENTRAL (2026-08-28).
+     This REVERSES the 2026-08-26 decision that recorded here — "due
+     defaults to empty, undated work lands in the Inbox and gets planned
+     there, matching what assignment does". Brent chose the default after
+     weighing it against making due_at mandatory: "okay i like that 8am
+     clause".
+     Assignment still lands undated; that path is untouched. What changed
+     is what happens when a PERSON writes a task and says nothing about
+     when. The value is visible in the Due field before sending and can be
+     cleared, so undated remains a choice rather than an accident.
+     Lazy initialiser: the clock is read once, not on every render. */
+  const [due, setDue] = useState<string>(() => defaultTaskDueDateInput());
   const [accountId, setAccountId] = useState("");
   const [contactId, setContactId] = useState("");
   /** The BRIEF — why this task exists, what to walk in knowing. Stored in
@@ -171,7 +181,12 @@ export function TaskComposer({
         priority: high ? "high" : "normal",
         // A date input gives "YYYY-MM-DD"; store it as an instant at local
         // midday so a timezone shift can't roll it onto the wrong day.
-        dueAt: due ? new Date(`${due}T12:00:00`).toISOString() : null,
+        // CENTRAL, not the browser's timezone. `new Date("...T12:00:00")`
+        // parsed the string in whatever zone the rep happened to be in, so
+        // the same pick produced a different instant from a different
+        // machine. 08:00 Central via centralInputToIso is the one meaning
+        // of "8am" this CRM has.
+        dueAt: due ? centralInputToIso(`${due}T${TASK_DAY_START}`) : null,
         accountId: accountId || null,
       });
       if (!result.ok) {
@@ -190,7 +205,7 @@ export function TaskComposer({
             }.`,
       );
       setTitle("");
-      setDue("");
+      setDue(defaultTaskDueDateInput());
       setAccountId("");
       setContactId("");
       setInstructions("");

@@ -9,6 +9,7 @@ import {
   RESULT_ROW_REQUIRES,
 } from "../../../../calls/outcomes";
 import { detectDate, draftFollowupTitle, warrantsFollowup, type DetectedDate } from "../../../../calls/followupDraft";
+import { TASK_DAY_START, defaultTaskDueDateInput } from "../../../../tasks/snooze";
 import { addNote } from "../../../actions";
 import { createTask } from "../../../../tasks/actions";
 import type { QuickTask } from "../../../../admin/quick-task-actions";
@@ -168,6 +169,11 @@ export function WhatHappened({
      is what lets the drafted title step aside on click without being
      destroyed — see the input's own note. */
   const [titleFocused, setTitleFocused] = useState(false);
+  /* THE TASK TAB'S DUE DATE. Defaults to tomorrow 08:00 Central and is on
+     screen before the task saves, so the date is one somebody saw rather
+     than one the system applied quietly. Lazily initialised: the React
+     Compiler forbids reading the clock during render, and this runs once. */
+  const [taskDue, setTaskDue] = useState<string>(() => defaultTaskDueDateInput());
   /* Same for the date. Until the rep picks a day themselves, the DATE
      BELONGS TO THE DETECTOR — which means the detector can also take it
      back when the words it read are no longer there. Without this the
@@ -195,6 +201,7 @@ export function WhatHappened({
     setFollowupTitle("");
     setTitleTouched(false);
     setTitleFocused(false);
+    setTaskDue(defaultTaskDueDateInput());
     setDateTouched(false);
   }
 
@@ -320,6 +327,9 @@ export function WhatHappened({
       fd.set("title", text.trim());
       fd.set("account_id", accountId);
       if (contactId) fd.set("contact_id", contactId);
+      // createTask reads due_at as a Central datetime-local string. Empty
+      // means the rep cleared it deliberately, which stays legal.
+      if (taskDue) fd.set("due_at", `${taskDue}T${TASK_DAY_START}`);
       done(await createTask(fd));
     });
   }
@@ -649,6 +659,20 @@ export function WhatHappened({
           >
             {pending ? "Saving…" : mode === "note" ? "Save note" : "Create task"}
           </button>
+
+          {mode === "task" && (
+            <label className="flex shrink-0 items-center gap-1.5 text-[11.5px] font-semibold text-fg-muted">
+              Due
+              <input
+                type="date"
+                value={taskDue}
+                onChange={(e) => setTaskDue(e.target.value)}
+                disabled={pending}
+                aria-label="Task due date"
+                className="rounded-md border border-line-strong bg-card px-2 py-1.5 text-[12px] text-fg outline-none focus:border-accent disabled:opacity-60"
+              />
+            </label>
+          )}
 
           {mode === "task" &&
             quickTasks.map((q) => (

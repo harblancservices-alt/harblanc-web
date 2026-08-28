@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { snoozeDays, snoozedDueAt, SNOOZE_PRESETS } from "./snooze";
+import { SNOOZE_PRESETS, TASK_DAY_START, defaultTaskDueDateInput, defaultTaskDueIso, snoozeDays, snoozedDueAt } from "./snooze";
 
 /**
  * The task card's Snooze dropdown writes due_at directly, with no confirming
@@ -87,5 +87,33 @@ describe("snoozedDueAt", () => {
         expect(new Date(next).getTime()).toBeGreaterThan(now.getTime());
       }
     }
+  });
+});
+
+describe("the default due date for a new task", () => {
+  it("is tomorrow, not today", () => {
+    // 4pm Central on a Thursday — the case that makes today wrong: a task
+    // written now and dated today is overdue before anyone reads it.
+    const thu4pm = new Date("2026-08-27T21:00:00Z");
+    expect(defaultTaskDueDateInput(thu4pm)).toBe("2026-08-28");
+  });
+
+  it("rolls to the next Central day, not the next UTC day", () => {
+    // 8pm Central Thursday is already Friday in UTC. Central is what the
+    // rep sees, so tomorrow must be Friday, not Saturday.
+    const thu8pmCentral = new Date("2026-08-28T01:00:00Z");
+    expect(defaultTaskDueDateInput(thu8pmCentral)).toBe("2026-08-28");
+  });
+
+  it("lands at 08:00 Central, the same instant a snooze to Tomorrow does", () => {
+    const now = new Date("2026-08-27T21:00:00Z");
+    const iso = defaultTaskDueIso(now);
+    expect(iso).not.toBeNull();
+    // 08:00 CDT = 13:00 UTC
+    expect(new Date(iso as string).toISOString()).toBe("2026-08-28T13:00:00.000Z");
+  });
+
+  it("agrees with the snooze constant, so 8am means one thing", () => {
+    expect(TASK_DAY_START).toBe("08:00");
   });
 });

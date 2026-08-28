@@ -12,10 +12,47 @@ import { centralDateKey, centralInputToIso, timestampMs } from "../_shell/format
 
 const DAY_MS = 86_400_000;
 
+/**
+ * 8:00 AM CENTRAL — THE ONE MEANING OF "8am" IN THIS CRM.
+ *
+ * Shared by: a snooze that has to pick a time, LogCallDialog's default
+ * reminder, the admin board's inline date box, the 30 undated tasks Tyler's
+ * work was dated to on 2026-08-28, and the default below. One constant, so
+ * "tomorrow at 8" set from any of them is the same moment.
+ */
+export const TASK_DAY_START = "08:00";
+
+/**
+ * THE DEFAULT DUE DATE FOR A NEW TASK: tomorrow.
+ *
+ * Brent, 2026-08-28, choosing this over making due_at mandatory — "okay i
+ * like that 8am clause". A default and a requirement reach the same place
+ * for the common case, but the default costs no migration, no NOT NULL
+ * constraint, and no validation dead-end for a rep mid-flow; and it leaves
+ * a deliberate un-dating possible, which a constraint would forbid.
+ *
+ * TOMORROW rather than today because a task you are writing down is
+ * usually not a task you are about to do — and a task created at 4pm and
+ * dated today is overdue by the time anyone reads it.
+ *
+ * Returned as the `YYYY-MM-DD` an <input type="date"> wants, so the value
+ * is on screen and editable BEFORE the task saves. A default nobody can see
+ * is worse than none: it produces tasks carrying dates nobody chose.
+ */
+export function defaultTaskDueDateInput(now: Date = new Date()): string {
+  return centralDateKey(new Date(now.getTime() + DAY_MS).toISOString()) ?? "";
+}
+
+/** The same default as a stored ISO instant. */
+export function defaultTaskDueIso(now: Date = new Date()): string | null {
+  const day = defaultTaskDueDateInput(now);
+  return day ? centralInputToIso(`${day}T${TASK_DAY_START}`) : null;
+}
+
 /** 8:00 AM Central — the landing time for a snooze that has to pick one,
  * matching LogCallDialog's own DEFAULT_REMINDER_TIME so a "tomorrow" set from
  * either place means the same moment. */
-const SNOOZE_TIME = "08:00";
+const SNOOZE_TIME = TASK_DAY_START;
 
 export const SNOOZE_PRESETS = [
   { key: "1d", label: "Tomorrow", days: 1 },
