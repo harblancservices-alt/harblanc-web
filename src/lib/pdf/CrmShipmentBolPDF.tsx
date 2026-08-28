@@ -273,14 +273,16 @@ function BillToBox({ name, address }: { name: string | null; address: string | n
   return (
     <View style={styles.col}>
       <Text style={styles.heading}>Third Party Bill To</Text>
+      {/* EMPTY WHEN THERE IS NO THIRD PARTY, and empty means empty. This
+          printed "N/A" until Brent asked for it blank (2026-08-27). The box
+          still draws at full height next to the Carrier box, so a blank one
+          reads as a box left blank rather than as a layout fault. */}
       <View style={[styles.boxSolid, styles.boxFill]}>
-        {hasBillTo ? (
+        {hasBillTo && (
           <>
             <Text style={styles.fieldLine}>{name || "—"}</Text>
             <Text style={styles.fieldLine}>{address || "—"}</Text>
           </>
-        ) : (
-          <Text style={styles.fieldLine}>N/A</Text>
         )}
       </View>
     </View>
