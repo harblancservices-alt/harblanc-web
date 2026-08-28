@@ -17,6 +17,58 @@ export type CrmUser = {
 };
 
 /**
+ * THE SAME CHECK, WITHOUT THE TELEPORT.
+ *
+ * requireCrmUser() calls redirect() when the session is gone. Inside a server
+ * action that throws Next's redirect signal, which unwinds past the calling
+ * component entirely: the browser navigates to /crm/login, the composer
+ * unmounts, and whatever the user had typed goes with it. No error is shown,
+ * because control never comes back to show one.
+ *
+ * That is how Tyler lost a note on 2026-08-28. He typed it, pressed save, his
+ * session had expired, and the write was never attempted — the Supabase edge
+ * logs for that window contain exactly one POST to crm_notes, the earlier note
+ * that did save. No request, no error, no row.
+ *
+ * So any action that a person triggers WITH TEXT ON SCREEN resolves the user
+ * through this instead. It returns null rather than redirecting, the action
+ * returns a normal failure, and the composer renders it like any other error —
+ * which means it keeps what they wrote.
+ *
+ * Read paths keep using requireCrmUser(): bouncing someone to login while they
+ * are only looking at a page costs them nothing.
+ */
+export async function currentCrmUser(): Promise<CrmUser | null> {
+  const supabase = await createServerComponentClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("crm_profiles")
+    .select("org_id, full_name, email, role, is_active")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile || !profile.is_active) return null;
+
+  return {
+    id: user.id,
+    email: user.email ?? (profile.email as string | null) ?? "",
+    orgId: profile.org_id as string,
+    fullName: (profile.full_name as string | null) ?? null,
+    role: (profile.role as string) ?? "member",
+  };
+}
+
+/** The message a composer shows when the session died under it. Deliberately
+ * says the work is safe, because the whole point of this path is that it is. */
+export const SESSION_EXPIRED_ERROR =
+  "Your session expired. Open the CRM in a new tab and sign in, then press save again — what you typed is still here.";
+
+/**
  * Gate for every authenticated CRM page/action. Confirms a Supabase session,
  * then confirms the user belongs to a CRM org via crm_profiles (deny-by-default
  * RLS means a non-member simply reads back no row). This is fully independent

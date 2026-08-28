@@ -11,6 +11,7 @@ import {
 import { detectDate, draftFollowupTitle, warrantsFollowup, type DetectedDate } from "../../../../calls/followupDraft";
 import { TASK_DAY_START, defaultTaskDueDateInput } from "../../../../tasks/snooze";
 import { addNote } from "../../../actions";
+import { readDraft, writeDraft, clearDraft, isRestorable } from "./composerDraft";
 import { createTask } from "../../../../tasks/actions";
 import type { QuickTask } from "../../../../admin/quick-task-actions";
 import {
@@ -147,8 +148,18 @@ export function WhatHappened({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [mode, setMode] = useState<Mode>("call");
-  const [text, setText] = useState("");
+  /* A DRAFT SURVIVING FROM LAST TIME. Read once, lazily, at mount: a
+     session bounce, a closed tab or a crash all unmount this component, and
+     without this whatever was typed is gone for good (see composerDraft.ts,
+     and the note Tyler lost on 2026-08-28). */
+  const restored = useState(() => {
+    const d = readDraft(accountId);
+    return isRestorable(d, Date.now()) ? d : null;
+  })[0];
+
+  const [mode, setMode] = useState<Mode>(restored?.mode ?? "call");
+  const [text, setText] = useState(restored?.text ?? "");
+  const [restoredNotice, setRestoredNotice] = useState(restored !== null);
   const [contactId, setContactId] = useState<string>(contacts[0]?.id ?? "");
   const [advance, setAdvance] = useState(false);
 
@@ -195,8 +206,20 @@ export function WhatHappened({
   // The tick is only offered where it can actually be honoured.
   const canAdvance = nextStage !== null && !stageNeedsReason(nextStage);
 
+  /** Every keystroke, straight to local storage. Cheap, synchronous, and
+     guarded — a storage failure must never stop somebody typing. */
+  function rememberText(next: string) {
+    setText(next);
+    setRestoredNotice(false);
+    if (next.trim()) writeDraft(accountId, { mode, text: next, savedAt: Date.now() });
+    else clearDraft(accountId);
+  }
+
   /** Everything the composer was holding, back to empty. */
   function resetComposer() {
+    // The work is on the server now, so the local copy has done its job.
+    clearDraft(accountId);
+    setRestoredNotice(false);
     setText("");
     setGotThrough(null);
     setResult(null);
@@ -414,7 +437,7 @@ export function WhatHappened({
         <input
           value={text}
           onChange={(e) => {
-            setText(e.target.value);
+            rememberText(e.target.value);
             // A note or a task is not a call. Typing in those modes must
             // not drive the call's date detection, or switching back shows
             // a follow-up read out of somebody's meeting notes.
@@ -717,6 +740,15 @@ export function WhatHappened({
       {error && (
         <p className="mx-4 mb-3 rounded-md border border-bad/30 bg-bad-bg px-2.5 py-1.5 text-[12px] font-semibold text-bad">
           {error}
+        </p>
+      )}
+
+      {/* Say the draft came back. Text reappearing on its own is unnerving
+          if nobody explains it, and a rep who does not know it was restored
+          may retype what is already in the box. */}
+      {restoredNotice && !error && (
+        <p className="mx-4 mb-3 rounded-md border border-line-strong bg-inset px-2.5 py-1.5 text-[12px] font-semibold text-fg-muted">
+          Picked up where you left off — this was still unsaved.
         </p>
       )}
     </div>

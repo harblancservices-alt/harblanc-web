@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import { requireCrmUser, currentCrmUser, SESSION_EXPIRED_ERROR, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, stageRank, stageNeedsReason, DEFAULT_LIFECYCLE } from "./lifecycle";
 import { centralInputToIso, firstName, titleCaseWords, upperCaseState } from "../_shell/format";
@@ -1271,7 +1271,11 @@ export async function addNote(
   body: string,
   pinned: boolean,
 ): Promise<ActionResult> {
-  const user = await requireCrmUser();
+  // currentCrmUser, not requireCrmUser: this is a WRITE the user triggered
+  // with text on screen. A redirect here would unmount the composer and take
+  // what they typed with it -- see lib/crm/auth.ts.
+  const user = await currentCrmUser();
+  if (!user) return { ok: false, error: SESSION_EXPIRED_ERROR };
   const trimmed = body.trim();
   if (!trimmed) return { ok: false, error: "Write something first." };
 

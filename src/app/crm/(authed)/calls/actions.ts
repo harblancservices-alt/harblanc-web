@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import { requireCrmUser, currentCrmUser, SESSION_EXPIRED_ERROR, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { syncFollowupTask } from "@/lib/crm/followupTask";
 import { completeTask, planTask } from "../tasks/actions";
@@ -140,7 +140,11 @@ export async function getCallDirectory(): Promise<CallDirectory> {
  * NEW records.
  */
 export async function logCall(formData: FormData): Promise<ActionResult> {
-  const user = await requireCrmUser();
+  // currentCrmUser, not requireCrmUser: this is a WRITE the user triggered
+  // with text on screen. A redirect here would unmount the composer and take
+  // what they typed with it -- see lib/crm/auth.ts.
+  const user = await currentCrmUser();
+  if (!user) return { ok: false, error: SESSION_EXPIRED_ERROR };
 
   const outcome = optStr(formData, "outcome");
   if (!outcome) return { ok: false, error: "Pick a call outcome." };

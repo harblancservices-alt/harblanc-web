@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import { requireCrmUser, currentCrmUser, SESSION_EXPIRED_ERROR, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { syncFollowupOnTaskChange } from "@/lib/crm/followupTask";
 import { normalizePriority } from "./priority";
@@ -121,7 +121,11 @@ async function companyOwnerId(
  * task_created activity to the company timeline when a company is linked.
  */
 export async function createTask(formData: FormData): Promise<ActionResult> {
-  const user = await requireCrmUser();
+  // currentCrmUser, not requireCrmUser: this is a WRITE the user triggered
+  // with text on screen. A redirect here would unmount the composer and take
+  // what they typed with it -- see lib/crm/auth.ts.
+  const user = await currentCrmUser();
+  if (!user) return { ok: false, error: SESSION_EXPIRED_ERROR };
   const fields = taskFieldsFromForm(formData);
   if (!fields.title) return { ok: false, error: "Task title is required." };
 
