@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { CrmActivityLogItem } from "../../ActivityLogSection";
 import { deleteNote, updateNote, setNotePinned } from "../../../actions";
-import { deleteCall } from "../../../../calls/actions";
+import { deleteCall, updateCall } from "../../../../calls/actions";
 import { Modal } from "../../../../_shell/Modal";
 import { BTN_DANGER, BTN_NEUTRAL, DeleteIconButton } from "../../../../_shell/ui";
 import { FileCard, SectionHead } from "./chrome";
@@ -251,6 +251,13 @@ export function HistoryPanel({
                     <span className="font-bold text-fg">{stamp(item.occurredAt, nowMs)}</span>
                     {desc && <span className="font-semibold text-fg-muted"> · {desc}</span>}
                     {item.author && <span className="text-fg-subtle"> · {item.author}</span>}
+                    {item.editedAt && (
+                      /* History that can be quietly rewritten is not history.
+                         A corrected write-up says so. */
+                      <span className="ml-1.5 text-[10.5px] font-semibold italic text-fg-subtle">
+                        edited
+                      </span>
+                    )}
                     {item.isPinned && (
                       <span className="ml-1.5 rounded-[3px] border border-warn/40 bg-warn-bg px-1.5 py-px text-[9.5px] font-bold uppercase tracking-[0.06em] text-warn">
                         Pinned
@@ -277,19 +284,22 @@ export function HistoryPanel({
                         >
                           {item.isPinned ? "Unpin" : "Pin"}
                         </button>
-                        <button
-                          type="button"
-                          disabled={pending || removing}
-                          onClick={() => {
-                            setEditing(item);
-                            setDraft(item.body ?? "");
-                            setError(null);
-                          }}
-                          className="rounded px-1.5 py-0.5 text-[11px] font-bold text-fg-subtle transition-colors hover:text-accent disabled:opacity-40"
-                        >
-                          Edit
-                        </button>
                       </>
+                    )}
+                    {(item.type === "note" || item.type === "call") && (
+                      <button
+                        type="button"
+                        disabled={pending || removing}
+                        onClick={() => {
+                          setEditing(item);
+                          // A call edits its RAW summary; a note edits its body.
+                          setDraft((item.type === "call" ? item.editableText : item.body) ?? "");
+                          setError(null);
+                        }}
+                        className="rounded px-1.5 py-0.5 text-[11px] font-bold text-fg-subtle transition-colors hover:text-accent disabled:opacity-40"
+                      >
+                        Edit
+                      </button>
                     )}
                     {(item.type === "note" || item.type === "call") && (
                       <DeleteIconButton
@@ -321,7 +331,13 @@ export function HistoryPanel({
                       <button
                         type="button"
                         disabled={pending || !draft.trim()}
-                        onClick={() => run(() => updateNote(item.id, accountId, draft.trim()))}
+                        onClick={() =>
+                          run(() =>
+                            item.type === "call"
+                              ? updateCall(item.id, accountId, draft.trim())
+                              : updateNote(item.id, accountId, draft.trim()),
+                          )
+                        }
                         className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
                       >
                         {pending ? "Saving…" : "Save"}

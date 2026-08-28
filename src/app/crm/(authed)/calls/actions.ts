@@ -479,6 +479,72 @@ export async function logCall(formData: FormData): Promise<ActionResult> {
  * left untouched (it's a historical record of the timeline, not the log
  * itself), matching how deleteContact leaves the activity feed alone.
  */
+/**
+ * CORRECT THE WRITE-UP ON A LOGGED CALL.
+ *
+ * The audit found there was no way to do this anywhere -- no updateCall
+ * existed, on any surface. A mis-typed call summary was permanent, and the
+ * only remedy was delete-and-relog, which was itself mobile-only. These are
+ * long pieces of writing (149 characters on Tyler's Core And Main call) done
+ * in a hurry between dials, so typos are the normal case, not the edge one.
+ *
+ * WHO MAY EDIT: the agent who logged it, or an owner. The author because it
+ * is their account of their own conversation; the owner because somebody has
+ * to be able to fix a record when the person who wrote it has moved on. Both
+ * are checked HERE against the row, not inferred from the page -- hiding a
+ * button is not a permission.
+ *
+ * WHAT MAY BE EDITED: the write-up text only. Not the outcome, not the time,
+ * not who it was with. Those three are what the call IS, they drive the
+ * follow-up task and the stage automation, and there is an append-only
+ * crm_activities row already stating them ("Call · Voicemail"). Letting them
+ * be rewritten would leave the log and the record disagreeing about what
+ * happened, which is worse than a typo.
+ *
+ * AND IT IS MARKED. summary_edited_at is stamped so the history can say a
+ * write-up was changed after the fact. History that can be quietly rewritten
+ * is not history.
+ */
+export async function updateCall(
+  callId: string,
+  accountId: string,
+  summary: string,
+): Promise<ActionResult> {
+  const user = await currentCrmUser();
+  if (!user) return { ok: false, error: SESSION_EXPIRED_ERROR };
+
+  const trimmed = summary.trim();
+  if (!trimmed) return { ok: false, error: "A call needs a write-up. Delete it instead if it was logged by mistake." };
+
+  const supabase = await createCrmServerClient();
+
+  // Re-read the row rather than trusting the caller about who owns it.
+  const { data: row, error: readError } = await supabase
+    .from("crm_calls")
+    .select("id, user_id")
+    .eq("id", callId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (readError) return { ok: false, error: "Could not load that call." };
+  if (!row) return { ok: false, error: "That call no longer exists." };
+
+  const isAuthor = (row.user_id as string | null) === user.id;
+  if (!isAuthor && user.role !== "owner") {
+    return { ok: false, error: "You can only edit a call you logged." };
+  }
+
+  const { error } = await supabase
+    .from("crm_calls")
+    .update({ summary: trimmed, summary_edited_at: new Date().toISOString() })
+    .eq("id", callId);
+
+  if (error) return { ok: false, error: "Could not save the change." };
+
+  revalidate(accountId, null);
+  return { ok: true };
+}
+
 export async function deleteCall(
   callId: string,
   accountId: string,

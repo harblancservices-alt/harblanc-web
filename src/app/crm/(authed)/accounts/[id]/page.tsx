@@ -122,7 +122,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_calls")
       .select(
-        "id, contact_id, outcome, duration_seconds, summary, notes, occurred_at, user_id, followup_required, reminder_at",
+        "id, contact_id, outcome, duration_seconds, summary, notes, occurred_at, user_id, followup_required, reminder_at, summary_edited_at",
       )
       .eq("account_id", id)
       .is("deleted_at", null)
@@ -314,6 +314,7 @@ export default async function AccountDetailPage({
     user_id: string | null;
     followup_required: boolean | null;
     reminder_at: string | null;
+    summary_edited_at: string | null;
   }[];
   const activityFromCalls: CrmActivityLogItem[] = callRows.map((c) => {
     const durLabel = c.duration_seconds ? ` · ${Math.round(c.duration_seconds / 60)}m` : "";
@@ -332,6 +333,9 @@ export default async function AccountDetailPage({
       tag: callOutcomeLabel(c.outcome),
       tagTone: callOutcomeTone(c.outcome),
       body: [c.summary, c.notes].filter(Boolean).join("\n") || null,
+      // The raw column, so an edit rewrites summary and leaves notes alone.
+      editableText: c.summary,
+      editedAt: c.summary_edited_at,
       followupAt: c.followup_required ? c.reminder_at : null,
     };
   });
