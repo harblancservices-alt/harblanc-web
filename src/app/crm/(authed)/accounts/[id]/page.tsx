@@ -31,6 +31,7 @@ import type { IdentityLink } from "./desktop/IdentityCard";
 import { timestampMs } from "../../_shell/format";
 import { MobileProfile } from "./mobile/MobileProfile";
 import type { MobilePerson } from "./mobile/MobilePeople";
+import { listQuickTasks } from "../../admin/quick-task-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -534,6 +535,17 @@ export default async function AccountDetailPage({
     phoneLabel: p.phones[0]?.label || null,
   }));
 
+  /** The admin's curated quick tasks, for the composer's Task tab.
+   *
+   * Read HERE, on the server, rather than by the client panel itself. This
+   * page is already a server component with a session, so it costs one more
+   * query on a request that is making many — and it means the Task tab
+   * never calls the server just to render. A server action would run
+   * requireCrmUser(), which redirects on a lapsed session, and a redirect
+   * from an action navigates the page: a rep who had typed a task would
+   * lose it. See WhatHappened's own note. */
+  const quickTasks = await listQuickTasks();
+
   /** The company's own numbers. `phones` is the modern jsonb column; the
    * legacy `phone` text column is folded in so a company that predates the
    * migration still shows a line rather than an empty footer. */
@@ -840,6 +852,7 @@ export default async function AccountDetailPage({
           people={filePeople}
           companyPhones={fileCompanyPhones}
           composerContacts={composerContacts}
+          quickTasks={quickTasks}
           activityItems={activityItems}
           tasks={fileTasks}
           facts={facts}

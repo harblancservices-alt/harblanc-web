@@ -10,6 +10,7 @@ import { StageStrip } from "./StageStrip";
 import { WhatHappened } from "./WhatHappened";
 import { FileCard, SectionHead } from "./chrome";
 import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
+import type { QuickTask } from "../../../../admin/quick-task-actions";
 
 /**
  * The company file below the header: the page tabs, the stage strip, the
@@ -81,6 +82,7 @@ export function FileBody({
   accountId,
   stage,
   composerContacts,
+  quickTasks,
   people,
   companyPhones,
   companyDefaults,
@@ -97,6 +99,9 @@ export function FileBody({
   accountId: string;
   stage: string;
   composerContacts: { id: string; name: string; phoneLabel: string | null }[];
+  /** Passed through to the composer's Task tab — see WhatHappened's note on
+   * why this is threaded rather than fetched there. */
+  quickTasks: QuickTask[];
   people: CallPerson[];
   companyPhones: { label: string; number: string }[];
   companyDefaults: CompanyDefaults;
@@ -153,7 +158,12 @@ export function FileBody({
             {/* The composer — Overview only, per Brent. */}
             <FileCard>
               <SectionHead title="What happened" />
-              <WhatHappened accountId={accountId} contacts={composerContacts} stage={stage} />
+              <WhatHappened
+                accountId={accountId}
+                contacts={composerContacts}
+                stage={stage}
+                quickTasks={quickTasks}
+              />
             </FileCard>
 
             {/* THE CARDS USE THE HEIGHT THEY HAVE. They used to size to

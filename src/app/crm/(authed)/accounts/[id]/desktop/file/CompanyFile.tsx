@@ -9,6 +9,7 @@ import type { BolDoc } from "./BolViewer";
 import type { FileGap } from "./fileGaps";
 import type { CrmActivityLogItem } from "../../ActivityLogSection";
 import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
+import type { QuickTask } from "../../../../admin/quick-task-actions";
 
 /**
  * THE COMPANY FILE — the desktop company page, top to bottom.
@@ -67,6 +68,7 @@ export function CompanyFile({
   people,
   companyPhones,
   composerContacts,
+  quickTasks,
   activityItems,
   tasks,
   facts,
@@ -93,6 +95,7 @@ export function CompanyFile({
   people: CallPerson[];
   companyPhones: { label: string; number: string }[];
   composerContacts: { id: string; name: string; phoneLabel: string | null }[];
+  quickTasks: QuickTask[];
   activityItems: CrmActivityLogItem[];
   tasks: FileTask[];
   facts: BolFacts;
@@ -148,6 +151,7 @@ export function CompanyFile({
         accountId={accountId}
         stage={stage}
         composerContacts={composerContacts}
+        quickTasks={quickTasks}
         people={people}
         companyPhones={companyPhones}
         companyDefaults={companyDefaults}

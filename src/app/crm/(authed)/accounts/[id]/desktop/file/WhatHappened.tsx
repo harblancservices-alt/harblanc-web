@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { logCall } from "../../../../calls/actions";
 import {
@@ -13,7 +13,7 @@ import {
 import { detectDate, draftFollowupTitle, warrantsFollowup, type DetectedDate } from "../../../../calls/followupDraft";
 import { addNote } from "../../../actions";
 import { createTask } from "../../../../tasks/actions";
-import { listQuickTasks, type QuickTask } from "../../../../admin/quick-task-actions";
+import type { QuickTask } from "../../../../admin/quick-task-actions";
 import {
   SELECTABLE_LIFECYCLE_STAGES,
   normalizeStage,
@@ -118,10 +118,26 @@ export function WhatHappened({
   accountId,
   contacts,
   stage,
+  quickTasks,
 }: {
   accountId: string;
   contacts: { id: string; name: string; phoneLabel: string | null }[];
   stage: string;
+  /* The admin's curated quick tasks, THREADED FROM THE SERVER PAGE rather
+     than fetched here.
+
+     The first cut loaded them with a server action when Task mode opened,
+     the way ContactDialog loads a company's sites. It works, but every
+     server action in this CRM runs requireCrmUser(), which REDIRECTS to
+     /crm/login when the session has lapsed — and a redirect returned from
+     a server action navigates the whole page. A rep who had typed a task
+     and clicked the tab would land on the sign-in screen with their text
+     gone, and would report it, if at all, as "the CRM is broken".
+
+     Passing the data down costs four components a prop and removes the
+     failure entirely: nothing in this panel calls the server until the
+     rep presses save, which is the moment they expect a round trip. */
+  quickTasks: QuickTask[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -156,24 +172,7 @@ export function WhatHappened({
      created on save. */
   const [dateTouched, setDateTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /* The admin's curated quick tasks, fetched the first time Task mode is
-     opened and kept for the rest of the visit. Empty until then, which is
-     also the correct render for an org that has not set any. */
-  const [quickTasks, setQuickTasks] = useState<QuickTask[]>([]);
-  const [quickTasksLoaded, setQuickTasksLoaded] = useState(false);
 
-  useEffect(() => {
-    if (mode !== "task" || quickTasksLoaded) return;
-    let live = true;
-    void listQuickTasks().then((rows) => {
-      if (!live) return;
-      setQuickTasks(rows);
-      setQuickTasksLoaded(true);
-    });
-    return () => {
-      live = false;
-    };
-  }, [mode, quickTasksLoaded]);
 
   const active = normalizeStage(stage);
   const order = SELECTABLE_LIFECYCLE_STAGES as readonly LifecycleStage[];
