@@ -530,10 +530,20 @@ async function loadBolForLifecycle(
 }
 
 /**
- * Mark a BOL as sent to the carrier/driver. Same "no real send pipeline yet"
- * posture as rate-confirmation-actions.ts::sendRateConfirmation — this only
- * records the state transition. TODO: wire an actual email/SMS send once
- * the CRM gets one.
+ * Mark a BOL as sent to the carrier/driver — a STATUS FLIP, and that is the
+ * whole intended behaviour.
+ *
+ * SETTLED, NOT PENDING. Brent closed this permanently on 2026-08-27. The CRM
+ * has no outbound send pipeline BY DESIGN — src/lib/email is entirely
+ * dispatch/admin-side and stays that way. Agents send the document themselves
+ * however they already do it, and then record here that it went out. This
+ * action exists to capture that fact, not to transmit anything.
+ *
+ * So: no email, no SMS, no "wire it up later". The button says "Mark as
+ * Sent" (BolEditor.tsx) precisely because marking is what it does, and that
+ * wording is deliberate — do not "fix" it to "Send". If you arrived here
+ * thinking this is an unfinished integration, it is not; it is a decision.
+ * Same posture as rate-confirmation-actions.ts::sendRateConfirmation.
  */
 export async function sendBolDocument(id: string): Promise<ActionResult> {
   const user = await requireCrmUser();

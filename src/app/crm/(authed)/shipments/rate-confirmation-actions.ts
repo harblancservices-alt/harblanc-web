@@ -634,10 +634,20 @@ async function loadRcForLifecycle(
 }
 
 /**
- * Mark an RC as sent to the carrier. No real carrier-facing email exists in
- * this codebase yet (the CRM has no outbound send pipeline — src/lib/email
- * is entirely dispatch/admin-side) — this only records the state transition.
- * TODO: wire an actual email/SMS send once the CRM gets one.
+ * Mark an RC as sent to the carrier — a STATUS FLIP, and that is the whole
+ * intended behaviour.
+ *
+ * SETTLED, NOT PENDING. Brent closed this permanently on 2026-08-27. The CRM
+ * has no outbound send pipeline BY DESIGN — src/lib/email is entirely
+ * dispatch/admin-side and stays that way. Agents send the rate confirmation
+ * themselves however they already do it, and then record here that it went
+ * out. This action exists to capture that fact, not to transmit anything.
+ *
+ * So: no email, no SMS, no "wire it up later". The button says "Mark as
+ * Sent" (RateConfirmationEditor.tsx) precisely because marking is what it
+ * does, and that wording is deliberate — do not "fix" it to "Send". If you
+ * arrived here thinking this is an unfinished integration, it is not; it is
+ * a decision. Same posture as bol-actions.ts::sendBolDocument.
  */
 export async function sendRateConfirmation(id: string): Promise<ActionResult> {
   const user = await requireCrmUser();
