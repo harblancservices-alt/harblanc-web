@@ -65,9 +65,9 @@ describe("sortByUrgency", () => {
 });
 
 describe("buildBoard", () => {
-  it("puts unassigned first, then one column per person in roster order", () => {
+  it("is one column per person, in roster order, when nothing is orphaned", () => {
     const board = buildBoard([], PEOPLE, NOW);
-    expect(board.map((c) => c.key)).toEqual([UNASSIGNED_KEY, "u1", "u2"]);
+    expect(board.map((c) => c.key)).toEqual(["u1", "u2"]);
   });
 
   it("keeps a column for someone with nothing on their plate", () => {
@@ -77,10 +77,20 @@ describe("buildBoard", () => {
     expect(bob.counts.total).toBe(0);
   });
 
-  it("always renders the unassigned column, even empty", () => {
+  it("hides the unassigned column when nothing is unassigned", () => {
+    // Tasks always have an owner as of 2026-08-28 — the pickers offer no
+    // blank and both createTask and reassignTask refuse one — so an empty
+    // Unassigned column would be dead furniture at the head of the board.
     const board = buildBoard([t("a", TODAY, "u1")], PEOPLE, NOW);
+    expect(board.some((c) => c.key === UNASSIGNED_KEY)).toBe(false);
+  });
+
+  it("still shows it, and first, when a legacy row IS unassigned", () => {
+    // Not deleted, because a row with a null assignee must be visible
+    // somewhere rather than silently dropped off the board.
+    const board = buildBoard([t("orphan", TODAY, null)], PEOPLE, NOW);
     expect(board[0].key).toBe(UNASSIGNED_KEY);
-    expect(board[0].cards).toEqual([]);
+    expect(board[0].cards.map((c) => c.id)).toEqual(["orphan"]);
   });
 
   it("counts open and overdue per column", () => {

@@ -70,7 +70,15 @@ export function TasksBoard({
     if (!card || !isRealMove(card, targetKey)) return;
     setError(null);
     startTransition(async () => {
-      const result = await reassignTask(taskId, assigneeIdForColumn(targetKey));
+      const target = assigneeIdForColumn(targetKey);
+      // The Unassigned column is no longer a destination — tasks always
+      // have an owner. It still RENDERS when it holds legacy rows, so
+      // nothing can be hidden, but you cannot move work into it.
+      if (!target) {
+        setError("A task has to belong to somebody. Pick a person.");
+        return;
+      }
+      const result = await reassignTask(taskId, target);
       if (!result.ok) {
         setError(result.error);
         return;
@@ -424,7 +432,6 @@ function TaskCard({
           aria-label={`Move "${card.title}" to someone else`}
           className="ml-auto max-w-[8.5rem] shrink-0 rounded-[4px] border border-line bg-card px-1 py-0.5 text-[11px] font-semibold text-fg-muted disabled:opacity-60"
         >
-          <option value={UNASSIGNED_KEY}>Unassigned</option>
           {team.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}

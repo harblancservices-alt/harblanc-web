@@ -112,8 +112,14 @@ export function TasksPanel({
 
   function doReassign(taskId: string, userId: string) {
     setError(null);
+    // An empty pick used to mean "un-assign". Tasks always have an owner
+    // now, so nothing to do rather than an ownerless task.
+    if (!userId) {
+      setReassignFor(null);
+      return;
+    }
     startTransition(async () => {
-      const res = await reassignTask(taskId, userId || null);
+      const res = await reassignTask(taskId, userId);
       setReassignFor(null);
       if (!res.ok) setError(res.error);
       else router.refresh();

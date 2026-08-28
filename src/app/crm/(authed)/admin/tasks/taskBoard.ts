@@ -104,8 +104,18 @@ export function buildBoard(
     return { key, name, initials, counts: summarizeDue(cards, now), cards: sortByUrgency(cards, now) };
   };
 
+  /* UNASSIGNED ONLY APPEARS WHEN IT HOLDS SOMETHING (2026-08-28).
+     Tasks always have an owner now — the pickers offer no blank and both
+     createTask and reassignTask refuse one — so on current data this
+     column is permanently empty and would be dead furniture at the head of
+     the board. It is not deleted, because a legacy or hand-edited row with
+     a null assignee must still be visible somewhere rather than silently
+     dropped off the board. Empty means gone; occupied means shown, and it
+     still leads, because work with no owner is the first thing this screen
+     should surface. */
+  const orphaned = column(UNASSIGNED_KEY, "Unassigned", "");
   return [
-    column(UNASSIGNED_KEY, "Unassigned", ""),
+    ...(orphaned.cards.length > 0 ? [orphaned] : []),
     ...people.map((p) => column(p.id, p.name, initialsOf(p.name))),
   ];
 }

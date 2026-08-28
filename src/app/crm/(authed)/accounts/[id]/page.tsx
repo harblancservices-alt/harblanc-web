@@ -777,6 +777,7 @@ export default async function AccountDetailPage({
       custom={account.custom as Record<string, unknown> | null}
       tasksPanel={
         <TasksTab
+          companyOwnerId={currentRepId}
           accountId={account.id as string}
           tasks={tasks}
           reps={reps}

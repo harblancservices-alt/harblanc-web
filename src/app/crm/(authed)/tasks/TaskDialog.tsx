@@ -57,6 +57,7 @@ export function TaskDialog({
   mode,
   accountId,
   accounts,
+  companyOwnerId,
   contacts,
   reps,
   canAssignOthers,
@@ -70,6 +71,11 @@ export function TaskDialog({
   accountId?: string;
   /** Company options — standalone usage only. */
   accounts?: TaskAccountOption[];
+  /** The owner of the company this dialog was opened on, when the caller
+   * knows it. Used as the create-mode default so the picker shows who the
+   * task is actually going to. Absent is fine — the server resolves the
+   * same answer either way. */
+  companyOwnerId?: string | null;
   contacts: TaskContactOption[];
   reps: RepOption[];
   canAssignOthers: boolean;
@@ -219,16 +225,15 @@ export function TaskDialog({
             <SelectField
               label="Assigned rep"
               name="assigned_user_id"
-              defaultValue={d.assigned_user_id ?? ""}
+              defaultValue={d.assigned_user_id ?? companyOwnerId ?? currentUser.id}
             >
-              {/* IT SAID "Unassigned" AND PRODUCED A TASK ASSIGNED TO THE
-                  ADMIN. The blank value has never meant unassigned — it
-                  means "nobody picked", and createTask resolves that to
-                  the company's owner (and only then to the creator). The
-                  option now says what actually happens. */}
-              <option value="">
-                {mode === "create" ? "Whoever owns the company" : "Leave as it is"}
-              </option>
+              {/* NO BLANK OPTION. Brent, 2026-08-28: "Well dont allow tasks
+                  to be unassigned at all." Every task has an owner, so the
+                  picker has no empty choice to make — it arrives showing
+                  the company's owner, which is a real answer rather than a
+                  gap to fill. createTask rejects an ownerless task
+                  server-side too, so removing the option is the UI half of
+                  a rule and not the whole of it. */}
               {reps.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.label}

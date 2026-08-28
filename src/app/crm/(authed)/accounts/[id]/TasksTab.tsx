@@ -21,6 +21,7 @@ export function TasksTab({
   accountId,
   tasks,
   reps,
+  companyOwnerId,
   contacts,
   canAssignOthers,
   currentUser,
@@ -28,6 +29,8 @@ export function TasksTab({
   accountId: string;
   tasks: CrmTaskItem[];
   reps: RepOption[];
+  /** crm_accounts.assigned_user_id — who a new task here defaults to. */
+  companyOwnerId?: string | null;
   contacts: TaskContactOption[];
   canAssignOthers: boolean;
   currentUser: { id: string; label: string };
@@ -43,6 +46,7 @@ export function TasksTab({
           accountId={accountId}
           mode="create"
           reps={reps}
+          companyOwnerId={companyOwnerId}
           contacts={contacts}
           canAssignOthers={canAssignOthers}
           currentUser={currentUser}

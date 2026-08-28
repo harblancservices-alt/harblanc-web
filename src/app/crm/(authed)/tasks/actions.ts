@@ -71,6 +71,23 @@ function taskFieldsFromForm(fd: FormData) {
   };
 }
 
+/** A real, ACTIVE member of this org — never trust an id off the wire.
+ * Same rule reassignTask has always applied to an explicit pick. */
+async function isActiveMember(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  orgId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("crm_profiles")
+    .select("id")
+    .eq("id", userId)
+    .eq("org_id", orgId)
+    .eq("is_active", true)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 /**
  * The agent who owns a company, or null when there is no company or nobody
  * owns it. Used to decide who a new task belongs to — see createTask.
@@ -134,6 +151,17 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
    * admin who chooses a person in the picker gets that person. This is a
    * default, not a lock — the same principle as the 8am due date. */
   const assignedUserId = rawAssignee ?? (await companyOwnerId(supabase, fields.account_id)) ?? user.id;
+
+  /* NO TASK WITHOUT AN OWNER — Brent, 2026-08-28: "Well dont allow tasks
+     to be unassigned at all." The UI has no blank option any more, but a
+     stale tab or a tampered request must not be able to produce one
+     either, and an id off the wire is never trusted to be a real person.
+     The chain above cannot yield null (it ends at the caller's own id), so
+     this is really the membership check — but it is written to reject both
+     so the rule holds if the chain ever changes. */
+  if (!assignedUserId || !(await isActiveMember(supabase, user.orgId, assignedUserId))) {
+    return { ok: false, error: "Pick who this task is for." };
+  }
   const { error } = await supabase.from("crm_tasks").insert({
     org_id: user.orgId,
     account_id: fields.account_id,
@@ -293,7 +321,10 @@ export async function planTask(taskId: string, column: PlanColumn): Promise<Acti
  */
 export async function reassignTask(
   taskId: string,
-  assigneeId: string | null,
+  /* NOT nullable any more. Un-assigning was the other way to end up with
+     an ownerless task, so the drop target that produced it is gone from
+     the admin board and the action refuses it here too. */
+  assigneeId: string,
 ): Promise<ActionResult> {
   const user = await requireCrmUser();
   if (user.role !== "owner") {
@@ -306,15 +337,9 @@ export async function reassignTask(
   // trusted off the wire. Suspending a member reassigns their companies
   // (admin/actions.ts::suspendAndReassignMember); dropping fresh work onto
   // that same account afterwards would quietly undo it.
-  if (assigneeId) {
-    const { data: person } = await supabase
-      .from("crm_profiles")
-      .select("id")
-      .eq("id", assigneeId)
-      .eq("org_id", user.orgId)
-      .eq("is_active", true)
-      .maybeSingle();
-    if (!person) return { ok: false, error: "That person isn't on this org." };
+  if (!assigneeId) return { ok: false, error: "Pick who this task is for." };
+  if (!(await isActiveMember(supabase, user.orgId, assigneeId))) {
+    return { ok: false, error: "That person isn't on this org." };
   }
 
   // Read first so the revalidate below can reach the company's own timeline,
