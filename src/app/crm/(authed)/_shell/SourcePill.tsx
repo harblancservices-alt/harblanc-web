@@ -34,7 +34,6 @@ const TONE: Record<SourceBucket, string> = {
   otr: "border-accent/30 bg-accent-bg text-accent",
   bol: "border-steel/30 bg-steel-bg text-steel",
   manual: "border-slate/30 bg-slate-bg text-slate",
-  ai_agent: "border-ok/30 bg-ok-bg text-ok",
   // Both no-fill, on purpose — see the note above.
   other: "border-line-strong text-fg-muted",
   unknown: "border-line-strong text-fg-subtle",
@@ -46,7 +45,6 @@ const SHORT: Record<SourceBucket, string> = {
   otr: "OTR",
   bol: "BOL",
   manual: "Manual",
-  ai_agent: "AI",
   other: "Other",
   unknown: "—",
 };

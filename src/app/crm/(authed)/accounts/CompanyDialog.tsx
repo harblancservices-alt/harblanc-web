@@ -11,6 +11,7 @@ import {
   SubmitButton,
   FormError,
 } from "../_shell/form";
+import { COMPANY_SOURCES, SOURCE_BUCKET_LABEL } from "../admin/companies/companyRow";
 import {
   SectionDivider,
   LABEL,
@@ -353,12 +354,26 @@ export function CompanyDialog({
                     defaultValue={d.revenue_potential ?? undefined}
                   />
                 </div>
-                <Field
-                  label="Source"
-                  name="source"
-                  placeholder="e.g. Referral, Cold call, Web"
-                  defaultValue={d.source}
-                />
+                {/* A FIXED CHOICE, NOT A TEXT BOX. This was free text with
+                    the placeholder "e.g. Referral, Cold call, Web", and that
+                    invitation is exactly what produced the junk it now
+                    refuses: 'Cold Call', a person's name, and a 60-character
+                    sentence about somebody's phone extension, all sitting in
+                    the same column as 'otr' and 'bol'.
+
+                    Blank is a real option and stores NULL — "not recorded"
+                    is not the same claim as "entered by hand", and the
+                    Source column renders the two differently. Labels come
+                    from SOURCE_BUCKET_LABEL so this dialog and every pill
+                    say the same words. */}
+                <SelectField label="Source" name="source" defaultValue={d.source ?? ""}>
+                  <option value="">Not recorded</option>
+                  {COMPANY_SOURCES.map((value) => (
+                    <option key={value} value={value}>
+                      {SOURCE_BUCKET_LABEL[value]}
+                    </option>
+                  ))}
+                </SelectField>
               </div>
 
               {/* THE SECOND FORM'S FIELDS, FOLDED IN (2026-08-26). These four

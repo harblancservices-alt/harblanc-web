@@ -49,31 +49,53 @@ export type CompanyRow = {
 /**
  * Where a company came from, bucketed for display.
  *
- * `crm_accounts.source` carries TWO vocabularies at once in production: the
- * lowercase tokens the code writes ('manual', 'bol', 'ai_agent', 'otr') and
- * free text a human typed into the same box ('Cold Call', a person's name
- * with a phone extension). This maps the known tokens to labels and drops
- * everything else into "Other" — it does NOT rewrite, normalise or clean the
- * stored value, which stays exactly as entered.
+ * `crm_accounts.source` USED TO carry two vocabularies at once: the
+ * lowercase tokens the code writes and free text a human typed into the
+ * same box ('Cold Call', a person's name with a phone extension). Both the
+ * box and the stray values are gone as of 2026-08-28 — the dialog offers a
+ * fixed choice and a CHECK constraint enforces it — so "Other" should now
+ * be unreachable. This still maps rather than assumes, because a mapper
+ * that crashes on unexpected history is worse than one that labels it.
  *
  * `null` is its own bucket rather than being folded into Other: "we never
  * recorded a source" and "someone typed something we don't recognise" are
  * different problems and the admin should be able to tell them apart.
  */
-export type SourceBucket = "manual" | "bol" | "otr" | "ai_agent" | "unknown" | "other";
+export type SourceBucket = "manual" | "bol" | "otr" | "unknown" | "other";
+
+/**
+ * THE VOCABULARY. Brent, 2026-08-28: source means only where the company
+ * came from, and it is exactly these three.
+ *
+ * `otr`    — voice messages to Claude
+ * `bol`    — parsed bills of lading from Snapshot
+ * `manual` — somebody entered it
+ *
+ * NULL is still legal and means "not recorded", which is deliberately NOT
+ * the same as `manual` — see the DB constraint's comment.
+ *
+ * `ai_agent` was retired the same day: its 11 companies were OTR arrivals
+ * under an older name and were migrated to `otr`. Nothing writes it, so the
+ * bucket is gone rather than kept as a branch that can never be reached.
+ *
+ * The CHECK constraint on crm_accounts.source enforces this list at the
+ * database, so `other` is now only reachable by data that predates the
+ * constraint. It is kept for exactly that reason — the mapper must not
+ * crash on history.
+ */
+export const COMPANY_SOURCES = ["otr", "bol", "manual"] as const;
+export type CompanySource = (typeof COMPANY_SOURCES)[number];
 
 const KNOWN_SOURCES: Record<string, SourceBucket> = {
   manual: "manual",
   bol: "bol",
   otr: "otr",
-  ai_agent: "ai_agent",
 };
 
 export const SOURCE_BUCKET_LABEL: Record<SourceBucket, string> = {
   manual: "Entered by hand",
   bol: "Bill of lading",
   otr: "OTR",
-  ai_agent: "AI agent",
   unknown: "Not recorded",
   other: "Other",
 };

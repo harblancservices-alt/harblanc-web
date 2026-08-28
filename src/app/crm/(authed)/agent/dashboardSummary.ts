@@ -148,10 +148,26 @@ export function buildSummary(input: {
   // NEW TO TRIAGE names where they came from rather than asserting "BOL
   // Center & admin" — on this data most arrive as `manual` or `otr`, and
   // claiming a provenance the rows do not have is the thing to avoid.
-  const sources = [...new Set(arrivals.map((c) => (c.source ?? "").trim().toLowerCase()).filter(Boolean))];
-  const sourceLabel = sources.length
-    ? `from ${sources.map((s) => (s === "bol" ? "BOL Center" : s === "otr" ? "OTR" : s)).join(" & ")}`
-    : null;
+  // The vocabulary is closed (crm_accounts.source is otr | manual | bol or
+  // NULL, enforced by a CHECK constraint), so this no longer falls through
+  // to printing the raw column. It used to, and a stray value made the tile
+  // read "from manual & Kermit Layman". Anything unrecognised — only
+  // possible from data predating the constraint — is dropped rather than
+  // shown, because a triage subtitle is the wrong place to surface a data
+  // problem. Admin -> Companies' Source column is where that belongs.
+  const SOURCE_WORD: Record<string, string> = {
+    otr: "OTR",
+    bol: "BOL Center",
+    manual: "entered by hand",
+  };
+  const sources = [
+    ...new Set(
+      arrivals
+        .map((c) => SOURCE_WORD[(c.source ?? "").trim().toLowerCase()])
+        .filter((word): word is string => Boolean(word)),
+    ),
+  ];
+  const sourceLabel = sources.length ? `from ${sources.join(" & ")}` : null;
 
   const metrics: Metric[] = [
     {

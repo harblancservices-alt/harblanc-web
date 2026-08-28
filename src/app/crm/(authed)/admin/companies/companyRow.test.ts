@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMPANY_SOURCES,
   countByOwner,
   matchesOwner,
   sortForAdmin,
@@ -28,11 +29,21 @@ function row(over: Partial<CompanyRow> = {}): CompanyRow {
 }
 
 describe("sourceBucket", () => {
-  it("maps the tokens the code writes", () => {
+  it("maps the whole vocabulary, and nothing outside it", () => {
     expect(sourceBucket("manual")).toBe("manual");
     expect(sourceBucket("bol")).toBe("bol");
     expect(sourceBucket("otr")).toBe("otr");
-    expect(sourceBucket("ai_agent")).toBe("ai_agent");
+    // The vocabulary is exactly three. If a fourth is ever added to
+    // COMPANY_SOURCES without a bucket, this fails rather than silently
+    // rendering it as "Other".
+    expect(COMPANY_SOURCES.map(sourceBucket)).toEqual([...COMPANY_SOURCES]);
+  });
+
+  it("no longer recognises the retired ai_agent token", () => {
+    // Retired 2026-08-28; its 11 companies were migrated to `otr`. It must
+    // not resolve to a bucket of its own, and it must not throw either —
+    // the mapper still has to survive history.
+    expect(sourceBucket("ai_agent")).toBe("other");
   });
 
   it("is case- and whitespace-insensitive on known tokens", () => {
