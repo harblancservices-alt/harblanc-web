@@ -7,8 +7,6 @@ import {
   GOT_THROUGH_OUTCOMES,
   RESULT_OUTCOMES,
   RESULT_ROW_REQUIRES,
-  callOutcomeWeight,
-  type OutcomeWeight,
 } from "../../../../calls/outcomes";
 import { detectDate, draftFollowupTitle, warrantsFollowup, type DetectedDate } from "../../../../calls/followupDraft";
 import { addNote } from "../../../actions";
@@ -63,25 +61,43 @@ type Mode = "call" | "note" | "task";
 
 /** Button treatment per outcome weight. Exactly one filled — the outcome a
  * rep is trying for — so the row has a target rather than five equal blues. */
-/* UNPICKED, and deliberately quiet. This was white with a full border,
-   which made seven unanswered options shout as loudly as the one that had
-   been chosen. A tinted surface with no border until you approach it reads
-   as "available" rather than "active" — Brent's principle: colour
-   communicates state, it does not decorate.
+/* ════ THE THREE COLOURS OF THIS PANEL ════════════════════════════════
+   Brent, 2026-08-28: "green is the 'selected' so blue buttons, green
+   selected, red 'save the call', red 'save note'."
 
-   Hover and focus are explicit because a quiet control still has to prove
-   it is a control. */
-const OUTCOME_IDLE =
-  "border-transparent bg-inset text-fg-muted hover:border-line-strong hover:bg-card hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+     BLUE  (--accent #2f5fd6)  you can pick this
+     GREEN (--ok     #0f7a4e)  you picked it
+     RED   (--bad    #ad2a2a)  this writes the record
 
+   ALL THREE ARE FILLED, never outlines. Four earlier colour passes were
+   rejected because a "blue" button drawn as a border on a tinted panel
+   reads as grey — the fill is the whole point, so every state below sets
+   a background and white text rather than a border and coloured ink.
 
+   The semantic outcome colours are gone with this change: "Bad number"
+   used to be red and "Reached" green REGARDLESS of selection. Red now
+   means "this button saves", so an outcome cannot also be red, and green
+   now means "chosen", so an outcome cannot be green while unpicked. One
+   vocabulary, three words. */
+const PICKABLE =
+  "border-accent bg-accent text-white hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40";
+
+/* Selected. A different HUE and a ring, not a border tweak — the change
+   has to be obvious across the room, not on inspection. */
+const PICKED =
+  "border-ok bg-ok text-white ring-2 ring-ok/35 hover:bg-ok/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ok/50";
+
+/* The commit action. Same token as "+ person" on the company profile. */
+const COMMIT =
+  "bg-bad text-white hover:bg-bad/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40";
 
 /**
  * A STEP, not a label. The four things a call is — got through, how it
  * went, what next, save — used to be four identical grey micro-captions,
  * so the panel read as a form of equal-weight controls instead of a
  * sequence. A numbered marker and a real heading make the order legible
- * without a word of explanation.
+ * without a word of explanation. The marker goes GREEN once its step is
+ * answered, the same green a picked button uses.
  */
 function Step({ n, children, done }: { n: number; children: ReactNode; done?: boolean }) {
   return (
@@ -89,7 +105,7 @@ function Step({ n, children, done }: { n: number; children: ReactNode; done?: bo
       <span
         aria-hidden
         className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10.5px] font-extrabold crm-num ${
-          done ? "bg-accent text-white" : "bg-inset text-fg-subtle"
+          done ? "bg-ok text-white" : "bg-inset text-fg-subtle"
         }`}
       >
         {n}
@@ -98,21 +114,6 @@ function Step({ n, children, done }: { n: number; children: ReactNode; done?: bo
     </div>
   );
 }
-
-/* PICKED. Semantic weight, and each carries its own ring so the chosen
-   answer is unmistakable from across the row.
-
-   `neutral` used to be white-with-a-border, which is what an unanswered
-   control looks like — and once the idle treatment went quiet it became
-   LIGHTER than the options beside it. A chosen answer with no signal of
-   its own now takes the same dark fill the mode toggle uses for "this is
-   the one", so state is never carried by absence. */
-const OUTCOME_BUTTON: Record<OutcomeWeight, string> = {
-  good: "border-ok bg-ok text-white ring-2 ring-ok/30 hover:bg-ok/90",
-  bad: "border-bad bg-bad-bg text-bad ring-2 ring-bad/25 hover:bg-bad-bg/80",
-  warn: "border-warn bg-warn-bg text-warn ring-2 ring-warn/25 hover:bg-warn-bg/80",
-  neutral: "border-fg bg-fg text-white ring-2 ring-fg/20 hover:bg-fg/90",
-};
 
 export function WhatHappened({
   accountId,
@@ -419,7 +420,7 @@ export function WhatHappened({
                     onClick={() => pickGotThrough(o.value)}
                     disabled={pending}
                     className={`rounded-md border px-3.5 py-2 text-[12.5px] font-bold transition-all disabled:opacity-55 ${
-                      on ? OUTCOME_BUTTON[callOutcomeWeight(o.value)] : OUTCOME_IDLE
+                      on ? PICKED : PICKABLE
                     }`}
                   >
                     {o.short}
@@ -444,7 +445,7 @@ export function WhatHappened({
                       onClick={() => pickResult(o.value)}
                       disabled={pending}
                       className={`rounded-md border px-3.5 py-2 text-[12.5px] font-bold transition-all disabled:opacity-55 ${
-                        on ? OUTCOME_BUTTON[callOutcomeWeight(o.value)] : OUTCOME_IDLE
+                        on ? PICKED : PICKABLE
                       }`}
                     >
                       {o.short}
@@ -493,17 +494,13 @@ export function WhatHappened({
                          one tap to correct. */
                       title={c.fromNote ? `Read from your note: \u201c${c.label}\u201d` : undefined}
                       className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-[12px] font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-55 ${
-                        on
-                          ? "border-accent bg-accent text-white ring-2 ring-accent/25"
-                          : c.fromNote
-                            ? "border-accent/45 bg-accent-bg text-accent hover:border-accent"
-                            : OUTCOME_IDLE
+                        on ? PICKED : PICKABLE
                       }`}
                     >
                       {c.fromNote && (
                         <span
                           aria-hidden
-                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${on ? "bg-white" : "bg-accent"}`}
+                          className="h-1.5 w-1.5 shrink-0 rounded-full bg-white"
                         />
                       )}
                       {c.label}
@@ -541,9 +538,7 @@ export function WhatHappened({
                   disabled={pending}
                   aria-pressed={!followupDate}
                   className={`rounded-md border px-3 py-2 text-[12px] font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-55 ${
-                    followupDate
-                      ? OUTCOME_IDLE
-                      : "border-fg bg-fg text-white ring-2 ring-fg/20"
+                    followupDate ? PICKABLE : PICKED
                   }`}
                 >
                   No follow-up
@@ -560,7 +555,7 @@ export function WhatHappened({
                 type="button"
                 onClick={saveCall}
                 disabled={pending || !gotThrough}
-                className="rounded-md bg-accent px-5 py-2.5 text-[13.5px] font-bold text-white shadow-sm transition-colors hover:bg-accent-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:pointer-events-none disabled:opacity-40"
+                className={`rounded-md px-5 py-2.5 text-[13.5px] font-bold shadow-sm transition-colors disabled:pointer-events-none disabled:opacity-40 ${COMMIT}`}
               >
                 {pending ? "Saving\u2026" : "Save the call"}
               </button>
@@ -615,11 +610,7 @@ export function WhatHappened({
             type="button"
             onClick={mode === "note" ? saveNote : saveTask}
             disabled={pending || !text.trim()}
-            className={`shrink-0 rounded-md px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors disabled:opacity-55 ${
-              mode === "task"
-                ? "bg-bad hover:bg-bad/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40"
-                : "bg-accent hover:bg-accent-hover"
-            }`}
+            className={`shrink-0 rounded-md px-3.5 py-2 text-[12.5px] font-bold transition-colors disabled:opacity-55 ${COMMIT}`}
           >
             {pending ? "Saving…" : mode === "note" ? "Save note" : "Create task"}
           </button>
@@ -632,9 +623,7 @@ export function WhatHappened({
                 onClick={() => setText(q.label)}
                 disabled={pending}
                 className={`shrink-0 rounded-md border px-2.5 py-2 text-[12.5px] font-semibold transition-colors disabled:opacity-55 ${
-                  text === q.label
-                    ? "border-accent bg-accent text-white"
-                    : "border-accent bg-card text-accent hover:bg-accent-bg"
+                  text === q.label ? PICKED : PICKABLE
                 }`}
               >
                 {q.label}
