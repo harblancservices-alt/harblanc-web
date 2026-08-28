@@ -107,11 +107,12 @@ export function buildCrmNav(
     // because it is the same book of business, arranged by where each one is
     // rather than alphabetically.
     { href: "/crm/pipeline", label: "Pipeline", Icon: IconPipeline },
-    // ACTIVITY — who did what, to whom, when. Sits after Pipeline because
-    // it reports on the work the surfaces above generate rather than being
-    // a place work is done. Every role sees it: an agent reads their own
-    // week, an owner compares the team.
-    { href: "/crm/activity", label: "Activity", Icon: IconActivity },
+    // ACTIVITY IS NOT HERE. It shipped in this list on 2026-08-28 with the
+    // comment "every role sees it", which was wrong: the page shows every
+    // agent's numbers beside each other and defaults to all agents. Tyler,
+    // the org's one member, opened it seven times before Brent caught it.
+    // It now lives under Admin Account below, owner-gated in the nav, in
+    // the route, and in the loaders themselves.
     // PROSPECTS IS GONE. The claim model was retired 2026-08-25 (agents no
     // longer pick work out of a shared pool, an admin assigns it), which left
     // /crm/ai-agent loading but unreachable; the route itself was deleted
@@ -181,6 +182,11 @@ export function buildCrmNav(
         // draggable between them. Same reasoning as Companies — a destination
         // of its own, not one of Admin's internal tab sections.
         { href: "/crm/admin/tasks", label: "Tasks", Icon: IconTasks },
+        // Its sibling: who did what, to whom, when. Management reporting —
+        // one row per agent with the detailed feed one click behind it — so
+        // it belongs with the rest of the owner-only section rather than in
+        // the workspace nav every agent sees.
+        { href: "/crm/admin/activity", label: "Activity", Icon: IconActivity },
         // Its sibling: the BOL scanner. A capture surface, not a reader —
         // it photographs paperwork in bulk and stores it in batches; a
         // separate session parses a batch afterwards. Sits here rather than

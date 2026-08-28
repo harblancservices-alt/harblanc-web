@@ -1,18 +1,36 @@
 import { serverNow } from "@/lib/crm/serverNow";
-import { ActivityDashboard } from "./ActivityDashboard";
-import { listAgents, loadActivity, type ActivityRange } from "./activity-data";
-import { ACTIVITY_CATEGORIES, type ActivityCategory } from "./activityTypes";
+import { requireCrmAdmin } from "../../guard";
+import { ActivityDashboard } from "../../../_activity/ActivityDashboard";
+import { listAgents, loadActivity, type ActivityRange } from "../../../_activity/activity-data";
+import { ACTIVITY_CATEGORIES, type ActivityCategory } from "../../../_activity/activityTypes";
 
 export const dynamic = "force-dynamic";
 
 /**
- * WORKSPACE → ACTIVITY. The sales-accountability view: who did what, to
- * whom, when, and one click to the record.
+ * ADMIN → ACTIVITY → the detailed feed. OWNER ONLY.
  *
- * Every filter is a search param, so the QUERY runs on the server with the
- * date window and the agent already applied. The browser never receives a
- * period it is not showing, which is what keeps this usable when the log is
- * large.
+ * This lived at /crm/activity, in the agent workspace nav, from 2026-08-28
+ * 01:00 until 20:15 Central. That was wrong and it was my mistake: the page
+ * shows EVERY agent's numbers side by side, defaults to "All agents", and
+ * carries a per-agent switcher. Tyler — the org's one non-owner — opened it
+ * seven times before it was caught. Nothing about that was his doing; the
+ * tab was in his nav because I put it there.
+ *
+ * It is management reporting. It belongs beside Companies, Contacts and
+ * Tasks under Admin Account, and it is gated three ways now:
+ *
+ *   1. buildCrmNav() only ever renders the link for role === "owner"
+ *   2. ../../layout.tsx awaits requireCrmAdmin() before any child renders
+ *   3. requireCrmAdmin() again HERE, and once more inside loadActivity /
+ *      listAgents in _activity/activity-data.ts
+ *
+ * Three and four are the ones that matter. A hidden nav item is not a
+ * permission, and a guarded page with an unguarded loader is not a
+ * permission either — the loader is what actually reads the rows.
+ *
+ * The components live under _activity/ rather than activity/. The leading
+ * underscore is a Next.js private folder: it can never become a route
+ * again, whatever anybody drops into it later.
  */
 
 const RANGES = new Set<ActivityRange>(["today", "yesterday", "week", "last_week", "month", "custom"]);
@@ -22,11 +40,13 @@ function one(v: string | string[] | undefined): string | null {
   return v ?? null;
 }
 
-export default async function ActivityPage({
+export default async function AdminActivityFeedPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireCrmAdmin();
+
   const sp = await searchParams;
 
   const rawRange = one(sp.range);

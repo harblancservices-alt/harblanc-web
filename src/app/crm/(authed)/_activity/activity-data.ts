@@ -1,4 +1,5 @@
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
+import { redirect } from "next/navigation";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
 import {
   ACTIVITY_CATEGORIES,
@@ -203,8 +204,28 @@ export function rangeBounds(
 type ProfileRow = { id: string; full_name: string | null; email: string | null };
 const nameOf = (p: ProfileRow | undefined) => (p ? p.full_name || p.email || "Unnamed" : null);
 
+/**
+ * OWNER ONLY, ENFORCED WHERE THE ROWS ARE READ.
+ *
+ * Every function in this file returns cross-agent data — one person's feed
+ * next to another's, and totals for the whole org. The pages above are
+ * already behind requireCrmAdmin(), but a guarded page with an unguarded
+ * loader is not a guarded loader: this is the code that actually touches
+ * crm_activities, crm_calls and crm_notes, so the check belongs here too.
+ *
+ * It redirects rather than returning empty. A member who somehow reaches
+ * this should be told they are in the wrong place, not handed a page of
+ * zeroes that reads like "nobody did anything".
+ */
+async function requireActivityViewer() {
+  const user = await requireCrmUser();
+  if (user.role !== "owner") redirect("/crm");
+  return user;
+}
+
 /** Every active member, for the agent selector. */
 export async function listAgents(): Promise<AgentOption[]> {
+  await requireActivityViewer();
   const supabase = await createCrmServerClient();
   const { data } = await supabase
     .from("crm_profiles")
@@ -233,7 +254,7 @@ export async function loadActivity(q: ActivityQuery): Promise<{
   rangeLabel: string;
   failed: boolean;
 }> {
-  await requireCrmUser();
+  await requireActivityViewer();
   const supabase = await createCrmServerClient();
   const { startIso, endIso, label } = rangeBounds(q);
 
@@ -528,6 +549,7 @@ export type AgentScorecard = AgentOption & {
 export async function loadScoreboard(
   q: Pick<ActivityQuery, "range" | "from" | "to">,
 ): Promise<{ rows: AgentScorecard[]; unattributed: number; rangeLabel: string; failed: boolean }> {
+  await requireActivityViewer();
   const agents = await listAgents();
   const results = await Promise.all(
     agents.map((a) =>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardHead } from "../../_shell/ui";
-import { loadScoreboard, type ActivityRange } from "../../activity/activity-data";
-import { ACTIVITY_CATEGORIES, ACTIVITY_STYLE } from "../../activity/activityTypes";
+import { loadScoreboard, type ActivityRange } from "../../_activity/activity-data";
+import { ACTIVITY_CATEGORIES, ACTIVITY_STYLE } from "../../_activity/activityTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +53,7 @@ export default async function AdminActivityPage({
           hint={`${rangeLabel} · every agent, counted the same way`}
           right={
             <Link
-              href="/crm/activity"
+              href="/crm/admin/activity/feed"
               prefetch={false}
               className="text-[12px] font-semibold text-accent hover:underline"
             >
@@ -127,7 +127,7 @@ export default async function AdminActivityPage({
                     </td>
                     <td className="px-3 py-2 text-right">
                       <Link
-                        href={`/crm/activity?agent=${r.id}&range=${range}`}
+                        href={`/crm/admin/activity/feed?agent=${r.id}&range=${range}`}
                         prefetch={false}
                         className="inline-flex min-h-9 items-center rounded-md border border-line-strong bg-card px-3 text-[12px] font-bold text-accent transition-colors hover:bg-accent-bg"
                       >
