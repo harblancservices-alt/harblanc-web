@@ -72,6 +72,29 @@ function taskFieldsFromForm(fd: FormData) {
 }
 
 /**
+ * The agent who owns a company, or null when there is no company or nobody
+ * owns it. Used to decide who a new task belongs to — see createTask.
+ *
+ * Deliberately returns null rather than throwing on a missing row: a task
+ * whose company lookup fails should still be created, just against its
+ * creator, because losing the task is worse than filing it in the wrong
+ * queue.
+ */
+async function companyOwnerId(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  accountId: string | null,
+): Promise<string | null> {
+  if (!accountId) return null;
+  const { data } = await supabase
+    .from("crm_accounts")
+    .select("assigned_user_id")
+    .eq("id", accountId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  return (data?.assigned_user_id as string | null) ?? null;
+}
+
+/**
  * Create a task, optionally linked to a company and/or contact — both are
  * now optional (a task can stand alone). Assignment defaults to the creator
  * when the form leaves it blank, so a new task always lands in someone's
@@ -89,9 +112,28 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
   if (rawAssignee && user.role !== "owner" && rawAssignee !== user.id) {
     return { ok: false, error: "Only an admin can assign tasks to someone else." };
   }
-  const assignedUserId = rawAssignee ?? user.id;
 
   const supabase = await createCrmServerClient();
+
+  /* WHO THE TASK IS FOR, when nobody said.
+   *
+   * Brent, 2026-08-28: "if Kartik or I a.k.a. Admins are on somebody
+   * else's company and we create a task I believe it should create for
+   * them."
+   *
+   * It used to fall back to the CREATOR, so an admin adding a task while
+   * standing on Tyler's company put it on their own board — and because
+   * every agent surface filters `assigned_user_id = me`, Tyler never saw
+   * it. Nothing warned anybody; the work simply went to the wrong queue.
+   *
+   * The company is the context, so the company's owner is the answer. The
+   * creator is only the fallback's fallback: no company linked, or a
+   * company nobody owns yet.
+   *
+   * AN EXPLICIT PICK ALWAYS WINS. `rawAssignee` is checked first, so an
+   * admin who chooses a person in the picker gets that person. This is a
+   * default, not a lock — the same principle as the 8am due date. */
+  const assignedUserId = rawAssignee ?? (await companyOwnerId(supabase, fields.account_id)) ?? user.id;
   const { error } = await supabase.from("crm_tasks").insert({
     org_id: user.orgId,
     account_id: fields.account_id,

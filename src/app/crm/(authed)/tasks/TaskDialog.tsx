@@ -221,7 +221,14 @@ export function TaskDialog({
               name="assigned_user_id"
               defaultValue={d.assigned_user_id ?? ""}
             >
-              <option value="">Unassigned</option>
+              {/* IT SAID "Unassigned" AND PRODUCED A TASK ASSIGNED TO THE
+                  ADMIN. The blank value has never meant unassigned — it
+                  means "nobody picked", and createTask resolves that to
+                  the company's owner (and only then to the creator). The
+                  option now says what actually happens. */}
+              <option value="">
+                {mode === "create" ? "Whoever owns the company" : "Leave as it is"}
+              </option>
               {reps.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.label}

@@ -364,9 +364,25 @@ export async function logCall(formData: FormData): Promise<ActionResult> {
       subjectName = normalizedPhone;
     }
 
+    /* The follow-up belongs to whoever owns the company, not to whoever
+       logged the call — an admin ringing round somebody else's book should
+       leave the callback on THEIR board. Falls back to the caller when
+       there is no company or nobody owns it. */
+    let followupOwner: string | null = null;
+    if (accountId) {
+      const { data: owner } = await supabase
+        .from("crm_accounts")
+        .select("assigned_user_id")
+        .eq("id", accountId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      followupOwner = (owner?.assigned_user_id as string | null) ?? null;
+    }
+
     const followupTaskId = await syncFollowupTask(supabase, {
       orgId: user.orgId,
       userId: user.id,
+      assignToUserId: followupOwner,
       accountId,
       contactId,
       subjectName,

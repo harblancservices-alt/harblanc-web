@@ -34,6 +34,12 @@ export async function syncFollowupTask(
   input: {
     orgId: string;
     userId: string;
+    /** WHO THE FOLLOW-UP IS FOR. Defaults to `userId` — the person logging
+     * the call — but the callers that know the company pass its owner
+     * instead, so an admin logging a call on somebody else's company
+     * leaves the follow-up on THEIR board rather than their own. Same rule
+     * as tasks/actions.ts::createTask. */
+    assignToUserId?: string | null;
     accountId: string | null;
     contactId: string | null;
     /** Shown in the auto-created task's title ("Follow up with X"). */
@@ -49,6 +55,7 @@ export async function syncFollowupTask(
   },
 ): Promise<string | null> {
   const { orgId, userId, accountId, contactId, subjectName, followupAt, existingTaskId } = input;
+  const assignee = input.assignToUserId ?? userId;
   const titleOverride = input.title?.trim() || null;
 
   if (!followupAt) {
@@ -86,7 +93,7 @@ export async function syncFollowupTask(
       task_type: "Follow-up call",
       due_at: followupAt,
       priority: DEFAULT_PRIORITY,
-      assigned_user_id: userId,
+      assigned_user_id: assignee,
       status: "open",
     })
     .select("id")
