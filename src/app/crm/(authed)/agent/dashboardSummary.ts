@@ -267,7 +267,26 @@ export function buildSummary(input: {
  *
  * ── THE ORDER, AND THE ONE DUPLICATION ────────────────────────────────
  *
- * overdue → due today → dated later, soonest first → undated last.
+ * overdue → due today → undated last. WORK DATED FOR A FUTURE DAY IS NOT
+ * HERE AT ALL.
+ *
+ * That exclusion is the fix for Tyler's 2026-08-27 report, "snoozed till
+ * next week but still populates as a top call". Snooze works — it pushes
+ * crm_tasks.due_at forward (tasks/snooze.ts) and his two Ws Building OKC
+ * follow-ups really did land on 15 and 17 Sep. But this list carried the
+ * whole open book including future dates, and he had nothing overdue and
+ * nothing due today, so the `later` band WAS the top of his list. He
+ * snoozed a call and it stayed exactly where it was.
+ *
+ * The list answers "who am I calling today". A task somebody deliberately
+ * pushed to next week is not an answer to that question, and showing it
+ * makes snooze look broken because from the rep's side it is: the button
+ * did nothing they can see.
+ *
+ * This narrows the column's earlier widening rather than undoing it. The
+ * widening existed to stop UNDATED work being invisible (five of Brent's
+ * six tasks). Undated work stays. Future-dated work was collateral, never
+ * the goal.
  *
  * Overdue tasks appear here AND in the Overdue column to the right. That
  * duplication is deliberate and was accepted explicitly: the list an agent
@@ -326,7 +345,11 @@ export function callList(
       item.band === "overdue" ||
       !item.task.accountId ||
       !untriagedAccountIds.has(item.task.accountId),
-  );
+  )
+    // Snoozed / scheduled for a later day. It returns on its own the
+    // morning it comes due, because taskDueBucket re-buckets it as `today`
+    // then — nothing has to remember to put it back.
+    .filter((item) => item.band !== "later");
 
   // Stable: equal-band, equal-date rows keep the order the query returned
   // them in, so the list does not reshuffle between renders.

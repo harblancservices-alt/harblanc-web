@@ -207,14 +207,35 @@ describe("callList — the middle column", () => {
     expect(list.every((i) => i.band === "undated")).toBe(true);
   });
 
-  it("orders overdue, then today, then later, then undated", () => {
+  it("orders overdue, then today, then undated — and drops future-dated work", () => {
     const undated = task({ id: "undated" });
     const later = task({ id: "later", dueAt: "2026-09-04T15:00:00Z" });
     const today = task({ id: "today", dueAt: "2026-08-27T20:00:00Z" });
     const late = task({ id: "late", dueAt: "2026-08-24T15:00:00Z" });
     const list = callList([undated, later, today, late], NOW);
-    expect(list.map((i) => i.task.id)).toEqual(["late", "today", "later", "undated"]);
-    expect(list.map((i) => i.band)).toEqual(["overdue", "today", "later", "undated"]);
+    expect(list.map((i) => i.task.id)).toEqual(["late", "today", "undated"]);
+    expect(list.map((i) => i.band)).toEqual(["overdue", "today", "undated"]);
+  });
+
+  it("a snoozed call leaves the list, and comes back when it comes due", () => {
+    // Tyler, 2026-08-27: "snoozed till next week but still populates as a
+    // top call". He had nothing overdue and nothing due today, so a task
+    // pushed to next week was literally row one.
+    const snoozed = task({ id: "snoozed", dueAt: "2026-09-03T13:00:00Z" });
+    expect(callList([snoozed], NOW).map((i) => i.task.id)).toEqual([]);
+
+    // The snooze lapses: same row, no write, no cleanup job — the clock
+    // moved and taskDueBucket re-buckets it.
+    const thatMorning = new Date("2026-09-03T12:00:00Z");
+    const back = callList([snoozed], thatMorning);
+    expect(back.map((i) => i.task.id)).toEqual(["snoozed"]);
+    expect(back[0].band).toBe("today");
+  });
+
+  it("keeps a snoozed call out even when it is the agent's only work", () => {
+    // The exact shape of Tyler's book: no overdue, no today, one future.
+    const only = task({ id: "only", dueAt: "2026-09-15T16:10:00Z" });
+    expect(callList([only], NOW)).toHaveLength(0);
   });
 
   it("puts the most overdue first, not the least", () => {
@@ -224,9 +245,11 @@ describe("callList — the middle column", () => {
   });
 
   it("sorts dated work soonest first", () => {
-    const far = task({ id: "far", dueAt: "2026-09-20T15:00:00Z" });
-    const near = task({ id: "near", dueAt: "2026-08-29T15:00:00Z" });
-    expect(callList([far, near], NOW).map((i) => i.task.id)).toEqual(["near", "far"]);
+    // Both overdue now that future dates are excluded — the rule under test
+    // is the ascending sort within a dated band, which is unchanged.
+    const far = task({ id: "far", dueAt: "2026-08-20T15:00:00Z" });
+    const near = task({ id: "near", dueAt: "2026-08-25T15:00:00Z" });
+    expect(callList([far, near], NOW).map((i) => i.task.id)).toEqual(["far", "near"]);
   });
 
   it("keeps undated work in the order it arrived, so nothing reshuffles", () => {

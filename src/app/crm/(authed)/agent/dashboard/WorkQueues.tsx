@@ -248,10 +248,11 @@ export function CallQueue({
   contactByAccount,
   nowMs,
 }: {
-  /** The agent's WHOLE open book, ordered by callList: overdue, then due
-   * today, then dated later soonest first, then undated. Not just today —
-   * see callList's note for why filtering to today left five of Brent's six
-   * tasks invisible on his own dashboard. */
+  /** What to call TODAY, ordered by callList: overdue, then due today,
+   * then undated. Undated is included deliberately — filtering to
+   * due-today alone once left five of Brent's six tasks invisible on his
+   * own dashboard. Work dated for a FUTURE day is excluded, so a snoozed
+   * call actually leaves the list; see callList's note. */
   items: CallListItem[];
   /** The company's callable number, from the companies this agent owns. */
   phoneByAccount: Map<string, string | null>;
