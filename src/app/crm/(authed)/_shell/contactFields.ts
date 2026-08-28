@@ -90,6 +90,23 @@ export function digitsForTel(number: string): string {
   return number.replace(/[^0-9+]/g, "");
 }
 
+/**
+ * Two stored numbers that would dial the same place, however they happen to
+ * be punctuated — "(713) 856-9696" and "7138569696" are one number, and a
+ * leading US 1 is not a difference.
+ *
+ * Exists so the company profile can tell a contact's OWN line from the
+ * company switchboard. Six people at Metallic Products share the company
+ * main, and a call button that implies otherwise is lying. Shared rather
+ * than written twice: the desktop panel and the mobile people list have to
+ * reach the same verdict about the same pair of numbers.
+ */
+export function sameDialledNumber(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  const norm = (v: string) => digitsForTel(v).replace(/^\+?1/, "");
+  return norm(a).length > 0 && norm(a) === norm(b);
+}
+
 /** True when a free-typed value looks like a phone number (mostly digits) —
  * used by the simplified company-create form's single "Website or phone"
  * field to decide whether it's stored as a phone entry or a website link.

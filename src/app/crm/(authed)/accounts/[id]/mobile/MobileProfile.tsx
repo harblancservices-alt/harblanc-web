@@ -207,7 +207,7 @@ export function MobileProfile({
         {/* ── PEOPLE ──────────────────────────────────────────────── */}
         <SectionHead label="People" count={people.length} action={<AddPersonLink accountId={accountId} />} />
         <div className={M_CARD}>
-          <MobilePeople accountId={accountId} companyName={accountName} people={people} />
+          <MobilePeople accountId={accountId} companyName={accountName} people={people} companyPhones={phones} />
         </div>
 
         {/* Company numbers not yet tied to a person — unchanged component,

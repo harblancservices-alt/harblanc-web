@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ContactAvatar } from "../../../_shell/ContactAvatar";
-import { digitsForTel } from "../../../_shell/contactFields";
+import { digitsForTel, sameDialledNumber } from "../../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
 import { IconMail, IconPhone } from "../../../_shell/icons";
 import { ContactDialog, type ContactDefaults } from "../ContactDialog";
@@ -41,10 +41,17 @@ export function MobilePeople({
   accountId,
   companyName,
   people,
+  companyPhones = [],
 }: {
   accountId: string;
   companyName?: string;
   people: MobilePerson[];
+  /** The company's own numbers, so a contact whose only line IS the
+   * switchboard can say so. Same rule and same helper as the desktop
+   * panel — see WhoDoICall's note on preferring an instruction over a
+   * disclaimer. Defaults to empty, so a caller that does not pass it
+   * simply gets the old behaviour. */
+  companyPhones?: { label: string; number: string }[];
 }) {
   if (people.length === 0) {
     return (
@@ -83,8 +90,11 @@ export function MobilePeople({
               </div>
               {p.title && <span className="block truncate text-[12px] font-semibold text-fg-muted">{p.title}</span>}
               {p.phone && (
-                <span className="crm-num mt-0.5 block truncate text-[12.5px] font-semibold text-fg-muted">
-                  {formatPhone(p.phone)}
+                <span className="mt-0.5 block truncate text-[12.5px] font-semibold text-fg-muted">
+                  <span className="crm-num">{formatPhone(p.phone)}</span>
+                  {companyPhones.some((c) => sameDialledNumber(c.number, p.phone)) && (
+                    <span className="text-fg-subtle"> · ask for {p.name.split(" ")[0]}</span>
+                  )}
                 </span>
               )}
               {p.email && (
