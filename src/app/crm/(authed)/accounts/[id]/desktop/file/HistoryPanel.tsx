@@ -29,17 +29,21 @@ import { FileCard, SectionHead } from "./chrome";
  * heading promising the opposite. Brent, 2026-08-27: the notes area shows
  * what a person wrote or logged.
  *
- * ── WHERE THE EVENT TRAIL WENT (nowhere — it is one click away) ───────
+ * ── WHERE THE EVENT TRAIL IS (on screen, quieter) ────────────────────
  *
- * Not deleted. Not filtered out of the database. `crm_activities` is the
- * accountability record and every row of it is still there; this is a
- * display decision and nothing else. "full history · N" opens the events
- * back up IN PLACE, under the written entries, and the count in that
- * control has always been — and still is — the count of EVERYTHING.
+ * There was a "full history · N" toggle here. Brent, 2026-08-28: "That full
+ * history needs to be displayed in card form and not under the button.
+ * Delete the button." So everything renders inline, newest first, in one
+ * stream.
  *
- * It opens in place rather than navigating because the link it used to
- * carry, /crm/accounts/[id]/history, was pointing at a route that does not
- * exist and never has. A dead link is a bad home for an audit trail.
+ * That is NOT a reversal of the split above — he still does not want the
+ * button-press log burying the writing. The split is expressed as WEIGHT
+ * now instead of as a control: a call or a note is a full bordered card
+ * with its write-up and its Edit/Pin/Delete controls; a stage change or a
+ * contact edit is a single grey line with a date. Both are visible, and the
+ * writing still wins the page without anything being hidden to achieve it.
+ *
+ * Nothing counts what is hidden any more, because nothing is.
  *
  * ── WHERE THE LINE FALLS, AND WHY IT IS NOT "DID A HUMAN DO IT" ───────
  *
@@ -170,30 +174,34 @@ export function HistoryPanel({
   }
   /* The audit trail is closed by default and stays where it is put — this
      is a reading preference, not a filter on the data. */
-  const [showEvents, setShowEvents] = useState(false);
+  /* ONE STREAM, NEWEST FIRST. Brent, 2026-08-28: "That full history needs to
+     be displayed in card form and not under the button. Delete the button."
+     `items` already arrives sorted desc from page.tsx, so nothing re-sorts
+     here -- the panel shows what it is given, in the order it is given.
 
+     The written/events SPLIT still exists, because the reason it was created
+     has not gone away: he asked for system rows out of the notes area
+     because they logged every button pressed and buried the writing. The
+     split is now expressed as WEIGHT rather than as a toggle -- a call is a
+     full card, a stage change is a quiet line -- so everything is visible
+     and the writing still wins the page. */
   const written = items.filter((i) => i.type === "call" || i.type === "note");
-  const events = items.filter((i) => i.type === "activity");
 
   return (
-    <FileCard className="flex flex-col">
-      <SectionHead
-        title="Notes & what happened"
-        action={
-          items.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setShowEvents((v) => !v)}
-              aria-expanded={showEvents}
-              className="rounded text-[12px] text-fg-subtle transition-colors hover:text-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-            >
-              {showEvents ? "notes & calls only" : `full history · ${items.length}`}
-            </button>
-          ) : null
-        }
-      />
+    <FileCard className="flex min-h-0 flex-col">
+      <SectionHead title="Notes & what happened" />
 
-      <div className="flex-1 px-4 py-3">
+      {/* THE BODY SCROLLS, the card does not grow. With the toggle gone the
+          audit trail is always on screen, and one company in production
+          carries 119 of them -- 16,000px of panel if this were left to size
+          to its content, which would stretch Who do I call and Tasks beside
+          it to match and push the whole row off the screen.
+
+          min-h-0 + overflow-auto is the same chain the Shipments panel
+          already uses. Everything stays rendered and reachable by scrolling
+          INSIDE the card; nothing is hidden, which is the whole point of
+          deleting the button. */}
+      <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
         {/* NOTHING AT ALL — no calls, no notes, no events. */}
         {items.length === 0 && (
           <div className="py-8 text-center">
@@ -208,18 +216,15 @@ export function HistoryPanel({
             plainly rather than showing a blank panel — and say where the
             other N things went, so the count in the header is not a
             mystery. */}
+        {/* NOBODY HAS WRITTEN ANYTHING, but the record is not empty. The
+            automatic rows below say what the system did; this says what a
+            person has not done yet, which is the more useful gap. No count
+            of what is hidden any more — nothing is hidden. */}
         {items.length > 0 && written.length === 0 && (
-          <div className="py-8 text-center">
+          <div className="pb-3 text-center">
             <p className="text-[13px] font-bold text-fg">No notes or calls yet</p>
             <p className="mx-auto mt-1 max-w-[40ch] text-[12px] text-fg-subtle">
               Log the first call above and it will land here.
-              {events.length > 0 && !showEvents && (
-                <>
-                  {" "}
-                  {events.length} automatic {events.length === 1 ? "record is" : "records are"} in
-                  full history.
-                </>
-              )}
             </p>
           </div>
         )}
@@ -231,8 +236,34 @@ export function HistoryPanel({
             with the date in a narrow gutter buried that — the date was the
             smallest thing on a line it was supposed to organise. */}
         <div className="flex flex-col gap-2.5">
-          {written.map((item, i) => {
-            const newest = i === 0;
+          {items.map((item) => {
+            /* A SYSTEM ROW IS A MARGIN NOTE, not a card. Same stream, same
+               order, a fraction of the weight: date, one line, grey. It
+               should read as something that happened TO the record beside
+               what somebody did about it. */
+            if (item.type === "activity") {
+              return (
+                <p
+                  key={item.id}
+                  className="flex items-baseline gap-2.5 px-0.5 text-[11px] leading-[1.5] text-fg-subtle"
+                >
+                  <span className="crm-num shrink-0 whitespace-nowrap">
+                    {shortStamp(item.occurredAt)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    {item.title}
+                    {item.body ? ` — ${item.body}` : ""}
+                    {item.author ? ` · ${item.author}` : ""}
+                  </span>
+                </p>
+              );
+            }
+
+            /* The newest WRITTEN entry is the one you came to read, so the
+               lift follows the writing rather than whatever happens to be
+               first in the stream — otherwise a stage change at the top
+               would wear the accent rule. */
+            const newest = item.id === written[0]?.id;
             const desc = descriptor(item);
             return (
               <article
@@ -356,36 +387,6 @@ export function HistoryPanel({
           })}
         </div>
 
-        {/* ── WHAT THE SYSTEM RECORDED: asked for, never volunteered ──
-            Same one-line, date-only, greyed treatment it always had — the
-            difference between "somebody wrote this" and "the record
-            changed" should be obvious without reading a word of it. The
-            only change is that you now have to ask. */}
-        {showEvents && events.length > 0 && (
-          <div
-            className={`flex flex-col gap-1 ${
-              written.length > 0 ? "mt-3 border-t border-line pt-2.5" : ""
-            }`}
-          >
-            <p className="text-[11px] font-bold uppercase tracking-[0.06em] text-fg-subtle">
-              Automatic record
-            </p>
-            {events.map((e) => (
-              <p key={e.id} className="flex items-baseline gap-2.5 text-[11px] text-fg-subtle">
-                {/* shrink-0 with no fixed width: the old w-[88px] could not
-                    hold a long stamp and the text ran straight over it. */}
-                <span className="shrink-0 whitespace-nowrap crm-num">
-                  {shortStamp(e.occurredAt)}
-                </span>
-                <span className="min-w-0 flex-1">
-                  {e.title}
-                  {e.body ? ` — ${e.body}` : ""}
-                  {e.author ? ` · ${e.author}` : ""}
-                </span>
-              </p>
-            ))}
-          </div>
-        )}
       </div>
 
       {error && (
