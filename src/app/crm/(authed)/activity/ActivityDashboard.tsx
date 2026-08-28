@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Card, CardHead } from "../_shell/ui";
+import { formatRelativeTime } from "../_shell/format";
 import { ACTIVITY_CATEGORIES, ACTIVITY_STYLE, type ActivityCategory } from "./activityTypes";
 import type { ActivityFeedItem, ActivityMetrics, AgentOption, ActivityRange } from "./activity-data";
 
@@ -42,6 +43,44 @@ function centralDay(iso: string): string {
 }
 function dayKey(iso: string): string {
   return new Date(iso).toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+}
+
+/**
+ * THE TIME BUBBLE — clock time and how long ago, in one chip.
+ *
+ * OUTLINED, NOT FILLED, and deliberately so. Every fill on this row already
+ * means something: the type badge's tint is the taxonomy, and it is the
+ * thing a manager is meant to recognise at a glance. A filled time pill
+ * would be the loudest element on the row and would compete with it for
+ * exactly the attention the type badge needs. A hairline border in the
+ * shared line token reads as a container without claiming a colour, and
+ * adds no new colour to the palette.
+ *
+ * `now` is the SERVER clock, threaded down as a prop. Calling Date.now()
+ * here would be a render-time impurity the React Compiler is entitled to
+ * cache or replay, and a stale "2h ago" on an accountability page is worse
+ * than no stamp at all.
+ *
+ * Sized to sit INSIDE the existing 18.3px meta line box (14px line + 2 x 1px
+ * border = 16px), so the bubble costs the row no height at all.
+ */
+function TimeBubble({ iso, nowMs }: { iso: string; nowMs: number }) {
+  const clock = centralTime(iso);
+  const stamp = formatRelativeTime(iso, new Date(nowMs));
+  // Past a month the shared helper stops being relative and returns a real
+  // date. That date is already the group header two lines up, so repeating
+  // it inside the bubble spends width on nothing. Anything genuinely
+  // relative — "Just now" through "4w ago" — earns its place.
+  const relative = stamp === "Just now" || stamp.endsWith("ago") ? stamp : null;
+  return (
+    <span
+      className="crm-num ml-1 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-line-strong px-1.5 align-middle text-[10.5px] leading-[14px] text-fg-subtle"
+      title={`${clock} Central`}
+    >
+      <span className="text-fg-muted">{clock}</span>
+      {relative && <span>{relative}</span>}
+    </span>
+  );
 }
 
 /** Today / Yesterday / the date — the grouping a manager scans by. */
@@ -289,7 +328,7 @@ export function ActivityDashboard({
                           </span>
                           {item.accountName && <> · {item.accountName}</>}
                           {item.contactName && <> · {item.contactName}</>}
-                          <span className="crm-num text-fg-subtle"> · {centralTime(item.occurredAt)}</span>
+                          <TimeBubble iso={item.occurredAt} nowMs={nowMs} />
                         </p>
                         {item.body && (
                           <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-snug text-fg-subtle">
