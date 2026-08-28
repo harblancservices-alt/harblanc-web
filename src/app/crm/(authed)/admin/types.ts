@@ -38,21 +38,6 @@ export type AdminTeamMember = {
  * ActivityTimeline/CrmActivityLogItem on accounts/[id]/page.tsx, just org-wide
  * and carrying the parent company's name/id so a row can be filtered by
  * company and its "View" link can route to the right profile. */
-export type AdminActivityItem = {
-  id: string;
-  type: "call" | "note" | "activity";
-  kind: string | null;
-  title: string;
-  body: string | null;
-  occurredAt: string;
-  authorId: string | null;
-  authorName: string | null;
-  accountId: string | null;
-  accountName: string | null;
-  contactId: string | null;
-  contactName: string | null;
-};
-
 /** One card in the Admin Account "Documents" tab — the blank MASTER
  * templates the CRM's own RC/BOL generator is built from (crm_documents,
  * kind='org_doc:Rate Confirmation'/'org_doc:Bill of Lading', account_id/

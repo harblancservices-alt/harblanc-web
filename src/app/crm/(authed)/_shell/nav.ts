@@ -4,6 +4,7 @@ import {
   IconCompanies,
   IconContacts,
   IconTasks,
+  IconActivity,
   IconPipeline,
   IconSettings,
   IconFlagSolid,
@@ -106,6 +107,11 @@ export function buildCrmNav(
     // because it is the same book of business, arranged by where each one is
     // rather than alphabetically.
     { href: "/crm/pipeline", label: "Pipeline", Icon: IconPipeline },
+    // ACTIVITY — who did what, to whom, when. Sits after Pipeline because
+    // it reports on the work the surfaces above generate rather than being
+    // a place work is done. Every role sees it: an agent reads their own
+    // week, an owner compares the team.
+    { href: "/crm/activity", label: "Activity", Icon: IconActivity },
     // PROSPECTS IS GONE. The claim model was retired 2026-08-25 (agents no
     // longer pick work out of a shared pool, an admin assigns it), which left
     // /crm/ai-agent loading but unreachable; the route itself was deleted

@@ -33,6 +33,17 @@ export function IconDashboard(props: IconProps) {
 }
 
 /** Three rising columns — the funnel board, one column per stage. */
+/** Activity — a pulse line. Drawn in the same 24-box, same stroke weight
+ * and same outline style as every other nav icon, so the new item does not
+ * announce itself as an import from somewhere else. */
+export function IconActivity(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 12h4l2.5-7 5 14L17 12h4" />
+    </svg>
+  );
+}
+
 export function IconPipeline(props: IconProps) {
   return (
     <svg {...base(props)}>
