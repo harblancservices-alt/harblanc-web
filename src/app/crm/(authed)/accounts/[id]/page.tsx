@@ -348,6 +348,10 @@ export default async function AccountDetailPage({
       title: "Note",
       body: n.body,
       followupAt: null,
+      // Carried so the desktop history panel can offer the pin toggle. The
+      // column was already queried and already sorted on; only the mobile
+      // NotesTab could ever set it until 2026-08-28.
+      isPinned: Boolean(n.is_pinned),
     }));
 
   const activityFromEvents: CrmActivityLogItem[] = ((activitiesRes.data ?? []) as {
@@ -739,6 +743,14 @@ export default async function AccountDetailPage({
     }))
     .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
 
+  /* ONE Documents surface, handed to both trees. The phone had FilesTab and
+     desktop had only the BOL list inside What we know, so a desktop user
+     could not reach a document that was not a BOL. Same element, not a
+     second implementation. */
+  const documentsPanel = (
+    <FilesTab accountId={account.id as string} orgId={user.orgId} documents={documents} />
+  );
+
   const mobileTree = (
     <MobileProfile
       accountId={account.id as string}
@@ -812,13 +824,7 @@ export default async function AccountDetailPage({
         />
       }
       shipmentsPanel={<ShipmentsTab accountId={account.id as string} accountName={accountName} />}
-      documentsPanel={
-        <FilesTab
-          accountId={account.id as string}
-          orgId={user.orgId}
-          documents={documents}
-        />
-      }
+      documentsPanel={documentsPanel}
       companyProfilePanel={<CompanyProfileSection accountId={account.id as string} />}
     />
   );
@@ -880,6 +886,8 @@ export default async function AccountDetailPage({
           canReassign={isOwner}
           nowMs={nowMs}
           shipmentCount={shipmentCountRes.count ?? 0}
+          documentsPanel={documentsPanel}
+          documentCount={documents.length}
           shipmentsPanel={
             <ShipmentsTab accountId={account.id as string} accountName={accountName} />
           }

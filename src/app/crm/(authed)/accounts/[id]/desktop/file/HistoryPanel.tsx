@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { CrmActivityLogItem } from "../../ActivityLogSection";
+import { deleteNote, updateNote, setNotePinned } from "../../../actions";
+import { deleteCall } from "../../../../calls/actions";
+import { Modal } from "../../../../_shell/Modal";
+import { BTN_DANGER, BTN_NEUTRAL, DeleteIconButton } from "../../../../_shell/ui";
 import { FileCard, SectionHead } from "./chrome";
 
 /**
@@ -115,12 +120,54 @@ function descriptor(item: CrmActivityLogItem): string {
 }
 
 export function HistoryPanel({
+  accountId,
   items,
   nowMs,
 }: {
+  accountId: string;
   items: CrmActivityLogItem[];
   nowMs: number;
 }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  /** The note being edited in place, and the row awaiting a delete
+   * confirmation. Held as the ITEM, not an id, so the dialog can name what
+   * it is about to remove. */
+  const [editing, setEditing] = useState<CrmActivityLogItem | null>(null);
+  const [draft, setDraft] = useState("");
+  const [confirming, setConfirming] = useState<CrmActivityLogItem | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
+    setError(null);
+    startTransition(async () => {
+      const res = await fn();
+      if (!res.ok) setError(res.error ?? "That did not save.");
+      else {
+        setEditing(null);
+        router.refresh();
+      }
+    });
+  }
+
+  async function remove() {
+    if (!confirming) return;
+    setRemoving(true);
+    setError(null);
+    const res =
+      confirming.type === "note"
+        ? await deleteNote(confirming.id, accountId)
+        : await deleteCall(confirming.id, accountId);
+    setRemoving(false);
+    if (!res.ok) {
+      setError(res.error);
+      setConfirming(null);
+      return;
+    }
+    setConfirming(null);
+    router.refresh();
+  }
   /* The audit trail is closed by default and stays where it is put — this
      is a reading preference, not a filter on the data. */
   const [showEvents, setShowEvents] = useState(false);
@@ -199,16 +246,94 @@ export function HistoryPanel({
                     : "rounded-md border border-line bg-card px-3.5 py-3"
                 }
               >
-                <p className="text-[12px]">
-                  <span className="font-bold text-fg">{stamp(item.occurredAt, nowMs)}</span>
-                  {desc && <span className="font-semibold text-fg-muted"> · {desc}</span>}
-                  {item.author && <span className="text-fg-subtle"> · {item.author}</span>}
-                </p>
-
-                {item.body && (
-                  <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] leading-[1.6] text-fg-muted">
-                    {item.body}
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 text-[12px]">
+                    <span className="font-bold text-fg">{stamp(item.occurredAt, nowMs)}</span>
+                    {desc && <span className="font-semibold text-fg-muted"> · {desc}</span>}
+                    {item.author && <span className="text-fg-subtle"> · {item.author}</span>}
+                    {item.isPinned && (
+                      <span className="ml-1.5 rounded-[3px] border border-warn/40 bg-warn-bg px-1.5 py-px text-[9.5px] font-bold uppercase tracking-[0.06em] text-warn">
+                        Pinned
+                      </span>
+                    )}
                   </p>
+
+                  {/* WHAT A PERSON WROTE, THEY CAN FIX. Until 2026-08-28 this
+                      panel imported no actions at all: a desktop user could
+                      add a note through the composer and then never touch it,
+                      and a mis-logged call was permanent. The audit trail
+                      below stays untouchable on purpose — an automatic record
+                      is not somebody's writing to correct. */}
+                  <div className="flex shrink-0 items-center gap-1">
+                    {item.type === "note" && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={pending || removing}
+                          onClick={() => run(() => setNotePinned(item.id, accountId, !item.isPinned))}
+                          className={`rounded px-1.5 py-0.5 text-[11px] font-bold transition-colors disabled:opacity-40 ${
+                            item.isPinned ? "text-warn hover:bg-warn-bg" : "text-fg-subtle hover:text-warn"
+                          }`}
+                        >
+                          {item.isPinned ? "Unpin" : "Pin"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={pending || removing}
+                          onClick={() => {
+                            setEditing(item);
+                            setDraft(item.body ?? "");
+                            setError(null);
+                          }}
+                          className="rounded px-1.5 py-0.5 text-[11px] font-bold text-fg-subtle transition-colors hover:text-accent disabled:opacity-40"
+                        >
+                          Edit
+                        </button>
+                      </>
+                    )}
+                    {(item.type === "note" || item.type === "call") && (
+                      <DeleteIconButton
+                        label={item.type === "note" ? "this note" : "this call"}
+                        onClick={() => setConfirming(item)}
+                        disabled={pending || removing}
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {editing?.id === item.id ? (
+                  <div className="mt-1.5">
+                    <textarea
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      rows={3}
+                      className="w-full resize-y rounded-md border border-line-strong bg-card px-2.5 py-2 text-[12.5px] leading-snug text-fg outline-none focus:border-accent"
+                    />
+                    <div className="mt-1.5 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditing(null)}
+                        disabled={pending}
+                        className={`rounded-md px-2.5 py-1 text-[12px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pending || !draft.trim()}
+                        onClick={() => run(() => updateNote(item.id, accountId, draft.trim()))}
+                        className="rounded-md bg-accent px-2.5 py-1 text-[12px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-40"
+                      >
+                        {pending ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  item.body && (
+                    <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] leading-[1.6] text-fg-muted">
+                      {item.body}
+                    </p>
+                  )
                 )}
               </article>
             );
@@ -246,6 +371,63 @@ export function HistoryPanel({
           </div>
         )}
       </div>
+
+      {error && (
+        <p className="mx-4 mb-3 rounded-md border border-bad/30 bg-bad-bg px-2.5 py-1.5 text-[12px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
+
+      {/* Names what it is about to remove, and says what survives. The worry
+          about deleting a call is losing the record of the conversation, so
+          the dialog answers it rather than leaving it to be guessed. */}
+      {confirming && (
+        <Modal
+          open
+          onClose={() => !removing && setConfirming(null)}
+          busy={removing}
+          title={confirming.type === "note" ? "Delete note" : "Delete logged call"}
+        >
+          <p className="text-[13.5px] leading-relaxed text-fg">
+            Delete the {confirming.type === "note" ? "note" : "call"} from{" "}
+            <span className="font-semibold">{stamp(confirming.occurredAt, nowMs)}</span>
+            {confirming.author ? (
+              <>
+                {" "}
+                by <span className="font-semibold">{confirming.author}</span>
+              </>
+            ) : null}
+            ?
+          </p>
+          {confirming.body && (
+            <p className="mt-2 max-h-24 overflow-y-auto whitespace-pre-wrap rounded-md border border-line bg-inset px-2.5 py-2 text-[12px] leading-snug text-fg-muted">
+              {confirming.body}
+            </p>
+          )}
+          <p className="mt-2 text-[12.5px] text-fg-muted">
+            It comes off the company&rsquo;s history straight away. The automatic
+            record that it happened is kept.
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirming(null)}
+              disabled={removing}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={removing}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_DANGER}`}
+            >
+              {removing ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </FileCard>
   );
 }

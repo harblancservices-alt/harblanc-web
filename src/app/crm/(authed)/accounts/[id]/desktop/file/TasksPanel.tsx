@@ -3,10 +3,12 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CompleteTaskDialog } from "../../../../tasks/CompleteTaskDialog";
-import { snoozeTask, reassignTask } from "../../../../tasks/actions";
+import { snoozeTask, reassignTask, deleteTask } from "../../../../tasks/actions";
 import { SNOOZE_PRESETS } from "../../../../tasks/snooze";
 import { dueCountdown, timestampMs } from "../../../../_shell/format";
 import type { RepOption } from "../../../CompanyDialog";
+import { Modal } from "../../../../_shell/Modal";
+import { BTN_DANGER, BTN_NEUTRAL, DeleteIconButton } from "../../../../_shell/ui";
 import { FileCard, SectionHead } from "./chrome";
 
 /**
@@ -83,11 +85,14 @@ function Btn({
 }
 
 export function TasksPanel({
+  accountId,
   tasks,
   reps,
   canReassign,
   nowMs,
 }: {
+  /** Only used to revalidate the company after a delete. */
+  accountId: string;
   tasks: FileTask[];
   reps: RepOption[];
   canReassign: boolean;
@@ -97,6 +102,25 @@ export function TasksPanel({
   const [pending, startTransition] = useTransition();
   const [closing, setClosing] = useState<FileTask | null>(null);
   const [snoozeFor, setSnoozeFor] = useState<string | null>(null);
+  /** The task awaiting a delete confirmation. Held whole so the dialog can
+   * name it — on a list of similar follow-ups, "Delete this task?" confirms
+   * nothing a misclick would catch. */
+  const [confirming, setConfirming] = useState<{ id: string; title: string } | null>(null);
+  const [removing, setRemoving] = useState(false);
+
+  async function remove() {
+    if (!confirming) return;
+    setRemoving(true);
+    const res = await deleteTask(confirming.id, accountId);
+    setRemoving(false);
+    if (!res.ok) {
+      setError(res.error);
+      setConfirming(null);
+      return;
+    }
+    setConfirming(null);
+    router.refresh();
+  }
   const [reassignFor, setReassignFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -191,6 +215,16 @@ export function TasksPanel({
                       Done
                     </Btn>
 
+                    {/* Completing and deleting say different things. Until
+                        2026-08-28 desktop offered only the first, so a task
+                        raised by mistake had to be marked done -- which is a
+                        claim that it happened. */}
+                    <DeleteIconButton
+                      label={`task "${t.title}"`}
+                      onClick={() => setConfirming({ id: t.id, title: t.title })}
+                      disabled={pending || removing}
+                    />
+
                     {snoozeFor === t.id ? (
                       <div className="flex items-center gap-1.5">
                         {SNOOZE_PRESETS.map((p) => (
@@ -269,6 +303,38 @@ export function TasksPanel({
             router.refresh();
           }}
         />
+      )}
+
+      {confirming && (
+        <Modal
+          open
+          onClose={() => !removing && setConfirming(null)}
+          busy={removing}
+          title="Delete task"
+        >
+          <p className="text-[13.5px] leading-relaxed text-fg">
+            Delete <span className="font-semibold">{confirming.title}</span>? It comes
+            off this company and off whoever owns it straight away.
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirming(null)}
+              disabled={removing}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={removing}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_DANGER}`}
+            >
+              {removing ? "Deleting…" : "Delete task"}
+            </button>
+          </div>
+        </Modal>
       )}
     </FileCard>
   );

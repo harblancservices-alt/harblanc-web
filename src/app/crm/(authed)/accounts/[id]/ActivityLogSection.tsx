@@ -32,6 +32,10 @@ export type CrmActivityLogItem = {
   /** Tailwind tone classes for that pill (see calls/outcomes.ts's
    * callOutcomeTone) — always a fixed bg-*-bg/text-* status tint. */
   tagTone?: string | null;
+  /** NOTES ONLY. crm_notes.is_pinned, supplied so the desktop history panel
+   * can offer the pin toggle mobile's NotesTab already has. Absent on calls
+   * and activity rows, which cannot be pinned. */
+  isPinned?: boolean;
 };
 
 const TYPE_TONE: Record<CrmActivityLogItem["type"], string> = {
