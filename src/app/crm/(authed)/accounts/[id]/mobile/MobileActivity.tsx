@@ -16,9 +16,37 @@ const PREVIEW_COUNT = 4;
  * so nothing new is queried and this can never disagree with the full log.
  * The complete, un-truncated ActivityLogSection is still rendered — folded
  * into the "Full history" accordion below — so no event becomes unreachable.
+ *
+ * WHAT A PERSON WROTE COMES FIRST. This preview used to take the newest four
+ * items of any kind, which meant the automatic audit trail could bury the
+ * human record: on Aztec Rental Center, Tyler's call and note were pushed
+ * behind "Task added", "Task completed" and "Task completed", and his note
+ * fell off the bottom of a four-slot list entirely. He reported it as the
+ * note not appearing, and on a phone it genuinely wasn't.
+ *
+ * The desktop panel already draws this line — HistoryPanel splits `written`
+ * (calls + notes) from `events` and shows the audit trail only on request.
+ * That rule was never carried over here, which is the whole bug. It is the
+ * same rule now: calls and notes get the four slots.
+ *
+ * Automatic events are NOT hidden — they are one tap away in Full history,
+ * and when a company has nothing written yet they still fill this preview,
+ * because "nothing has happened" and "nobody has written anything down" are
+ * different statements and only one of them would be true.
  */
+export function previewItems(
+  items: CrmActivityLogItem[],
+  count: number = PREVIEW_COUNT,
+): CrmActivityLogItem[] {
+  const written = items.filter((i) => i.type === "call" || i.type === "note");
+  return (written.length > 0 ? written : items).slice(0, count);
+}
+
 export function MobileActivity({ items }: { items: CrmActivityLogItem[] }) {
-  const preview = items.slice(0, PREVIEW_COUNT);
+  const preview = previewItems(items);
+  const hiddenEvents = preview.some((i) => i.type === "call" || i.type === "note")
+    ? items.length - preview.length
+    : 0;
 
   if (preview.length === 0) {
     return (
@@ -66,6 +94,14 @@ export function MobileActivity({ items }: { items: CrmActivityLogItem[] }) {
           </div>
         );
       })}
+
+      {/* Says where the rest went, so a count in the accordion header below
+          is not a mystery and nobody thinks something was dropped. */}
+      {hiddenEvents > 0 && (
+        <p className="pb-2.5 pt-0.5 text-[11.5px] font-medium text-fg-subtle">
+          {hiddenEvents} automatic {hiddenEvents === 1 ? "record" : "records"} in Full history
+        </p>
+      )}
     </div>
   );
 }
