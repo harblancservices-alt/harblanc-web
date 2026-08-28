@@ -433,8 +433,12 @@ export function BolEditor({
                     <th className="px-3 py-1.5 text-left">Qty</th>
                     <th className="px-3 py-1.5 text-left">Unit</th>
                     <th className="px-3 py-1.5 text-left">Weight</th>
-                    <th className="px-3 py-1.5 text-left">NMFC</th>
-                    <th className="px-3 py-1.5 text-left">Class</th>
+                    {/* NMFC and Class are not offered here — Brent,
+                        2026-08-28: "remove nmfc and freight class for now,
+                        it's fine to stay if it's on a document but we don't
+                        need it." The COLUMNS are untouched and the document
+                        renderers still read them; this row just stops asking
+                        for two fields nobody was filling in. */}
                     <th className="px-3 py-1.5 text-left">Hazmat</th>
                     <th className="px-3 py-1.5" />
                   </tr>
@@ -476,24 +480,6 @@ export function BolEditor({
                           onChange={(e) => setItemField(row.id, "weight", e.target.value)}
                           onBlur={() => commitItems(items)}
                           className="h-8 w-16 rounded-[5px] border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
-                        />
-                      </td>
-                      <td className="px-2.5 py-1.5">
-                        <input
-                          type="text"
-                          value={row.nmfc}
-                          onChange={(e) => setItemField(row.id, "nmfc", e.target.value)}
-                          onBlur={() => commitItems(items)}
-                          className="h-8 w-16 rounded-[5px] border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
-                        />
-                      </td>
-                      <td className="px-2.5 py-1.5">
-                        <input
-                          type="text"
-                          value={row.freightClass}
-                          onChange={(e) => setItemField(row.id, "freightClass", e.target.value)}
-                          onBlur={() => commitItems(items)}
-                          className="h-8 w-14 rounded-[5px] border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                         />
                       </td>
                       <td className="px-2.5 py-1.5 text-center">
@@ -597,25 +583,11 @@ export function BolEditor({
                           onBlur={() => commitItems(items)}
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 items-end gap-2">
                         <CompactTextRow
                           label="Weight"
                           value={row.weight}
                           onChange={(v) => setItemField(row.id, "weight", v)}
-                          onBlur={() => commitItems(items)}
-                        />
-                        <CompactTextRow
-                          label="NMFC"
-                          value={row.nmfc}
-                          onChange={(v) => setItemField(row.id, "nmfc", v)}
-                          onBlur={() => commitItems(items)}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 items-end gap-2">
-                        <CompactTextRow
-                          label="Class"
-                          value={row.freightClass}
-                          onChange={(v) => setItemField(row.id, "freightClass", v)}
                           onBlur={() => commitItems(items)}
                         />
                         <label className="flex h-10 items-center gap-2 text-[13px] font-medium text-fg">
