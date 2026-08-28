@@ -3,14 +3,21 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { Card, CardHead, BTN_PRIMARY, BTN_EDIT, BTN_DANGER } from "../../_shell/ui";
+import { Card, CardHead, BTN_PRIMARY, BTN_EDIT, BTN_DANGER, BTN_NEUTRAL } from "../../_shell/ui";
+import { Modal } from "../../_shell/Modal";
 import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
 import { formatDate } from "../../_shell/format";
 import { CONTROL } from "../../_shell/form";
 import { DocThumb } from "../../_shell/DocThumb";
 import { SlideToggle } from "../../_shell/SlideToggle";
 import { getSignedPdfUrl } from "../../shipments/pdfClient";
-import { createOrgDocument, renameOrgDocument, deleteOrgDocument, setDocumentPublic } from "./actions";
+import {
+  createOrgDocument,
+  renameOrgDocument,
+  deleteOrgDocument,
+  setDocumentPublic,
+  regenerateBlankTemplate,
+} from "./actions";
 import type { AdminBlankTemplate, AdminOrgUpload } from "../types";
 
 const STORAGE_BUCKET = "crm-documents";
@@ -145,6 +152,30 @@ export function AdminDocumentsGrid({
    * back on failure. */
   const [publicOverrides, setPublicOverrides] = useState<Record<string, boolean>>({});
   const [publishing, setPublishing] = useState<string | null>(null);
+  /* REGENERATE overwrites a stored file, so it asks first. Holds the
+     template awaiting confirmation, null when nothing is pending. */
+  const [confirmRegen, setConfirmRegen] = useState<AdminBlankTemplate | null>(null);
+  const [regenerating, setRegenerating] = useState<string | null>(null);
+
+  /**
+   * Rebuild a blank master from the CURRENT PDF components.
+   *
+   * These two cards were rendered once and then the generator was deleted,
+   * so when the BOL's Bill To box was fixed the master on file kept the old
+   * layout for eleven days with no way to rebuild it. This is that way.
+   */
+  async function regenerate(t: AdminBlankTemplate) {
+    setError(null);
+    setConfirmRegen(null);
+    setRegenerating(t.docType);
+    const res = await regenerateBlankTemplate(t.docType);
+    setRegenerating(null);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    router.refresh();
+  }
 
   async function togglePublic(documentId: string, current: boolean) {
     const next = !current;
@@ -351,6 +382,18 @@ export function AdminDocumentsGrid({
                       if (t.id) void togglePublic(t.id, publicOverrides[t.id] ?? t.isPublic);
                     }}
                   />
+                  {/* In Edit, beside Delete on the upload cards — the same
+                      place the tab already keeps its destructive actions. */}
+                  {editMode && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRegen(t)}
+                      disabled={regenerating !== null}
+                      className={`inline-flex h-7 items-center justify-center rounded-md px-2 text-[11.5px] font-bold transition-colors disabled:opacity-60 ${BTN_EDIT}`}
+                    >
+                      {regenerating === t.docType ? "Rebuilding…" : "Regenerate"}
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -418,6 +461,45 @@ export function AdminDocumentsGrid({
           )}
         </div>
       </Card>
+
+      {/* CONFIRM, because this replaces a file that is already on record.
+          It says what actually changes: same card, same link, new bytes. */}
+      {confirmRegen && (
+        <Modal
+          open
+          onClose={() => regenerating === null && setConfirmRegen(null)}
+          busy={regenerating !== null}
+          title="Regenerate template"
+        >
+          <p className="text-[13.5px] leading-relaxed text-fg">
+            Rebuild <span className="font-semibold">{templateTitle(confirmRegen)}</span> from the
+            current document design? This replaces the stored file and its preview. The card and its
+            link stay the same, and it stays private.
+          </p>
+          <p className="mt-2 text-[12.5px] leading-relaxed text-fg-muted">
+            The letterhead comes from Settings &rarr; Broker Profile, so any correction there is
+            picked up too.
+          </p>
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmRegen(null)}
+              disabled={regenerating !== null}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => void regenerate(confirmRegen)}
+              disabled={regenerating !== null}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_PRIMARY}`}
+            >
+              {regenerating !== null ? "Rebuilding…" : "Regenerate"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

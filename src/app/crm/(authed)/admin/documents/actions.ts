@@ -17,7 +17,14 @@ import { ORG_UPLOAD_KIND, PUBLISHABLE_KINDS, STORAGE_BUCKET, THUMB_SUFFIX } from
  * route) have to agree on this list exactly, and they didn't while it was a
  * private const — publishing a template wrote a flag nothing read. */
 const TAB_MANAGED_KINDS = PUBLISHABLE_KINDS;
-import type { ActionResult } from "../types";
+import type { ActionResult, AdminBlankTemplateType } from "../types";
+import { getBrokerProfile } from "../../_shell/brokerProfile";
+import { renderPdfFirstPageToPng } from "@/lib/pdf/pdfPageThumbnail";
+import {
+  BLANK_TEMPLATE_FILE_NAME,
+  BLANK_TEMPLATE_SLUG,
+  buildBlankTemplateBuffer,
+} from "./blankTemplates";
 
 /**
  * Admin Account "Documents" tab — org-level uploads (insurance certs, W9s,
@@ -208,6 +215,100 @@ export async function deleteOrgDocument(documentId: string): Promise<ActionResul
     .eq("kind", ORG_UPLOAD_KIND);
 
   if (error) return { ok: false, error: "Could not delete the file. Please try again." };
+
+  revalidateDocuments();
+  return { ok: true };
+}
+
+/**
+ * REGENERATE A BLANK MASTER TEMPLATE from the current PDF components.
+ *
+ * The reason this exists: these two cards were rendered once, in Aug 2026,
+ * by a helper that was then deleted. When the BOL's Third Party Bill To box
+ * was fixed and its "N/A" placeholder removed, every newly generated BOL
+ * picked the changes up and the master on file did not — it sat eleven days
+ * out of date with nobody able to rebuild it. A template library that
+ * cannot be rebuilt is a template library that drifts.
+ *
+ * IT OVERWRITES, IT DOES NOT ADD. The bytes go to the row's EXISTING
+ * storage_path (upsert), so the same crm_documents row keeps pointing at
+ * the same object and the tab still shows two template cards, not four.
+ * `is_public` is never touched — these stay private unless somebody
+ * deliberately publishes them.
+ *
+ * The `.thumb.v3.png` sibling is rewritten too. Skipping it would leave the
+ * card showing the OLD page while the file behind it was new, which is
+ * exactly the kind of silent disagreement this action exists to end.
+ */
+export async function regenerateBlankTemplate(
+  docType: AdminBlankTemplateType,
+): Promise<ActionResult> {
+  const user = await requireAdminUser();
+  const supabase = await createCrmServerClient();
+
+  const kind = docType === "bill_of_lading" ? "org_doc:Bill of Lading" : "org_doc:Rate Confirmation";
+
+  const { data: existing } = await supabase
+    .from("crm_documents")
+    .select("id, storage_path")
+    .eq("kind", kind)
+    .is("account_id", null)
+    .is("deal_id", null)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  let buffer: Buffer;
+  try {
+    const broker = await getBrokerProfile();
+    buffer = await buildBlankTemplateBuffer(docType, broker);
+  } catch {
+    return { ok: false, error: "Could not render the template. Please try again." };
+  }
+
+  const fileName = BLANK_TEMPLATE_FILE_NAME[docType];
+  // Reuse the existing object's path so the row still resolves; only a slot
+  // that has never had a file gets a new one.
+  const storagePath =
+    (existing?.storage_path as string | undefined) ??
+    `${user.orgId}/org-docs/${BLANK_TEMPLATE_SLUG[docType]}/${crypto.randomUUID()}-${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(storagePath, buffer, { contentType: "application/pdf", upsert: true });
+  if (uploadError) {
+    return { ok: false, error: "Could not save the regenerated template. Please try again." };
+  }
+
+  // Best-effort preview, same as the original generator: a failure here
+  // leaves a stale thumbnail but must not fail the regeneration itself.
+  const thumb = await renderPdfFirstPageToPng(buffer);
+  if (thumb.ok) {
+    await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(`${storagePath}${THUMB_SUFFIX}`, thumb.png, {
+        contentType: "image/png",
+        upsert: true,
+      });
+  }
+
+  if (existing) {
+    const { error } = await supabase
+      .from("crm_documents")
+      .update({ size_bytes: buffer.byteLength, updated_at: new Date().toISOString() })
+      .eq("id", existing.id as string);
+    if (error) return { ok: false, error: "Template rebuilt, but the document record did not update." };
+  } else {
+    const { error } = await supabase.from("crm_documents").insert({
+      org_id: user.orgId,
+      user_id: user.id,
+      kind,
+      file_name: fileName,
+      storage_path: storagePath,
+      mime_type: "application/pdf",
+      size_bytes: buffer.byteLength,
+    });
+    if (error) return { ok: false, error: "Template rebuilt, but the document record did not save." };
+  }
 
   revalidateDocuments();
   return { ok: true };
