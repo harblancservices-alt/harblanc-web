@@ -4,11 +4,12 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { titleCaseWords } from "../../_shell/format";
-import { deleteTask, reassignTask } from "../../tasks/actions";
+import { deleteTask, reassignTask, setTaskDueDate } from "../../tasks/actions";
 import { Modal } from "../../_shell/Modal";
 import { IconTrash } from "../../_shell/icons";
 import { BTN_DANGER, BTN_NEUTRAL } from "../../_shell/ui";
 import { dueLabel, dueTint } from "../../agent/agentWork";
+import { centralDateKey } from "../../_shell/format";
 import type { DueTaskRow } from "../dueReport";
 import {
   assigneeIdForColumn,
@@ -78,6 +79,20 @@ export function TasksBoard({
     });
   }
 
+  /** Same shape as move(): one field, one action, refresh on success and
+   * surface the server's own message on failure. */
+  function setDate(taskId: string, dayKey: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await setTaskDueDate(taskId, dayKey);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   function onDrop(e: React.DragEvent, targetKey: string) {
     e.preventDefault();
     setOver(null);
@@ -133,6 +148,7 @@ export function TasksBoard({
               onDragLeave={() => setOver((k) => (k === col.key ? null : k))}
               onDrop={(e) => onDrop(e, col.key)}
               onPick={move}
+              onPickDate={setDate}
             />
           ))}
         </div>
@@ -171,6 +187,7 @@ function Column({
   onDragLeave,
   onDrop,
   onPick,
+  onPickDate,
 }: {
   column: BoardColumn;
   now: Date;
@@ -184,6 +201,7 @@ function Column({
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent) => void;
   onPick: (taskId: string, targetKey: string) => void;
+  onPickDate: (taskId: string, dayKey: string) => void;
 }) {
   const unassigned = column.key === UNASSIGNED_KEY;
   return (
@@ -239,12 +257,21 @@ function Column({
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
               onPick={onPick}
+              onPickDate={onPickDate}
             />
           ))
         )}
       </div>
     </section>
   );
+}
+
+/** What the native date input should show: the task's due day in CENTRAL,
+ * not the browser's timezone, so a card never reads a day earlier than the
+ * board's own dueLabel says. Empty string is how an <input type="date">
+ * spells "no value". */
+function dueDayValue(dueAt: string | null): string {
+  return centralDateKey(dueAt) ?? "";
 }
 
 function TaskCard({
@@ -258,6 +285,7 @@ function TaskCard({
   onDragStart,
   onDragEnd,
   onPick,
+  onPickDate,
 }: {
   card: DueTaskRow;
   now: Date;
@@ -272,6 +300,7 @@ function TaskCard({
   onDragStart: (id: string) => void;
   onDragEnd: () => void;
   onPick: (taskId: string, targetKey: string) => void;
+  onPickDate: (taskId: string, dayKey: string) => void;
 }) {
   const tint = dueTint(card.dueAt, now);
   const router = useRouter();
@@ -351,17 +380,39 @@ function TaskCard({
         <p className="mt-0.5 text-[12px] text-fg-subtle">No company</p>
       )}
       <div className="mt-1.5 flex items-center gap-2">
-        <span
-          className={`inline-flex rounded-[3px] px-1.5 py-0.5 text-[11px] font-bold ${
+        {/* THE DATE IS EDITABLE IN PLACE — Brent, 2026-08-28: "where it
+            says no date make it a date box so if they dont put a date we
+            can." On every card, not only the undated ones: an admin who
+            can fill a blank should be able to correct a wrong one, and two
+            interaction models for one field is how a board gets confusing.
+
+            The VISIBLE thing stays dueLabel's own words and tint —
+            "tomorrow", "Sep 15", "no date" — because that is what makes
+            this board readable at a glance, and a native date input can
+            only ever render 08/28/2026. The real <input type="date"> sits
+            transparently on top as the click target, so the control is
+            always live exactly like the assignee select beside it, with no
+            edit mode to enter and nothing hover-revealed. */}
+        <label
+          className={`relative inline-flex cursor-pointer rounded-[3px] px-1.5 py-0.5 text-[11px] font-bold transition-colors focus-within:ring-2 focus-within:ring-accent/40 hover:bg-elevated ${
             tint === "late"
               ? "bg-bad-bg text-bad"
               : tint === "now"
                 ? "bg-accent-bg text-accent"
                 : "text-fg-muted"
-          }`}
+          } ${pending ? "opacity-60" : ""}`}
         >
-          {dueLabel(card.dueAt, now)}
-        </span>
+          <span>{dueLabel(card.dueAt, now)}</span>
+          <input
+            type="date"
+            value={dueDayValue(card.dueAt)}
+            disabled={pending}
+            draggable={false}
+            onChange={(e) => onPickDate(card.id, e.target.value)}
+            aria-label={`Due date for "${card.title}"`}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-default"
+          />
+        </label>
         {/* The non-drag path. Always in the DOM (not hover-revealed) so it is
             reachable by keyboard and on touch, where dragging is unreliable —
             a board whose only assignment mechanism needs a mouse is a board

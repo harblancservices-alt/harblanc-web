@@ -6,6 +6,10 @@ import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { syncFollowupOnTaskChange } from "@/lib/crm/followupTask";
 import { normalizePriority } from "./priority";
 import { snoozeDays, snoozedDueAt } from "./snooze";
+
+/** 8:00 AM Central — the same landing time snooze.ts uses, so a date set
+ * on the admin board and a snooze to "Tomorrow" mean the same moment. */
+const DUE_DATE_TIME = "08:00";
 import { centralInputToIso } from "../_shell/format";
 import { dueAtForColumn, PLAN_COLUMNS, type PlanColumn } from "./plan";
 
@@ -541,5 +545,67 @@ export async function deleteTask(
   await syncFollowupOnTaskChange(supabase, taskId, "deleted", null);
 
   revalidate(accountId);
+  return { ok: true };
+}
+
+/**
+ * Set ONE task's due date from a plain calendar day — nothing else touched.
+ *
+ * Drives Admin → Tasks' inline date box (Brent, 2026-08-28: "where it says
+ * no date make it a date box so if they dont put a date we can"). Deliberately
+ * the sibling of reassignTask rather than a call into updateTask: the card
+ * edits one field, so the action that backs it writes one field, and a
+ * tampered request cannot reach the title, the notes or the assignee.
+ *
+ * OWNER-ONLY, re-checked here. The board is already behind /crm/admin/**,
+ * but every admin action in this repo re-verifies rather than trusting the
+ * route gate.
+ *
+ * TIME OF DAY IS 08:00 CENTRAL, matching tasks/snooze.ts's SNOOZE_TIME and
+ * LogCallDialog's DEFAULT_REMINDER_TIME — so a date set here, a snooze to
+ * "Tomorrow", and a call follow-up all mean the same moment on the same day.
+ * Central via centralInputToIso, never the server's own timezone.
+ *
+ * An empty string clears the date back to null, because a date box you
+ * cannot empty is a trap: an admin who dates the wrong card has no way back.
+ */
+export async function setTaskDueDate(
+  taskId: string,
+  /** "YYYY-MM-DD" from a native date input, or "" to clear. */
+  dayKey: string,
+): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  if (user.role !== "owner") {
+    return { ok: false, error: "Only an admin can change a task's date here." };
+  }
+
+  const trimmed = dayKey.trim();
+  let dueAt: string | null = null;
+  if (trimmed) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return { ok: false, error: "That date isn't valid." };
+    }
+    dueAt = centralInputToIso(`${trimmed}T${DUE_DATE_TIME}`);
+    if (!dueAt) return { ok: false, error: "That date isn't valid." };
+  }
+
+  const supabase = await createCrmServerClient();
+
+  // Read first, so a missing or out-of-org task fails loudly instead of
+  // updating zero rows and reporting success — same reasoning as
+  // reassignTask above.
+  const { data: task } = await supabase
+    .from("crm_tasks")
+    .select("account_id")
+    .eq("id", taskId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!task) return { ok: false, error: "That task no longer exists." };
+
+  const { error } = await supabase.from("crm_tasks").update({ due_at: dueAt }).eq("id", taskId);
+  if (error) return { ok: false, error: "Could not save that date. Please try again." };
+
+  revalidate((task.account_id as string | null) ?? null);
+  revalidatePath("/crm/admin/tasks");
   return { ok: true };
 }

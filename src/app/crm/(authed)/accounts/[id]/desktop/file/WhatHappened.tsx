@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { logCall } from "../../../../calls/actions";
 import {
@@ -13,6 +13,7 @@ import {
 import { detectDate, draftFollowupTitle, warrantsFollowup, type DetectedDate } from "../../../../calls/followupDraft";
 import { addNote } from "../../../actions";
 import { createTask } from "../../../../tasks/actions";
+import { listQuickTasks, type QuickTask } from "../../../../admin/quick-task-actions";
 import {
   SELECTABLE_LIFECYCLE_STAGES,
   normalizeStage,
@@ -155,6 +156,24 @@ export function WhatHappened({
      created on save. */
   const [dateTouched, setDateTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* The admin's curated quick tasks, fetched the first time Task mode is
+     opened and kept for the rest of the visit. Empty until then, which is
+     also the correct render for an org that has not set any. */
+  const [quickTasks, setQuickTasks] = useState<QuickTask[]>([]);
+  const [quickTasksLoaded, setQuickTasksLoaded] = useState(false);
+
+  useEffect(() => {
+    if (mode !== "task" || quickTasksLoaded) return;
+    let live = true;
+    void listQuickTasks().then((rows) => {
+      if (!live) return;
+      setQuickTasks(rows);
+      setQuickTasksLoaded(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [mode, quickTasksLoaded]);
 
   const active = normalizeStage(stage);
   const order = SELECTABLE_LIFECYCLE_STAGES as readonly LifecycleStage[];
@@ -577,15 +596,51 @@ export function WhatHappened({
           </div>
         </div>
       ) : (
-        <div className="px-4 pb-3.5 pt-2">
+        /* THE TASK PRESETS RUN ALONG THE BOTTOM, on the same line as the
+           action — Brent, 2026-08-28: "i want the list of blue task buttons
+           running along the button where create task lays. i want create
+           task to be red just like the + person button on company profiles."
+
+           These are the SAME quick tasks the admin task maker offers
+           (admin/quick-task-actions.ts), loaded rather than re-authored:
+           Brent curates that list in one place and a second hard-coded copy
+           here is how the two drift apart. Loaded on entering Task mode,
+           the way ContactDialog loads a company's sites when it opens,
+           rather than threading a prop down four components for a tab most
+           visits never open.
+
+           They WRAP rather than truncate — this panel sits in a 380px
+           column and a preset whose label is cut in half is not a preset. */
+        <div className="flex flex-wrap items-center gap-2 px-4 pb-3.5 pt-2">
           <button
             type="button"
             onClick={mode === "note" ? saveNote : saveTask}
             disabled={pending || !text.trim()}
-            className="rounded-md bg-accent px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-accent-hover disabled:opacity-55"
+            className={`shrink-0 rounded-md px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors disabled:opacity-55 ${
+              mode === "task"
+                ? "bg-bad hover:bg-bad/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40"
+                : "bg-accent hover:bg-accent-hover"
+            }`}
           >
             {pending ? "Saving…" : mode === "note" ? "Save note" : "Create task"}
           </button>
+
+          {mode === "task" &&
+            quickTasks.map((q) => (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => setText(q.label)}
+                disabled={pending}
+                className={`shrink-0 rounded-md border px-2.5 py-2 text-[12.5px] font-semibold transition-colors disabled:opacity-55 ${
+                  text === q.label
+                    ? "border-accent bg-accent text-white"
+                    : "border-accent bg-card text-accent hover:bg-accent-bg"
+                }`}
+              >
+                {q.label}
+              </button>
+            ))}
         </div>
       )}
 
