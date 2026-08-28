@@ -141,6 +141,15 @@ const styles = StyleSheet.create({
   col: { flex: 1 },
   stopLabel: { marginBottom: 4 },
   box: { border: "1.2pt solid #000", padding: 6 },
+  /* PAIRED BOXES RULE OFF AT THE SAME HEIGHT.
+     `cols2` is a flex row, so its two `col` children already stretch to the
+     taller of the two. The BOX inside each column did not - it sized to its
+     own content, so a Pickup with a wrapping address or a notes line drew a
+     deeper box than the Delivery beside it and the two bottom edges did not
+     line up. Same fault, same fix as CrmShipmentBolPDF's boxFill (Brent
+     flagged it on the BOL first: "fix the box not being parrellel to the
+     carrier box. its short. and misaligned"). */
+  boxFill: { flexGrow: 1 },
   rateTable: { marginTop: 4 },
   rateRow: {
     flexDirection: "row",
@@ -190,7 +199,7 @@ function StopBlock({ title, stop }: { title: string; stop: StopInfo }) {
   return (
     <View style={styles.col}>
       <Text style={[styles.heading, styles.stopLabel]}>{title}</Text>
-      <View style={styles.box}>
+      <View style={[styles.box, styles.boxFill]}>
         <Field label="Facility / Company" value={stop.name} />
         <Field
           label="Address"
