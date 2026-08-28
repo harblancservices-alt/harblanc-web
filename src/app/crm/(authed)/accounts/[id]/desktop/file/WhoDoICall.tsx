@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ContactDialog, type ContactDefaults } from "../../ContactDialog";
 import { EditCompany } from "../../EditCompany";
 import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
@@ -217,20 +218,21 @@ export function WhoDoICall({
                 }`}
               />
               <div className="min-w-0 flex-1">
-                <ContactDialog
-                  accountId={accountId} companyName={companyName}
-                  mode="edit"
-                  defaults={hero.defaults}
-                  trigger={(open) => (
-                    <button
-                      type="button"
-                      onClick={open}
-                      className="block max-w-full truncate text-left text-[16px] font-extrabold tracking-[-0.015em] text-fg hover:text-accent hover:underline"
-                    >
-                      {hero.name}
-                    </button>
-                  )}
-                />
+                {/* THE NAME OPENS THE PERSON. /crm/contacts/[id] carries
+                    their history and notes, and until 2026-08-28 desktop was
+                    the one surface with no way to reach it — mobile, Admin ->
+                    Contacts and task rows all linked there, this did not.
+                    It used to open the edit dialog instead; editing has its
+                    own explicit control on the Contacts tab, and the phone
+                    and email affordances below still open the dialog, so
+                    nothing lost a route. */}
+                <Link
+                  href={`/crm/contacts/${hero.id}`}
+                  prefetch={false}
+                  className="block max-w-full truncate text-left text-[16px] font-extrabold tracking-[-0.015em] text-fg hover:text-accent hover:underline"
+                >
+                  {hero.name}
+                </Link>
                 {/* THE ROLE, at the name's own weight — this is how Brent
                     decides who to ring, so it stopped being grey. */}
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
@@ -348,20 +350,13 @@ export function WhoDoICall({
                           }`}
                         />
                         <div className="min-w-0 flex-1">
-                          <ContactDialog
-                            accountId={accountId} companyName={companyName}
-                            mode="edit"
-                            defaults={p.defaults}
-                            trigger={(open) => (
-                              <button
-                                type="button"
-                                onClick={open}
-                                className="block max-w-full truncate text-left text-[12.5px] font-semibold leading-snug text-fg hover:text-accent hover:underline"
-                              >
-                                {p.name}
-                              </button>
-                            )}
-                          />
+                          <Link
+                            href={`/crm/contacts/${p.id}`}
+                            prefetch={false}
+                            className="block max-w-full truncate text-left text-[12.5px] font-semibold leading-snug text-fg hover:text-accent hover:underline"
+                          >
+                            {p.name}
+                          </Link>
                           <p
                             className={`truncate text-[11.5px] font-semibold leading-snug ${
                               p.title ? "text-fg-muted" : "text-fg-subtle"

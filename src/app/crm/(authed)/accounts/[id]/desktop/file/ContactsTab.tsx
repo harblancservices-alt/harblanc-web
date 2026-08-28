@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ContactDialog } from "../../ContactDialog";
 import { digitsForTel } from "../../../../_shell/contactFields";
 import type { CallPerson } from "./WhoDoICall";
@@ -173,7 +174,16 @@ export function ContactsTab({
             {people.map((p) => (
               <tr key={p.id} id={`contact-row-${p.id}`} className="target:bg-accent-bg">
                 <Cell>
-                  <span className="text-[12.5px] font-bold text-fg">{p.name}</span>
+                  {/* Same link as the Overview roster — the name is the
+                      way into /crm/contacts/[id]. Edit keeps its own button
+                      at the end of the row. */}
+                  <Link
+                    href={`/crm/contacts/${p.id}`}
+                    prefetch={false}
+                    className="text-[12.5px] font-bold text-fg hover:text-accent hover:underline"
+                  >
+                    {p.name}
+                  </Link>
                   <span className="mt-0.5 flex flex-wrap gap-1">
                     {p.isPrimary && (
                       <span className="rounded-[3px] border border-line-strong px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.07em] text-fg-muted">
