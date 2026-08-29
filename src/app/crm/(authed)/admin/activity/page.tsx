@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Card, CardHead } from "../../_shell/ui";
 import { loadScoreboard, type ActivityRange } from "../../_activity/activity-data";
-import { ACTIVITY_CATEGORIES, ACTIVITY_STYLE } from "../../_activity/activityTypes";
+import { ACTIVITY_STYLE, TILE_CATEGORIES } from "../../_activity/activityTypes";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +43,10 @@ export default async function AdminActivityPage({
     : "week";
 
   const { rows, unattributed, rangeLabel, failed } = await loadScoreboard({ range });
-  const columns = ACTIVITY_CATEGORIES.filter((c) => c !== "other");
+  /* The same six the dashboard tiles show — record keeping, deals and
+     "other" stay off both surfaces and remain reachable through the feed's
+     type filter. See TILE_CATEGORIES. */
+  const columns = TILE_CATEGORIES;
 
   return (
     <div className="p-3 sm:p-4">
@@ -104,7 +107,7 @@ export default async function AdminActivityPage({
                   <th className="px-3 py-2 text-right">
                     Activities
                     <span className="mt-0.5 block text-[10px] font-semibold normal-case tracking-normal text-fg-subtle">
-                      every column here, added up
+all types, not only the columns shown
                     </span>
                   </th>
                   {columns.map((c) => (

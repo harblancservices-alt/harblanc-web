@@ -12,7 +12,7 @@ describe("activity categories", () => {
   it("maps the kinds an agent actually generates", () => {
     expect(categoryForKind(CRM_ACTIVITY.call)).toBe("call");
     expect(categoryForKind(CRM_ACTIVITY.noteAdded)).toBe("note");
-    expect(categoryForKind(CRM_ACTIVITY.accountCreated)).toBe("company");
+    expect(categoryForKind(CRM_ACTIVITY.accountCreated)).toBe("company_added");
     expect(categoryForKind(CRM_ACTIVITY.contactAdded)).toBe("contact");
     expect(categoryForKind(CRM_ACTIVITY.taskCreated)).toBe("task");
     expect(categoryForKind(CRM_ACTIVITY.taskCompleted)).toBe("task");
@@ -55,14 +55,26 @@ describe("activity categories", () => {
     }
   });
 
-  it("gives every category a visually distinct tone", () => {
+  it("gives every category a visually distinct tone, bar two deliberate pairs", () => {
     // Two categories sharing a tone makes the badge decorative rather than
-    // informative. Grey is the deliberate exception: note and other are
-    // both "no strong signal", and saying so twice is correct.
-    const tones = ACTIVITY_CATEGORIES.filter((c) => c !== "note" && c !== "other").map(
+    // informative. There are exactly two intended exceptions:
+    //
+    //   note / other          both mean "no strong signal", and saying so
+    //                         twice is correct.
+    //   pipeline / company_added
+    //                         both are COMPANY events. The palette carries
+    //                         one identity per type family, so the 2026-08-29
+    //                         split is told by the label rather than by
+    //                         inventing a hue for it. Keeping them the same
+    //                         colour is the decision, not an oversight.
+    const EXEMPT = new Set(["note", "other", "company_added"]);
+    const tones = ACTIVITY_CATEGORIES.filter((c) => !EXEMPT.has(c)).map(
       (c) => ACTIVITY_STYLE[c].tone,
     );
     expect(new Set(tones).size).toBe(tones.length);
+
+    // And the exception is real rather than accidental drift.
+    expect(ACTIVITY_STYLE.company_added.tone).toBe(ACTIVITY_STYLE.pipeline.tone);
   });
 
   it("round-trips a category through its kinds", () => {

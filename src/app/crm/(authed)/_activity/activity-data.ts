@@ -462,12 +462,16 @@ export async function loadActivity(q: ActivityQuery): Promise<{
     ),
   ]);
 
-  const byCategory = {
-    call: callCountRes.count ?? 0,
-    note: noteCountRes.count ?? 0,
-    other: otherCountRes.count ?? 0,
-    task: 0, company: 0, contact: 0, deal: 0,
-  } as Record<ActivityCategory, number>;
+  /* SEEDED FROM ACTIVITY_CATEGORIES, not from a hand-written literal. The
+     literal here listed the categories by name and had to be edited every
+     time one was added — which is exactly how a new category ends up
+     counted nowhere. Deriving it means a category cannot be forgotten. */
+  const byCategory = Object.fromEntries(
+    ACTIVITY_CATEGORIES.map((c) => [c, 0]),
+  ) as Record<ActivityCategory, number>;
+  byCategory.call = callCountRes.count ?? 0;
+  byCategory.note = noteCountRes.count ?? 0;
+  byCategory.other = otherCountRes.count ?? 0;
   LOGGED_CATEGORIES.forEach((cat, i) => {
     byCategory[cat] = loggedCountRes[i]?.count ?? 0;
   });

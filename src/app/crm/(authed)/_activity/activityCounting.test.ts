@@ -80,7 +80,7 @@ describe("a period bigger than the page must not shrink the metrics", () => {
    */
   const realWeek: ActivityMetrics = {
     total: 315,
-    byCategory: { call: 27, note: 13, task: 64, company: 124, contact: 24, deal: 0, other: 63 },
+    byCategory: { call: 27, note: 13, task: 64, pipeline: 124, company_added: 0, record: 0, contact: 24, deal: 0, other: 63 },
     uniqueCompaniesCalled: 21,
     uniqueContactsCalled: 19,
     unattributed: 75,
@@ -117,7 +117,7 @@ describe("distinct counts say 'unavailable' rather than 'too low'", () => {
     // failure being fixed here.
     const truncated: ActivityMetrics = {
       total: 5000,
-      byCategory: { call: 5000, note: 0, task: 0, company: 0, contact: 0, deal: 0, other: 0 },
+      byCategory: { call: 5000, note: 0, task: 0, pipeline: 0, company_added: 0, record: 0, contact: 0, deal: 0, other: 0 },
       uniqueCompaniesCalled: null,
       uniqueContactsCalled: null,
       unattributed: 0,

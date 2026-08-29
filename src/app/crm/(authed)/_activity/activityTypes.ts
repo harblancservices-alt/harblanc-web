@@ -24,7 +24,24 @@ import { CRM_ACTIVITY } from "@/lib/crm/activity";
 export type ActivityCategory =
   | "call"
   | "task"
-  | "company"
+  /**
+   * ── THE COMPANY SPLIT, 2026-08-29 ─────────────────────────────────
+   *
+   * One "company" category counted eight unrelated kinds, so the tile
+   * could not tell selling from filing. Brent, after seeing the numbers:
+   * split it.
+   *
+   *   pipeline       a stage change - a deal advancing or dying
+   *   company_added  a company created - growing the book
+   *   record         everything else about a company record
+   *
+   * The real figures made the shape obvious. In one week Tyler's old
+   * "Companies 42" was 37 stage moves, 1 created and 4 owner changes -
+   * almost entirely pipeline movement, which the blended tile hid.
+   */
+  | "pipeline"
+  | "company_added"
+  | "record"
   | "contact"
   | "note"
   | "deal"
@@ -76,27 +93,39 @@ export const ACTIVITY_STYLE: Record<ActivityCategory, ActivityTypeStyle> = {
     tone: "bg-ok-bg text-ok",
     dot: "bg-ok",
   },
-  company: {
-    category: "company",
-    /**
-     * "Companies" UNTIL 2026-08-29, AND THAT WAS THE BUG.
-     *
-     * This tile counts company-related EVENTS — created, stage changed,
-     * owner changed, details edited, location added or removed. Labelled
-     * "Companies" it reads as a count of companies, which it is not, and
-     * it sat next to "Companies called", which IS a count of companies.
-     * Two different units under two similar words.
-     *
-     * The real numbers made it plain: in one week the tile read 42 for one
-     * agent, of which exactly ONE was a company created. The other 41 were
-     * stage changes and edits. No tooltip fixes that — the label was
-     * wrong, so the label changed.
-     */
-    label: "Company updates",
-    definition: "created, stage, owner or details",
-    badge: "Company",
+  pipeline: {
+    category: "pipeline",
+    label: "Pipeline",
+    definition: "stage moved forward or lost",
+    badge: "Stage",
     tone: "bg-admin-soft text-admin",
     dot: "bg-admin",
+  },
+
+  /* ── The other two halves of the old company tile ──────────────────
+     ALL THREE KEEP THE COMPANY HUE. The palette carries one visual
+     identity per type family, and these are all company events, so the
+     split is told by the LABEL rather than by inventing two new colours
+     for a distinction the eye does not need to make at a glance. */
+  company_added: {
+    category: "company_added",
+    label: "Companies added",
+    definition: "new companies created",
+    badge: "Added",
+    tone: "bg-admin-soft text-admin",
+    dot: "bg-admin",
+  },
+  record: {
+    category: "record",
+    label: "Record keeping",
+    definition: "owner, details, locations, removals",
+    badge: "Record",
+    /* bg-elevated, not bg-inset: note already owns inset, and two grey
+       badges that cannot be told apart in the feed is exactly what the
+       distinct-tone rule exists to stop. Still the neutral family - no new
+       hue. */
+    tone: "bg-elevated text-fg-muted",
+    dot: "bg-line-strong",
   },
   contact: {
     category: "contact",
@@ -152,11 +181,42 @@ export const ACTIVITY_STYLE: Record<ActivityCategory, ActivityTypeStyle> = {
 export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
   "call",
   "task",
-  "company",
+  "pipeline",
+  "company_added",
   "contact",
   "note",
+  "record",
   "deal",
   "other",
+];
+
+/**
+ * THE CATEGORIES THAT GET A TILE AND A SCOREBOARD COLUMN.
+ *
+ * Splitting company into three took the tile count from 7 to 9, which is
+ * the wall of numbers Brent warned about on a surface meant for scanning.
+ * These six earn their place; the rest stay reachable through the type
+ * filter, which lists every category.
+ *
+ * WHAT IS LEFT OFF, AND WHY:
+ *   record   12 events in the whole database, 1 across the org this week.
+ *            A tile that reads 0 for everybody every week is noise, and it
+ *            would push the grid to a third row on a phone.
+ *   deal     zero events. Nothing in this build writes one yet.
+ *   other    the complement bucket; a number for "things we could not
+ *            categorise" belongs in a filter, not on a dashboard.
+ *
+ * The total is NOT the sum of these six — it counts every category — which
+ * is why the total's definition says "everything logged" rather than
+ * naming the tiles.
+ */
+export const TILE_CATEGORIES: ActivityCategory[] = [
+  "call",
+  "task",
+  "pipeline",
+  "company_added",
+  "contact",
+  "note",
 ];
 
 /**
@@ -169,14 +229,28 @@ export const ACTIVITY_CATEGORIES: ActivityCategory[] = [
 const KIND_CATEGORY: Record<string, ActivityCategory> = {
   [CRM_ACTIVITY.call]: "call",
   [CRM_ACTIVITY.noteAdded]: "note",
-  [CRM_ACTIVITY.accountCreated]: "company",
-  [CRM_ACTIVITY.accountDeleted]: "company",
-  [CRM_ACTIVITY.lifecycleChanged]: "company",
-  [CRM_ACTIVITY.repChanged]: "company",
-  [CRM_ACTIVITY.detailsUpdated]: "company",
-  [CRM_ACTIVITY.locationAdded]: "company",
-  [CRM_ACTIVITY.locationUpdated]: "company",
-  [CRM_ACTIVITY.locationDeleted]: "company",
+  // ── The company split. Every kind still lands in exactly one place,
+  //    so the totals reconcile unchanged.
+  [CRM_ACTIVITY.accountCreated]: "company_added",
+  [CRM_ACTIVITY.lifecycleChanged]: "pipeline",
+  /**
+   * OWNER CHANGED IS NOT SELLING, so it is not pipeline.
+   *
+   * It is filed under record keeping rather than dropped, because the
+   * total has to keep reconciling and because it IS an act by the person
+   * credited. It is deliberately not counted as progress: one rep_changed
+   * row can mean an agent claiming work for themselves OR an admin moving
+   * a company between people, and nothing on the event distinguishes the
+   * two, so treating it as selling would flatter one of those cases.
+   */
+  [CRM_ACTIVITY.repChanged]: "record",
+  /* Deleting a company is maintenance, not the inverse of adding one -
+     it is almost always a duplicate or a bad record being tidied away. */
+  [CRM_ACTIVITY.accountDeleted]: "record",
+  [CRM_ACTIVITY.detailsUpdated]: "record",
+  [CRM_ACTIVITY.locationAdded]: "record",
+  [CRM_ACTIVITY.locationUpdated]: "record",
+  [CRM_ACTIVITY.locationDeleted]: "record",
   [CRM_ACTIVITY.contactAdded]: "contact",
   [CRM_ACTIVITY.contactUpdated]: "contact",
   [CRM_ACTIVITY.contactDeleted]: "contact",

@@ -5,7 +5,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { Card, CardHead } from "../_shell/ui";
 import { formatRelativeTime } from "../_shell/format";
-import { ACTIVITY_CATEGORIES, ACTIVITY_STYLE, type ActivityCategory } from "./activityTypes";
+import {
+  ACTIVITY_CATEGORIES,
+  TILE_CATEGORIES,
+  ACTIVITY_STYLE,
+  type ActivityCategory,
+} from "./activityTypes";
 import type { ActivityFeedItem, ActivityMetrics, AgentOption, ActivityRange } from "./activity-data";
 
 /**
@@ -144,11 +149,11 @@ export function ActivityDashboard({
     {
       key: "total",
       label: "Total activities",
-      definition: "every tile beside this, added up",
+      definition: "everything logged in this period",
       value: metrics.total,
       tone: "bg-fg text-white",
     },
-    ...ACTIVITY_CATEGORIES.filter((c) => c !== "other").map((c) => ({
+    ...TILE_CATEGORIES.map((c) => ({
       key: c,
       label: ACTIVITY_STYLE[c].label,
       definition: ACTIVITY_STYLE[c].definition,
@@ -226,7 +231,11 @@ export function ActivityDashboard({
         </div>
 
         {/* ── METRICS ────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div /* 7 tiles since the company split. Four columns rather than six
+               so the second row holds three instead of stranding one, and so
+               each tile is wide enough for its definition to sit on one
+               line. */
+            className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-4">
           {TILES.map((t) => {
             const active = t.key !== "total" && category === t.key;
             return (
@@ -250,6 +259,36 @@ export function ActivityDashboard({
                     know to look for it. One line, 10.5px, so the tile grows
                     by about a dozen pixels rather than becoming a card. */}
                 <p className="mt-1 text-[10.5px] leading-[1.25] text-fg-subtle">{t.definition}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* THE CATEGORIES THAT DID NOT EARN A TILE.
+            The tiles ARE the type filter on this page — clicking one filters
+            the feed — so leaving record keeping, deals and "other" off the
+            grid would have made them unfilterable, not merely unpromoted.
+            They get a one-line strip instead: still clickable, still showing
+            their count, at a fraction of a tile's height. Nothing became
+            unreachable in the reshuffle. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-3 py-1.5">
+          <span className="text-[10.5px] font-bold uppercase tracking-[0.05em] text-fg-subtle">
+            Also
+          </span>
+          {ACTIVITY_CATEGORIES.filter((c) => !TILE_CATEGORIES.includes(c)).map((c) => {
+            const active = category === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setParam({ type: active ? null : c })}
+                title={ACTIVITY_STYLE[c].definition}
+                className={`text-[11.5px] transition-colors ${
+                  active ? "font-bold text-accent underline" : "text-fg-muted hover:text-fg"
+                }`}
+              >
+                {ACTIVITY_STYLE[c].label}{" "}
+                <span className="crm-num font-bold">{metrics.byCategory[c]}</span>
               </button>
             );
           })}
