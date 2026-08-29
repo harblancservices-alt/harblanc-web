@@ -77,6 +77,12 @@ export type BolDoc = {
   deliveryDate: string | null;
   reference: string | null;
   notes: string | null;
+  /** ── WHICH END OF THIS LOAD THIS COMPANY IS ON.
+   * Derived in page.tsx from which matched_*_account_id equals the company
+   * being viewed, so it is a fact about THIS page rather than about the
+   * document — the same BOL carries a different role on the shipper's
+   * profile and on the receiver's. Rendered by ParsedFields. */
+  role: "shipper" | "consignee" | "bill_to";
 };
 
 /**

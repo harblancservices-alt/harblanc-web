@@ -69,14 +69,13 @@ import type { QuickTask } from "../../../../admin/quick-task-actions";
  * palette in Brent's screenshot is explicitly not being followed.
  */
 
-export type PageTab = "overview" | "know" | "contacts" | "shipments" | "documents";
+export type PageTab = "overview" | "know" | "contacts" | "shipments";
 
 const LABEL: Record<PageTab, string> = {
   overview: "Overview",
   know: "What we know",
   contacts: "Contacts",
   shipments: "Shipments",
-  documents: "Documents",
 };
 
 export function FileBody({
@@ -95,8 +94,6 @@ export function FileBody({
   contactsPanel,
   shipmentsPanel,
   shipmentCount,
-  documentsPanel,
-  documentCount,
   finalizeBanner,
   header,
 }: {
@@ -122,8 +119,6 @@ export function FileBody({
    * fetch, so this tree neither knows nor cares how loads are loaded. */
   shipmentsPanel: ReactNode;
   shipmentCount: number;
-  documentsPanel: ReactNode;
-  documentCount: number;
   finalizeBanner?: ReactNode;
   /** Everything the dark band renders except the tabs, which this component
    * supplies because it owns which one is open. */
@@ -145,7 +140,6 @@ export function FileBody({
               { key: "know" as const, label: LABEL.know },
               { key: "contacts" as const, label: LABEL.contacts, count: people.length },
               { key: "shipments" as const, label: LABEL.shipments, count: shipmentCount },
-              { key: "documents" as const, label: LABEL.documents, count: documentCount },
             ]}
           />
         }
@@ -235,19 +229,6 @@ export function FileBody({
           </FileCard>
         </div>
 
-        {/* DOCUMENTS. The same FilesTab the phone renders — mobile had a
-            documents surface and desktop only ever showed BOLs, buried
-            inside What we know. One component, both trees.
-
-            A SIBLING of the other tab panels, which it was not when it
-            shipped: it was nested INSIDE the shipments FileCard, so it was
-            hidden whenever tab !== "shipments" and, since tab can never be
-            "shipments" and "documents" at once, it never rendered at all.
-            The tab existed and opened onto nothing. JSX stayed balanced,
-            which is why tsc and the build were happy. */}
-        <div hidden={tab !== "documents"} className="flex min-h-0 flex-1 flex-col">
-          {documentsPanel}
-        </div>
       </div>
     </>
   );

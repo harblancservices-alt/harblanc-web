@@ -102,6 +102,17 @@ export function WhatWeKnow({
   const [value, setValue] = useState("");
   const [filled, setFilled] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+
+  /* See the Row that uses this. Plain derivation, no memo: it is a scan of
+     at most a couple of hundred small objects and it changes whenever the
+     documents do. */
+  const roles = new Set(bolDocs.map((d) => d.role));
+  const freightLabel =
+    roles.size === 1 && roles.has("shipper")
+      ? "Ships"
+      : roles.size === 1 && roles.has("consignee")
+        ? "Receives"
+        : "Freight";
   /** Which BOL is open. Held HERE, not inside the viewer, because both
    * halves follow it — the document on the left and the fields on the
    * right have to be showing the same BOL or the whole point of putting
@@ -186,8 +197,9 @@ export function WhatWeKnow({
           {facts.parsed === 0 ? (
             <p className="py-6 text-[12.5px] leading-relaxed text-fg-subtle">
               No bills of lading are matched to this company yet. When one is
-              processed and matched to them as the shipper, their lanes, what
-              they ship and who hauled it last will appear here on their own.
+              processed and matched to them — as the shipper, the receiver or
+              the bill-to — their lanes, the freight and who hauled it last
+              will appear here on their own.
             </p>
           ) : (
             <div>
@@ -206,8 +218,15 @@ export function WhatWeKnow({
                 </Row>
               ))}
 
+              {/* LABELLED BY WHAT THIS COMPANY ACTUALLY DID.
+                  This row said "Ships" unconditionally, which was safe
+                  only while the panel showed shipper matches alone. It
+                  now shows receivers too, and telling a warehouse that
+                  they "ship" the steel arriving on their dock is simply
+                  false. Mixed roles get the neutral word rather than a
+                  coin-flip between two specific ones. */}
               {facts.ships.length > 0 && (
-                <Row label="Ships">{facts.ships.join(", ")}</Row>
+                <Row label={freightLabel}>{facts.ships.join(", ")}</Row>
               )}
 
               {facts.lastBol && (

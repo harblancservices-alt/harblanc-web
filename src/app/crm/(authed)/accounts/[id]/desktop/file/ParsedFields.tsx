@@ -34,18 +34,57 @@ import { Micro } from "./chrome";
  * shows as "4,080 lb (1,630 + 2,450)" rather than a tidied number.
  */
 
-function Field({ label, value }: { label: string; value: string | null }) {
+/**
+ * WHAT THIS COMPANY DID ON THIS LOAD, in the words a broker would use.
+ *
+ * The entry query used to return shipper matches only, so this was never
+ * ambiguous — every document on the panel had been tendered by the company
+ * you were looking at. It now returns the receiver and the bill-to as well,
+ * which is the whole point of the change, and that makes saying WHICH the
+ * difference between informing somebody and misleading them: the same
+ * scan appears on two companies' profiles meaning opposite things.
+ */
+const ROLE_LINE: Record<BolDoc["role"], string> = {
+  shipper: "This company shipped this load",
+  consignee: "This company received this load",
+  bill_to: "This company was billed for this load",
+};
+
+/** The one row on the list that is this company. */
+const ROLE_FIELD: Record<BolDoc["role"], string> = {
+  shipper: "Shipper",
+  consignee: "Consignee",
+  bill_to: "Bill to",
+};
+
+function Field({
+  label,
+  value,
+  isThisCompany = false,
+}: {
+  label: string;
+  value: string | null;
+  isThisCompany?: boolean;
+}) {
   if (!value) return null;
   return (
     <div className="flex items-baseline gap-4 border-t border-line py-2 first:border-t-0">
-      <span className="w-[92px] shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+      <span
+        className={`w-[92px] shrink-0 text-[10px] font-bold uppercase tracking-[0.08em] ${
+          isThisCompany ? "text-accent" : "text-fg-subtle"
+        }`}
+      >
         {label}
       </span>
       {/* max-w in CH, not px: letting Notes run the full width of a
           1000px+ column produces a 200-character line nobody can track back
           to the start of. The cap is on the VALUE, not the row, so the
           label column stays aligned. */}
-      <span className="min-w-0 flex-1 whitespace-pre-wrap text-[12.5px] text-fg max-w-[80ch]">
+      <span
+        className={`min-w-0 flex-1 whitespace-pre-wrap text-[12.5px] text-fg max-w-[80ch] ${
+          isThisCompany ? "font-bold" : ""
+        }`}
+      >
         {value}
       </span>
     </div>
@@ -63,14 +102,28 @@ export function ParsedFields({ doc, total }: { doc: BolDoc; total: number }) {
         </span>
       </p>
 
+      <p className="mb-2 text-[12.5px] font-bold text-fg">{ROLE_LINE[doc.role]}</p>
+
       <div>
         <Field label="BOL no." value={doc.bolNumber} />
         <Field label="Reference" value={doc.reference} />
-        <Field label="Shipper" value={doc.shipperName} />
+        <Field
+          label="Shipper"
+          value={doc.shipperName}
+          isThisCompany={ROLE_FIELD[doc.role] === "Shipper"}
+        />
         <Field label="From" value={doc.shipperAddress} />
-        <Field label="Consignee" value={doc.consigneeName} />
+        <Field
+          label="Consignee"
+          value={doc.consigneeName}
+          isThisCompany={ROLE_FIELD[doc.role] === "Consignee"}
+        />
         <Field label="To" value={doc.consigneeAddress} />
-        <Field label="Bill to" value={doc.billTo} />
+        <Field
+          label="Bill to"
+          value={doc.billTo}
+          isThisCompany={ROLE_FIELD[doc.role] === "Bill to"}
+        />
         <Field label="Commodity" value={doc.commodity} />
         <Field label="Weight" value={doc.weight} />
         <Field label="Carrier" value={doc.carrier} />

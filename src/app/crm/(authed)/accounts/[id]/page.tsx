@@ -14,6 +14,7 @@ import { FilesTab } from "./FilesTab";
 import { callOutcomeLabel, callOutcomeTone } from "../../calls/outcomes";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { type CrmBolDocument } from "./BolSection";
+import { bolRole } from "./desktop/file/bolRole";
 import { CompanyProfileSection } from "./CompanyProfileSection";
 import { ShipmentsTab } from "./ShipmentsTab";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
@@ -160,16 +161,32 @@ export default async function AccountDetailPage({
     // address it needed is in the header now. Mobile still renders the
     // self-fetching LocationsSection, so nothing lost a location; this page
     // simply stopped paying for a query nothing on it read.
-    // The BOLs this company SHIPPED — panel 04's left half. Matched as the
-    // shipper specifically: a company that appears on a BOL as the
-    // consignee received that freight, it did not tender it, and listing
-    // somebody else's shipment as this company's lane would be wrong.
+    // THE BOLs THIS COMPANY APPEARS ON — panel 04's left half.
+    //
+    // This was `.eq("matched_shipper_account_id", id)`, and the reasoning
+    // for that was sound as far as it went: a consignee received the
+    // freight, it did not tender it, so presenting somebody else's
+    // shipment as this company's lane would be wrong.
+    //
+    // But the conclusion drawn from it was too strong. Ten companies are
+    // matched on a BOL as the consignee (7) or the bill-to (3) and saw
+    // "No bill of lading on file" — the paperwork that CREATED the record
+    // was invisible on it. Brent: "you need to identify the shipper and
+    // receiver."
+    //
+    // So the entry is shown whichever end of the load the company sits on,
+    // and the original concern is answered by LABELLING the role rather
+    // than by hiding three quarters of the matches. `role` is derived
+    // below and rendered beside the document, so the panel says "this
+    // company received this freight" instead of implying it shipped it.
     supabase
       .from("crm_bol_entries")
       .select(
-        "id, document_id, bol_number, carrier, shipper_name, shipper_address, consignee_name, consignee_address, bill_to, commodity, weight, pickup_date, delivery_date, reference, notes",
+        "id, document_id, bol_number, carrier, shipper_name, shipper_address, consignee_name, consignee_address, bill_to, commodity, weight, pickup_date, delivery_date, reference, notes, matched_shipper_account_id, matched_consignee_account_id, matched_bill_to_account_id",
       )
-      .eq("matched_shipper_account_id", id)
+      .or(
+        `matched_shipper_account_id.eq.${id},matched_consignee_account_id.eq.${id},matched_bill_to_account_id.eq.${id}`,
+      )
       .is("deleted_at", null)
       .limit(200),
  
@@ -616,6 +633,9 @@ export default async function AccountDetailPage({
     delivery_date: string | null;
     reference: string | null;
     notes: string | null;
+    matched_shipper_account_id: string | null;
+    matched_consignee_account_id: string | null;
+    matched_bill_to_account_id: string | null;
   }[];
 
   /**
@@ -684,6 +704,9 @@ export default async function AccountDetailPage({
         deliveryDate: t(b.delivery_date),
         reference: t(b.reference),
         notes: t(b.notes),
+        // Which end of this load the company is on — see bolRole.ts for
+        // the precedence and why it is a separate, tested module.
+        role: bolRole(b, id),
       };
     })
     .filter((d): d is BolDoc => d !== null)
@@ -890,8 +913,6 @@ export default async function AccountDetailPage({
           canReassign={isOwner}
           nowMs={nowMs}
           shipmentCount={shipmentCountRes.count ?? 0}
-          documentsPanel={documentsPanel}
-          documentCount={documents.length}
           shipmentsPanel={
             <ShipmentsTab accountId={account.id as string} accountName={accountName} />
           }

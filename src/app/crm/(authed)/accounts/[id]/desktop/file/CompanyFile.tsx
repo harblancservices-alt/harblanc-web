@@ -82,8 +82,6 @@ export function CompanyFile({
   finalizeBanner,
   shipmentsPanel,
   shipmentCount,
-  documentsPanel,
-  documentCount,
 }: {
   accountId: string;
   accountName: string;
@@ -115,10 +113,6 @@ export function CompanyFile({
    * loaded. */
   shipmentsPanel: ReactNode;
   shipmentCount: number;
-  /** FilesTab, rendered on the server by the page -- the same element the
-   * phone tree gets, so there is one Documents surface, not two. */
-  documentsPanel: ReactNode;
-  documentCount: number;
 }) {
   /** The header's sub-line under GAPS — what they actually are, in place of
    * the mockup's "1 blocks Qualified", which would state a rule this app
@@ -166,8 +160,6 @@ export function CompanyFile({
         companyDefaults={companyDefaults}
         reps={reps}
         shipmentCount={shipmentCount}
-        documentsPanel={documentsPanel}
-        documentCount={documentCount}
         finalizeBanner={finalizeBanner}
         historyPanel={
           <HistoryPanel accountId={accountId} items={activityItems} nowMs={nowMs} />
