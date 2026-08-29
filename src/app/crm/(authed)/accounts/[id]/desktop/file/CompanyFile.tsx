@@ -76,6 +76,7 @@ export function CompanyFile({
   tasks,
   facts,
   bolDocs,
+  linkedPanel,
   allFieldsCount,
   companyDefaults,
   reps,
@@ -108,6 +109,7 @@ export function CompanyFile({
   tasks: FileTask[];
   facts: BolFacts;
   bolDocs: BolDoc[];
+  linkedPanel: ReactNode;
   allFieldsCount: number;
   companyDefaults: CompanyDefaults;
   reps: RepOption[];
@@ -180,6 +182,7 @@ export function CompanyFile({
           companyName: accountName,
           facts,
           bolDocs,
+          linkedPanel,
           gaps,
           allFieldsCount,
           companyDefaults,

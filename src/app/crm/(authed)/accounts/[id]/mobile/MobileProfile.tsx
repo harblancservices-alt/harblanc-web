@@ -99,6 +99,7 @@ export function MobileProfile({
   notesPanel,
   shipmentsPanel,
   documentsPanel,
+  linkedPanel,
   companyProfilePanel,
 }: {
   accountId: string;
@@ -143,6 +144,9 @@ export function MobileProfile({
   notesPanel: ReactNode;
   shipmentsPanel: ReactNode;
   documentsPanel: ReactNode;
+  /** The "Linked company" card — brings its own chrome, renders null
+   * when this company shares no BOL with another live one. */
+  linkedPanel: ReactNode;
   companyProfilePanel: ReactNode;
 }) {
   return (
@@ -166,6 +170,14 @@ export function MobileProfile({
 
       <div className="flex flex-col gap-[11px] px-3 pt-[11px]">
         {finalizeBanner}
+
+        {/* NEAR THE TOP, unlike desktop. The phone has no "What we know"
+            panel to hang this off — its only BOL surface is the Documents
+            file list, which is a list of files rather than of parsed
+            parties. So it sits with the other provenance context just
+            under the header, above Contact, where an agent about to call
+            somebody can see that the other end of the load is on file. */}
+        {linkedPanel}
 
         {followUp && (
           <MobileFollowUp

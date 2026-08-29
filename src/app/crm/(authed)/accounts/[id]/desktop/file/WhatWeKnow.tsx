@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { fillCompanyGap } from "../../details-actions";
 import { ContactDialog } from "../../ContactDialog";
@@ -73,6 +73,7 @@ export function WhatWeKnow({
   companyName,
   facts,
   bolDocs,
+  linkedPanel,
   gaps,
   allFieldsCount,
   companyDefaults,
@@ -86,6 +87,10 @@ export function WhatWeKnow({
   /** The BOL PDFs themselves, newest first — joined company ->
    * crm_bol_entries -> crm_documents in page.tsx. See BolViewer. */
   bolDocs: BolDoc[];
+  /** The "Linked company" control — the other companies off the same
+   * bill of lading. Built on the server in page.tsx; null when this BOL
+   * produced no other live company, which is the common case. */
+  linkedPanel: ReactNode;
   gaps: FileGap[];
   /** How many detail fields the record has in total — the footer's honest
    * "there is more than this" count. */
@@ -180,6 +185,14 @@ export function WhatWeKnow({
         <div className="flex min-w-0 flex-col overflow-y-auto">
         {/* ── The fields read off the open document ─────────────────── */}
         {openDoc && <ParsedFields doc={openDoc} total={bolDocs.length} />}
+
+        {/* DIRECTLY UNDER THE PARSED PARTIES, which is where it belongs:
+            the document names two ends of a load, the fields above list
+            them, and this is the one you can go and open. Putting it in
+            the header or a side rail would separate the link from the
+            reason it exists. It renders nothing at all when the BOL named
+            no other live company. */}
+        {linkedPanel}
 
         {/* ── ACROSS EVERY BOL — only worth drawing when there IS more
             than one, since with a single document the aggregate is the

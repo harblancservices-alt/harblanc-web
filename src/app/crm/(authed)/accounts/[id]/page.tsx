@@ -15,6 +15,8 @@ import { callOutcomeLabel, callOutcomeTone } from "../../calls/outcomes";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { type CrmBolDocument } from "./BolSection";
 import { bolRole } from "./desktop/file/bolRole";
+import { linkedCompanies } from "./bolLinks";
+import { LinkedCompanies } from "./LinkedCompanies";
 import { CompanyProfileSection } from "./CompanyProfileSection";
 import { ShipmentsTab } from "./ShipmentsTab";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
@@ -666,6 +668,51 @@ export default async function AccountDetailPage({
           .is("deleted_at", null)
       ).data ?? [])
     : [];
+
+  /**
+   * THE OTHER COMPANIES ON THOSE SAME BOLs — the "Linked company" control.
+   *
+   * Rides along with the document fetch above rather than adding a third
+   * round-trip: both are conditional on the same "does this company have
+   * BOL entries at all" check, and both are skipped on the ~85 companies
+   * that have none.
+   *
+   * `deleted_at is null` is the whole of the deleted-or-merged handling.
+   * A pointer at a company that has since gone resolves to no name, and
+   * linkedCompanies() drops it — no dangling button to special-case.
+   */
+  const linkedIds = [
+    ...new Set(
+      bolRows
+        .flatMap((b) => [
+          b.matched_shipper_account_id,
+          b.matched_consignee_account_id,
+          b.matched_bill_to_account_id,
+        ])
+        .filter((v): v is string => !!v && v !== id),
+    ),
+  ];
+  const linkedRows = linkedIds.length
+    ? ((
+        await supabase
+          .from("crm_accounts")
+          .select("id, name")
+          .in("id", linkedIds)
+          .is("deleted_at", null)
+      ).data ?? [])
+    : [];
+  const linked = linkedCompanies(
+    /* Newest shared load first, so a pair that appears on several BOLs is
+       named by their most recent one. Same tolerance for an unparseable
+       TEXT pickup_date as bolFacts and bolDocs: it sorts last. */
+    [...bolRows].sort((a, b) => {
+      const at = Date.parse(a.pickup_date ?? "");
+      const bt = Date.parse(b.pickup_date ?? "");
+      return (Number.isNaN(bt) ? -Infinity : bt) - (Number.isNaN(at) ? -Infinity : at);
+    }),
+    id,
+    new Map((linkedRows as { id: string; name: string }[]).map((r) => [r.id, r.name])),
+  );
   const docById = new Map(
     (bolDocRows as {
       id: string;
@@ -786,6 +833,7 @@ export default async function AccountDetailPage({
       industry={account.industry as string | null}
       source={account.source as string | null}
       bolRole={account.bol_role as string | null}
+      linkedPanel={<LinkedCompanies companies={linked} variant="mobile" />}
       city={accountCity}
       state={accountState}
       stage={stage}
@@ -889,6 +937,7 @@ export default async function AccountDetailPage({
           fullAddress={fullAddress}
           source={account.source as string | null}
           bolRole={account.bol_role as string | null}
+          linkedPanel={<LinkedCompanies companies={linked} />}
           stage={stage}
           ownerLabel={currentRepLabel}
           reassign={
