@@ -141,7 +141,30 @@ export function CompanyFile({
        grows when there are contacts to pick from, the header grows when the
        subtitle wraps. A number that has to be re-derived per company is the
        wrong tool. */
-    <div className="flex min-h-screen flex-col bg-canvas">
+    /* ── THE FRAME, DESKTOP ONLY ──────────────────────────────────────
+       Brent, 2026-08-29, on a 24" 1920x1080: the profile "looks super
+       stretched", runs flush to the top of the viewport, and its graphite
+       header is the SAME value as the sidebar, so the two read as one
+       surface with no seam.
+
+       The fix is a gutter and an edge, NOT a column. He complained
+       earlier in this project that a page "didn't fit to my screen when I
+       moved it to a bigger monitor", so there is deliberately no
+       max-width here: the content still uses every pixel available, it is
+       just inset from the four edges and given a border.
+
+       WHAT IT COSTS: 12px left, 16px right (the larger gutter he asked
+       for, before the scrollbar) and a 1px border each side — 30px of
+       horizontal working width in total. On his 1920 screen that is under
+       2% of the content area and about 15px off the BOL preview column,
+       which is the trade he was asked about and comfortably the right way
+       round.
+
+       EVERY UTILITY IS lg: PREFIXED. A phone has no spare width for a
+       decorative frame, so at 375px this renders exactly as it did — no
+       margin, no border, no rounded corners. */
+    <div className="min-h-screen bg-canvas lg:p-3 lg:pr-4">
+      <div className="flex min-h-screen flex-col overflow-hidden bg-canvas lg:min-h-[calc(100vh-1.5rem)] lg:rounded-xl lg:border lg:border-line-strong lg:shadow-e2">
       {/* The header is rendered by FileBody, not here: Brent's folder tabs
           live INSIDE the dark band and need to know which section is open,
           and that state belongs to FileBody. Its props are threaded through
@@ -198,6 +221,7 @@ export function CompanyFile({
         }
         shipmentsPanel={shipmentsPanel}
       />
+      </div>
     </div>
   );
 }

@@ -248,7 +248,12 @@ export function WhatWeKnow({
                     facts.lastBol.date,
                     facts.lastBol.number ? `BOL #${facts.lastBol.number}` : null,
                     facts.lastBol.weight,
-                    facts.lastBol.carrier ? `hauled by ${facts.lastBol.carrier}` : null,
+                    /* Same rule as the Carrier row in ParsedFields: our own
+                       name is not a fact about this company. A third-party
+                       carrier still shows. */
+                    facts.lastBol.carrier && !/harblanc/i.test(facts.lastBol.carrier)
+                      ? `hauled by ${facts.lastBol.carrier}`
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}

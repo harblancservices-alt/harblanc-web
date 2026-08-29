@@ -57,6 +57,27 @@ const ROLE_FIELD: Record<BolDoc["role"], string> = {
   bill_to: "Bill to",
 };
 
+/**
+ * OUR OWN NAME NEVER RENDERS AS A FIELD ON A CUSTOMER'S PROFILE.
+ *
+ * Brent, twice: our name does not belong on these records. The Carrier row
+ * on Solar-Link read "HARBLANC SERVICES LLC" — true of the load, useless on
+ * their profile, and the second time he has had to point at it.
+ *
+ * The nine entries naming us were nulled in the database on 2026-08-29.
+ * This is the guard that stops a future parse putting it back: the value is
+ * dropped at RENDER, so it cannot reappear whatever gets written. It is not
+ * a data fix pretending to be a display fix — both are in place, because
+ * the data fix alone would have to be repeated after every parse.
+ *
+ * Only the Carrier row is filtered. A broker or a third-party carrier is a
+ * fact about the load and still shows.
+ */
+function withoutUs(value: string | null): string | null {
+  if (!value) return null;
+  return /harblanc/i.test(value) ? null : value;
+}
+
 function Field({
   label,
   value,
@@ -147,7 +168,7 @@ export function ParsedFields({ doc, total }: { doc: BolDoc; total: number }) {
         />
         <Field
           label="Carrier"
-          value={doc.carrier}
+          value={withoutUs(doc.carrier)}
           note="Carrier named on this document."
         />
         <Field label="Commodity" value={doc.commodity} />
