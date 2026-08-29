@@ -17,9 +17,11 @@
  * what is missing.
  */
 
-/** The gaps worth chasing. Deliberately short: three things an agent can
- * actually go and find out, not every empty column on the record. */
-export const GAP_KINDS = ["contact", "address", "industry"] as const;
+/** The gaps worth chasing. Deliberately short: things an agent can actually
+ * go and find out, not every empty column on the record. `contact` and
+ * `contact_name` are two states of the same question — is there anybody to
+ * call, and do we know who they are — and never fire together. */
+export const GAP_KINDS = ["contact", "contact_name", "address", "industry"] as const;
 export type GapKind = (typeof GAP_KINDS)[number];
 
 export type CompletenessGap = {
@@ -67,6 +69,25 @@ export type CompletenessInput = {
   industry?: string | null;
   /** How many contacts this company has on file. */
   contactCount: number;
+  /**
+   * How many of those have somebody's NAME on them.
+   *
+   * THE TRAP THIS EXISTS TO AVOID. A BOL that prints a phone against a
+   * blank Contact line should still produce something callable — but the
+   * moment that contact is created, contactCount stops being 0 and the
+   * "Find a contact" gap disappears. The company would look MORE complete
+   * for having gained a nameless number, and drop off the dashboard that
+   * was going to get it chased. That is backwards.
+   *
+   * So the count of NAMED contacts is what decides whether anybody here is
+   * actually identified.
+   *
+   * OPTIONAL, defaulting to contactCount, so the several callers that do
+   * not load a per-contact flag keep their exact current behaviour: if
+   * every contact is assumed named, this gap can never fire for them.
+   * Callers that do know pass the real number.
+   */
+  namedContactCount?: number;
   /** crm_accounts.source — provenance for the pill, optional because the
    * older callers of this derivation never needed it. */
   source?: string | null;
@@ -74,6 +95,10 @@ export type CompletenessInput = {
 
 const GAP_LABEL: Record<GapKind, string> = {
   contact: "Find a contact",
+  // NAMES THE NEXT ACTION, not the deficiency. "Add a contact name" would
+  // describe the record; this describes what the agent does — pick up the
+  // number that is already on file and ask.
+  contact_name: "Find out who answers",
   address: "Add their address",
   industry: "Set their industry",
 };
@@ -81,6 +106,7 @@ const GAP_LABEL: Record<GapKind, string> = {
 /** Why it matters, shown small under the label so the ask isn't arbitrary. */
 export const GAP_REASON: Record<GapKind, string> = {
   contact: "nobody to call there yet",
+  contact_name: "a number on file, but nobody's name",
   address: "no address on file",
   industry: "not categorised",
 };
@@ -92,6 +118,18 @@ export const GAP_REASON: Record<GapKind, string> = {
  */
 export const GAP_BLOCKS_WORK: Record<GapKind, boolean> = {
   contact: true,
+  /**
+   * FALSE, and the distinction is the point. `blocking` means "you cannot
+   * start" — and you CAN start here: there is a number, you dial it, and
+   * the person who picks up tells you their name. That is the whole job.
+   *
+   * It is still a gap, so the company keeps exactly the same gap COUNT it
+   * had when it had nobody on file at all, and keeps its place on the
+   * dashboard. What changes is only the instruction: "Find a contact"
+   * becomes "Find out who answers", which is a smaller and more specific
+   * ask than the one it replaces.
+   */
+  contact_name: false,
   address: false,
   industry: false,
 };
@@ -126,7 +164,14 @@ export function gapsForCompany(company: CompletenessInput): CompletenessGap[] {
       blocking: GAP_BLOCKS_WORK[kind],
     });
 
-  if (company.contactCount === 0) add("contact");
+  if (company.contactCount === 0) {
+    add("contact");
+  } else if ((company.namedContactCount ?? company.contactCount) === 0) {
+    // Contacts exist, but not one of them is a person yet — every row is a
+    // bare number. Mutually exclusive with "contact" above: a company is
+    // either missing people or missing their names, never told both.
+    add("contact_name");
+  }
   if (isBlank(company.address) && (isBlank(company.city) || isBlank(company.state))) add("address");
   if (isBlank(company.industry)) add("industry");
   return gaps;

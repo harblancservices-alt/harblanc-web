@@ -65,6 +65,9 @@ import { FileCard, SectionHead } from "./chrome";
 export type CallPerson = {
   id: string;
   name: string;
+  /** crm_contacts.name_unknown — a number off a BOL with nobody's name
+   * against it. Still the number to dial; just not a person yet. */
+  nameUnknown: boolean;
   title: string | null;
   email: string | null;
   /** Every stored number, label included. First is the one to try. */
@@ -238,6 +241,13 @@ export function WhoDoICall({
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1">
                   {hero.title ? (
                     <span className="text-[12.5px] font-bold leading-snug text-fg">{hero.title}</span>
+                  ) : hero.nameUnknown ? (
+                    /* More useful than "No title recorded" here: it says
+                       where the number came from and what to do with it,
+                       which is the whole content of this record. */
+                    <span className="text-[12.5px] font-semibold leading-snug text-fg-subtle">
+                      Number off their BOL · nobody named on it
+                    </span>
                   ) : (
                     <span className="text-[12.5px] font-semibold leading-snug text-fg-subtle">
                       No title recorded
@@ -267,9 +277,18 @@ export function WhoDoICall({
                   </span>
                   {/* The instruction, not the disclaimer. Only when the
                       number really is the switchboard. */}
+                  {/* "ask for <first name>" needs a first name. On a
+                      contact that is only a number — a BOL that printed a
+                      phone against a blank Contact line — there is nobody
+                      to ask for, and splitting the placeholder would have
+                      produced "ask for Name". The instruction becomes the
+                      one that actually applies, and it is the same action
+                      the gap on this company is asking for. */}
                   {heroOnMain && (
                     <span className="text-[10.5px] font-semibold text-white/75">
-                      Main line · ask for {hero.name.split(" ")[0]}
+                      {hero.nameUnknown
+                        ? "Main line · ask who you are speaking to"
+                        : `Main line · ask for ${hero.name.split(" ")[0]}`}
                     </span>
                   )}
                 </a>

@@ -70,10 +70,26 @@ describe("gapsForCompany", () => {
   });
 
   it("covers every declared kind", () => {
-    const all = gapsForCompany(
-      co({ contactCount: 0, industry: null, address: null, city: null, state: null }),
+    // Across TWO companies, not one, since 2026-08-29: `contact` and
+    // `contact_name` are two states of the same question and never fire
+    // together, so no single record can produce all four. The property
+    // this test exists for is unchanged — every kind in GAP_KINDS is
+    // reachable, and none is declared and then never emitted.
+    const bare = { industry: null, address: null, city: null, state: null };
+    const nobodyOnFile = gapsForCompany(co({ ...bare, contactCount: 0 }));
+    const aNumberButNoName = gapsForCompany(
+      co({ ...bare, contactCount: 1, namedContactCount: 0 }),
     );
-    expect(new Set(all.map((g) => g.kind))).toEqual(new Set(GAP_KINDS));
+
+    expect(
+      new Set([...nobodyOnFile, ...aNumberButNoName].map((g) => g.kind)),
+    ).toEqual(new Set(GAP_KINDS));
+
+    // And the exclusivity that forced the split, stated outright.
+    expect(nobodyOnFile.map((g) => g.kind)).toContain("contact");
+    expect(nobodyOnFile.map((g) => g.kind)).not.toContain("contact_name");
+    expect(aNumberButNoName.map((g) => g.kind)).toContain("contact_name");
+    expect(aNumberButNoName.map((g) => g.kind)).not.toContain("contact");
   });
 });
 
@@ -122,5 +138,97 @@ describe("countGaps", () => {
 
   it("is zero for a complete book", () => {
     expect(countGaps([co()])).toBe(0);
+  });
+});
+
+/**
+ * THE NAMELESS-CONTACT TRAP.
+ *
+ * Solar-Link Global, 2026-08-29. Its BOL printed a phone against a blank
+ * Contact line. Recording that number as a contact is right — it is the
+ * only callable thing we have — but it must not make the company read as
+ * staffed, or the record that most needs chasing quietly leaves the
+ * dashboard for having gained a phone number.
+ */
+describe("a contact with a number but no name", () => {
+  const SOLAR_LINK = {
+    id: "b39176ac-c79f-426c-93b8-7645385fade8",
+    name: "Solar-Link Global",
+    city: "Nacogdoches",
+    state: "TX",
+    address: "1715 S University Dr, Nacogdoches, TX 75961",
+    industry: "Solar EPC",
+    source: "bol",
+  };
+
+  it("was a blocking 'contact' gap before the number was recorded", () => {
+    const gaps = gapsForCompany({ ...SOLAR_LINK, contactCount: 0, namedContactCount: 0 });
+    expect(gaps.map((g) => g.kind)).toEqual(["contact"]);
+    expect(gaps[0].blocking).toBe(true);
+  });
+
+  it("STILL HAS A GAP once the nameless number is on file", () => {
+    // The acceptance test. Creating the contact must not make the company
+    // look finished.
+    const gaps = gapsForCompany({ ...SOLAR_LINK, contactCount: 1, namedContactCount: 0 });
+    expect(gaps.map((g) => g.kind)).toEqual(["contact_name"]);
+  });
+
+  it("keeps the same gap COUNT, so it holds its place on the dashboard", () => {
+    const before = gapsForCompany({ ...SOLAR_LINK, contactCount: 0, namedContactCount: 0 });
+    const after = gapsForCompany({ ...SOLAR_LINK, contactCount: 1, namedContactCount: 0 });
+    expect(after).toHaveLength(before.length);
+  });
+
+  it("asks the smaller question now that there is a number to dial", () => {
+    const [gap] = gapsForCompany({ ...SOLAR_LINK, contactCount: 1, namedContactCount: 0 });
+    expect(gap.label).toBe("Find out who answers");
+    // Not blocking: you CAN start. You dial it and ask.
+    expect(gap.blocking).toBe(false);
+  });
+
+  it("clears the moment somebody puts a name to the number", () => {
+    // Self-healing, like every other gap — no task to close by hand.
+    expect(
+      gapsForCompany({ ...SOLAR_LINK, contactCount: 1, namedContactCount: 1 }),
+    ).toEqual([]);
+  });
+
+  it("never reports both contact gaps at once", () => {
+    for (const [total, named] of [[0, 0], [1, 0], [2, 1], [3, 3]]) {
+      const kinds = gapsForCompany({
+        ...SOLAR_LINK,
+        contactCount: total,
+        namedContactCount: named,
+      }).map((g) => g.kind);
+      expect(kinds.filter((k) => k === "contact" || k === "contact_name").length).toBeLessThan(2);
+    }
+  });
+
+  it("does not fire when a named contact sits alongside a nameless number", () => {
+    // One person identified is enough to say somebody is on file here. The
+    // loose number is a stray, not a company-level gap.
+    expect(
+      gapsForCompany({ ...SOLAR_LINK, contactCount: 2, namedContactCount: 1 }),
+    ).toEqual([]);
+  });
+
+  it("leaves every existing caller's behaviour exactly as it was", () => {
+    // namedContactCount is optional and defaults to contactCount, so a
+    // caller that does not load the flag can never produce this gap.
+    expect(gapsForCompany({ ...SOLAR_LINK, contactCount: 1 })).toEqual([]);
+    expect(gapsForCompany({ ...SOLAR_LINK, contactCount: 0 }).map((g) => g.kind)).toEqual([
+      "contact",
+    ]);
+  });
+
+  it("still counts toward the book total", () => {
+    expect(countGaps([{ ...SOLAR_LINK, contactCount: 1, namedContactCount: 0 }])).toBe(1);
+  });
+
+  it("appears in the book's gap list rather than dropping off it", () => {
+    const rows = gapsForBook([{ ...SOLAR_LINK, contactCount: 1, namedContactCount: 0 }]);
+    expect(rows.map((g) => g.kind)).toEqual(["contact_name"]);
+    expect(rows[0].companyName).toBe("Solar-Link Global");
   });
 });

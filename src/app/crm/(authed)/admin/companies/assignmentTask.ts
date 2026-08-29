@@ -148,6 +148,10 @@ export function assignmentBrief(company: CompletenessInput & { contactName?: str
   if (place) known.push(place);
 
   if (gaps.includes("contact")) missing.push("nobody on file to call");
+  // A number with nobody's name on it. Named separately from "nobody on
+  // file" because it is a different afternoon: you are not hunting for a
+  // way in, you are dialling one and asking who picked up.
+  if (gaps.includes("contact_name")) missing.push("a number but nobody's name against it");
   if (gaps.includes("address")) missing.push("no address");
   if (gaps.includes("industry")) missing.push("no trade recorded");
 
@@ -180,7 +184,10 @@ export function assignmentDoneWhen(
 ): string | null {
   const gaps = gapsForCompany(company).map((g) => g.kind);
   if (normalizeStage(stage) !== "new_lead") return null;
-  return gaps.includes("contact")
+  // BOTH contact gaps land here. A company holding a bare BOL number is
+  // not done when somebody has "spoken to the right person" — nobody knows
+  // yet who the right person is, and that is exactly what the call is for.
+  return gaps.includes("contact") || gaps.includes("contact_name")
     ? "A named contact with a phone number is on the record."
     : "You have spoken to the right person and logged what they said.";
 }

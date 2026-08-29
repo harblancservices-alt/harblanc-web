@@ -1,4 +1,4 @@
-import { contactCountByAccount } from "@/lib/crm/contactCount";
+import { contactCountsByAccount } from "@/lib/crm/contactCount";
 import { createCrmServerClient, type CrmUser } from "@/lib/crm/auth";
 import { titleCaseWords, centralDayRange } from "../_shell/format";
 import {
@@ -148,7 +148,7 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
   // Gap inputs, from the SAME company rows already loaded above plus one
   // grouped contact count. No extra per-company queries.
   const bookIds = ((companiesRes.data ?? []) as { id: string }[]).map((a) => a.id);
-  const contactCounts = await contactCountByAccount(supabase, bookIds);
+  const contactCounts = await contactCountsByAccount(supabase, bookIds);
   const completeness: CompletenessInput[] = (
     (companiesRes.data ?? []) as {
       id: string;
@@ -167,7 +167,8 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
     address: a.address ?? null,
     industry: a.industry ?? null,
     source: a.source ?? null,
-    contactCount: contactCounts.get(a.id) ?? 0,
+    contactCount: contactCounts.get(a.id)?.total ?? 0,
+    namedContactCount: contactCounts.get(a.id)?.named ?? 0,
   }));
 
   return {

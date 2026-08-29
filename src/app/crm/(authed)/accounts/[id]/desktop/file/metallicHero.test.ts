@@ -22,6 +22,7 @@ const defaults = {} as CallPerson["defaults"];
 
 function person(p: Partial<CallPerson> & { id: string; name: string }): CallPerson {
   return {
+    nameUnknown: false,
     title: null,
     email: null,
     phones: [],

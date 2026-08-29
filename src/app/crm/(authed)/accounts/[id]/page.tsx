@@ -111,7 +111,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_contacts")
       .select(
-        "id, name, title, email, phones, links, best_time_to_call, is_decision_maker, notes, next_followup_at, last_contacted_at, role_category, current_mood",
+        "id, name, name_unknown, title, email, phones, links, best_time_to_call, is_decision_maker, notes, next_followup_at, last_contacted_at, role_category, current_mood",
       )
       .eq("account_id", id)
       .is("deleted_at", null)
@@ -543,6 +543,7 @@ export default async function AccountDetailPage({
       return {
         id: c.id,
         name: c.name,
+        nameUnknown: !!(c as { name_unknown?: boolean | null }).name_unknown,
         title: c.title ?? null,
         email: c.email ?? null,
         phones: c.phones,
@@ -607,6 +608,13 @@ export default async function AccountDetailPage({
     address: accountAddress,
     industry: account.industry as string | null,
     contactCount: contacts.length,
+    // A contact that is only a phone number does not count as somebody we
+    // know — see completeness.ts. Without this the gap would vanish the
+    // moment a nameless BOL number was recorded, and the company would
+    // look finished for having gained one.
+    namedContactCount: contacts.filter(
+      (c) => !(c as { name_unknown?: boolean | null }).name_unknown,
+    ).length,
     currentCarrier: account.current_carrier as string | null,
     annualFreightSpend: account.annual_freight_spend as number | null,
   });

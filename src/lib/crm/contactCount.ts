@@ -16,7 +16,51 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * should not pay for a second query just to share the counting.
  */
 
-/** The count, from rows you already fetched. Pure — no DB. */
+/**
+ * TOTAL AND NAMED, from rows you already fetched. Pure — no DB.
+ *
+ * "Named" excludes a contact carrying `name_unknown` — a phone number off a
+ * BOL whose Contact line was blank. Both numbers are needed because they
+ * answer different questions: total says whether there is anything to dial,
+ * named says whether we know who we would be dialling. A company with one
+ * nameless number has total 1 and named 0, which is exactly the state that
+ * must not read as "staffed" (see completeness.ts).
+ */
+export function countContactRowsDetailed(
+  rows: { account_id: string | null; name_unknown?: boolean | null }[] | null | undefined,
+): Map<string, { total: number; named: number }> {
+  const out = new Map<string, { total: number; named: number }>();
+  for (const row of rows ?? []) {
+    const id = row.account_id;
+    if (!id) continue;
+    const cur = out.get(id) ?? { total: 0, named: 0 };
+    cur.total += 1;
+    if (!row.name_unknown) cur.named += 1;
+    out.set(id, cur);
+  }
+  return out;
+}
+
+/**
+ * The same, fetched. One grouped query for the whole set. Companies with
+ * nobody on file are absent from the map; callers read that as zero.
+ */
+export async function contactCountsByAccount(
+  supabase: SupabaseClient,
+  accountIds: string[],
+): Promise<Map<string, { total: number; named: number }>> {
+  if (accountIds.length === 0) return new Map();
+  const { data } = await supabase
+    .from("crm_contacts")
+    .select("account_id, name_unknown")
+    .in("account_id", accountIds)
+    .is("deleted_at", null);
+  return countContactRowsDetailed(
+    data as { account_id: string | null; name_unknown: boolean | null }[] | null,
+  );
+}
+
+/** The plain total, from rows you already fetched. Pure — no DB. */
 export function countContactRows(
   rows: { account_id: string | null }[] | null | undefined,
 ): Map<string, number> {

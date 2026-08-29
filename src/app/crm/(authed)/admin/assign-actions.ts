@@ -225,7 +225,7 @@ export async function assignCompanies(
   const { data: contactRows } = needTask.length
     ? await supabase
         .from("crm_contacts")
-        .select("account_id, name, phone")
+        .select("account_id, name, phone, name_unknown")
         .in("account_id", needTask)
         .is("deleted_at", null)
         .order("name", { ascending: true })
@@ -243,6 +243,9 @@ export async function assignCompanies(
   for (const row of factRows ?? []) {
     const id = row.id as string;
     const people = contactsByAccount.get(id) ?? [];
+    const named = people.filter(
+      (p) => !(p as { name_unknown?: boolean | null }).name_unknown,
+    );
     const input = {
       id,
       name: (row.name as string) || "",
@@ -251,12 +254,19 @@ export async function assignCompanies(
       address: (row.address as string | null) ?? null,
       industry: (row.industry as string | null) ?? null,
       contactCount: people.length,
+      namedContactCount: named.length,
     };
     factsById.set(id, {
       brief: assignmentBrief({
         ...input,
-        contactName: people[0]?.name ?? null,
-        phone: people[0]?.phone ?? (row.phone as string | null) ?? null,
+        /* The first NAMED person, not simply the first row. A contact that
+           is only a phone number carries the placeholder name, and passing
+           that through produced briefs reading "Name unknown on (936)
+           800-2010" — which states a person's name that nobody knows. With
+           no named contact this falls to null and the brief says "a
+           company number, <phone>" instead, which is true. */
+        contactName: named[0]?.name ?? null,
+        phone: named[0]?.phone ?? people[0]?.phone ?? (row.phone as string | null) ?? null,
       }),
       doneWhen: assignmentDoneWhen(row.lifecycle_status as string | null, input),
     });

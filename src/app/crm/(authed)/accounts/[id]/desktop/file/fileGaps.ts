@@ -92,10 +92,23 @@ const EXTRA: Record<"carrier" | "spend", Omit<FileGap, "kind">> = {
 /** The three shared gaps, reworded for a page where you already know which
  * company you are looking at. The dashboard says "Add their address"
  * because it is listing many companies; here, "their" is redundant. */
-const SHARED: Record<"contact" | "address" | "industry", Omit<FileGap, "kind" | "blocking">> = {
+const SHARED: Record<
+  "contact" | "contact_name" | "address" | "industry",
+  Omit<FileGap, "kind" | "blocking">
+> = {
   contact: {
     label: "Somebody to call",
     why: "nobody is on file here yet",
+    placeholder: null,
+    needsForm: true,
+  },
+  /* A number with nobody's name on it. Worded as the next action rather
+     than the deficiency, and `needsForm` because the fix is opening the
+     person and typing their name in — not typing a name into a one-line
+     box that would have nowhere to put it. */
+  contact_name: {
+    label: "Who answers this number",
+    why: "a number is on file, but nobody's name",
     placeholder: null,
     needsForm: true,
   },

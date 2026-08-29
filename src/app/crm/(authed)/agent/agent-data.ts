@@ -1,6 +1,6 @@
 import { timestampMs, centralDayRange } from "../_shell/format";
 import { createCrmServerClient, type CrmUser } from "@/lib/crm/auth";
-import { contactCountByAccount } from "@/lib/crm/contactCount";
+import { contactCountsByAccount } from "@/lib/crm/contactCount";
 import { primaryContactByAccount } from "@/lib/crm/primaryContact";
 import { lastContactByAccount } from "@/lib/crm/lastContact";
 import { normalizePriority } from "../tasks/priority";
@@ -150,7 +150,7 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     };
   });
 
-  const contactCounts = await contactCountByAccount(supabase, accountIds);
+  const contactCounts = await contactCountsByAccount(supabase, accountIds);
 
   const completeness: CompletenessInput[] = accounts.map((a) => ({
     id: a.id as string,
@@ -159,7 +159,10 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     state: (a.state as string | null) ?? null,
     address: (a.address as string | null) ?? null,
     industry: (a.industry as string | null) ?? null,
-    contactCount: contactCounts.get(a.id as string) ?? 0,
+    contactCount: contactCounts.get(a.id as string)?.total ?? 0,
+    // Named separately from total, so a company whose only contact is a
+    // bare BOL number keeps a gap instead of reading as staffed.
+    namedContactCount: contactCounts.get(a.id as string)?.named ?? 0,
     // Provenance for the gaps row's pill — the same column the company card
     // and the work pool already show. Already selected above.
     source: (a.source as string | null) ?? null,
