@@ -61,12 +61,20 @@ function Field({
   label,
   value,
   isThisCompany = false,
+  note,
+  absent,
 }: {
   label: string;
   value: string | null;
   isThisCompany?: boolean;
+  /** A caption under the value — used to say why a party is NOT a company. */
+  note?: string;
+  /** What to print when the document simply does not carry this field.
+   * Supplied only for the parties a reader will go looking for; every
+   * other blank field stays hidden rather than listing its own absence. */
+  absent?: string;
 }) {
-  if (!value) return null;
+  if (!value && !absent) return null;
   return (
     <div className="flex items-baseline gap-4 border-t border-line py-2 first:border-t-0">
       <span
@@ -80,12 +88,17 @@ function Field({
           1000px+ column produces a 200-character line nobody can track back
           to the start of. The cap is on the VALUE, not the row, so the
           label column stays aligned. */}
-      <span
-        className={`min-w-0 flex-1 whitespace-pre-wrap text-[12.5px] text-fg max-w-[80ch] ${
-          isThisCompany ? "font-bold" : ""
-        }`}
-      >
-        {value}
+      <span className="min-w-0 flex-1">
+        <span
+          className={`block whitespace-pre-wrap text-[12.5px] max-w-[80ch] ${
+            value ? "text-fg" : "italic text-fg-subtle"
+          } ${isThisCompany ? "font-bold" : ""}`}
+        >
+          {value ?? absent}
+        </span>
+        {note && (
+          <span className="mt-0.5 block text-[11px] text-fg-subtle">{note}</span>
+        )}
       </span>
     </div>
   );
@@ -114,19 +127,31 @@ export function ParsedFields({ doc, total }: { doc: BolDoc; total: number }) {
         />
         <Field label="From" value={doc.shipperAddress} />
         <Field
-          label="Consignee"
+          label="Receiver"
           value={doc.consigneeName}
           isThisCompany={ROLE_FIELD[doc.role] === "Consignee"}
+          /* AN UNNAMED RECEIVER IS ORDINARY, NOT A FAULT.
+             Brokers routinely withhold the delivery address until the day
+             of — Snapshot #1 says so in as many words: "Delivery address
+             will be provided afternoon/evening prior to delivery." Left as
+             a hidden row this looked like a parse failure or a bug. Said
+             out loud it is just what the paperwork was. */
+          absent="Not named on this document"
         />
         <Field label="To" value={doc.consigneeAddress} />
         <Field
           label="Bill to"
           value={doc.billTo}
           isThisCompany={ROLE_FIELD[doc.role] === "Bill to"}
+          note="Broker or payer — shown for context, not added as a company."
+        />
+        <Field
+          label="Carrier"
+          value={doc.carrier}
+          note="Who hauled it — shown for context, not added as a company."
         />
         <Field label="Commodity" value={doc.commodity} />
         <Field label="Weight" value={doc.weight} />
-        <Field label="Carrier" value={doc.carrier} />
         <Field label="Picked up" value={doc.pickupDate} />
         <Field label="Delivered" value={doc.deliveryDate} />
         <Field label="Notes" value={doc.notes} />

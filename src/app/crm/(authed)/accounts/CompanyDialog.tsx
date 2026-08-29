@@ -46,6 +46,7 @@ export type CompanyDefaults = {
   annual_freight_spend?: number | null;
   revenue_potential?: number | null;
   source?: string | null;
+  bol_role?: string | null;
   lifecycle_status?: string | null;
   assigned_user_id?: string | null;
   /** Folded in 2026-08-26 from the second, smaller company form
@@ -295,6 +296,22 @@ export function CompanyDialog({
                     ))}
                   </SelectField>
                 </div>
+                {/* BOL ROLE. Only offered on a company that came from a
+                    bill of lading — for the other 83 there is no document
+                    to have had a role on, and an always-present select
+                    would invite somebody to invent one. */}
+                {d.source === "bol" && (
+                  <SelectField
+                    label="Role on the BOL"
+                    name="bol_role"
+                    defaultValue={d.bol_role ?? ""}
+                  >
+                    <option value="">Not set</option>
+                    <option value="shipper">Possible shipper</option>
+                    <option value="receiver">Possible receiver</option>
+                    <option value="broker">Possible broker — do not pitch</option>
+                  </SelectField>
+                )}
               </div>
 
               <div className="flex flex-col gap-2">

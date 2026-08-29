@@ -1,4 +1,5 @@
 import { BackButton } from "../../../_shell/BackButton";
+import { ProvenancePills } from "../ProvenancePills";
 import { CompanyAvatar } from "../../../_shell/InitialAvatar";
 import { normalizeStage, stageLabel } from "../../lifecycle";
 import { CompanyMoreMenu } from "../CompanyMoreMenu";
@@ -35,6 +36,8 @@ export function MobileHeader({
   accountId,
   accountName,
   industry,
+  source,
+  bolRole,
   city,
   state,
   stage,
@@ -48,6 +51,9 @@ export function MobileHeader({
   accountId: string;
   accountName: string;
   industry: string | null;
+  /** crm_accounts.source / bol_role — the provenance pills. */
+  source: string | null;
+  bolRole: string | null;
   city: string | null;
   state: string | null;
   stage: string;
@@ -108,6 +114,13 @@ export function MobileHeader({
         ) : (
           <ClaimCompanyButton accountId={accountId} currentUserId={currentUserId} />
         )}
+
+        {/* PROVENANCE, in the row that already holds the stage pill and the
+            owner / claim control — which is exactly the "assign area"
+            Brent asked these to sit near, and it wraps on a narrow phone
+            rather than adding a band. Light-ground tones here: this header
+            is bg-card (white), not the desktop file's near-black. */}
+        <ProvenancePills source={source} bolRole={bolRole} />
       </div>
 
       {/* The stage pill above deliberately uses the accent tint at every

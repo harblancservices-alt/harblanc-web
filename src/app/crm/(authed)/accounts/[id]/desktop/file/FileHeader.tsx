@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Micro } from "./chrome";
+import { ProvenancePills } from "../../ProvenancePills";
 
 /**
  * The company file's dark header — the name band and the three stat blocks.
@@ -92,6 +93,10 @@ export type FileHeaderProps = {
   gapCount: number;
   /** What the gaps actually are, e.g. "contact, carrier, spend". */
   gapSummary: string | null;
+  /** crm_accounts.source — otr / manual / bol. */
+  source: string | null;
+  /** crm_accounts.bol_role — shipper / receiver / broker, or null. */
+  bolRole: string | null;
   /** The section switcher, rendered flush to the BOTTOM of the dark band so
    * the active folder tab's white meets the surface below with no seam.
    * Supplied by FileBody, which owns which tab is open. */
@@ -108,6 +113,8 @@ export function FileHeader({
   createdLabel,
   gapCount,
   gapSummary,
+  source,
+  bolRole,
   tabs,
 }: FileHeaderProps) {
   const mapHref = fullAddress
@@ -164,6 +171,15 @@ export function FileHeader({
               )}
             </p>
           )}
+
+          {/* PROVENANCE, under the name and level with the Owner block.
+              Brent asked for these "near the sales agent assign area";
+              this is that band, and it is also simply where the eye
+              already is — a pill three inches from the company name gets
+              read on the way past, which a pill in a side rail does not.
+              See ProvenancePills for the colour reasoning and the measured
+              contrast against this near-black header. */}
+          <ProvenancePills source={source} bolRole={bolRole} onDark className="mt-2.5" />
         </div>
 
         <div className="flex shrink-0 gap-4">

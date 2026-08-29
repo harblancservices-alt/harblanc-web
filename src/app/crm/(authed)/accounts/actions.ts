@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isBolRole } from "./[id]/provenance";
 import { requireCrmUser, currentCrmUser, SESSION_EXPIRED_ERROR, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, stageRank, stageNeedsReason, DEFAULT_LIFECYCLE } from "./lifecycle";
@@ -69,6 +70,16 @@ function accountFieldsFromForm(fd: FormData): Record<string, unknown> {
   if (fd.has("name")) fields.name = titleCaseWords(str(fd, "name"));
   if (fd.has("industry")) fields.industry = optStr(fd, "industry");
   if (fd.has("company_type")) fields.company_type = optStr(fd, "company_type");
+  /* HOW THIS COMPANY APPEARED ON ITS BOL — shipper / receiver / broker.
+     Editable because "broker" is a judgement rather than a box on the
+     document, and a company wrongly marked broker is one every agent will
+     skip. Anything that is not one of the three becomes null rather than
+     being written through: the column has a CHECK constraint and a
+     rejected UPDATE would fail the whole save. */
+  if (fd.has("bol_role")) {
+    const raw = optStr(fd, "bol_role");
+    fields.bol_role = isBolRole(raw) ? raw : null;
+  }
   if (fd.has("email")) fields.email = optStr(fd, "email");
   if (fd.has("phones")) {
     const phones = phonesFromFormValue(fd.get("phones"));

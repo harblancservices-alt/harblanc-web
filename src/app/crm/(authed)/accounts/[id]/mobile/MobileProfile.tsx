@@ -64,6 +64,8 @@ export function MobileProfile({
   accountId,
   accountName,
   industry,
+  source,
+  bolRole,
   city,
   state,
   stage,
@@ -102,6 +104,9 @@ export function MobileProfile({
   accountId: string;
   accountName: string;
   industry: string | null;
+  /** crm_accounts.source / bol_role — the provenance pills on the header. */
+  source: string | null;
+  bolRole: string | null;
   city: string | null;
   state: string | null;
   stage: string;
@@ -146,6 +151,8 @@ export function MobileProfile({
         accountId={accountId}
         accountName={accountName}
         industry={industry}
+        source={source}
+        bolRole={bolRole}
         city={city}
         state={state}
         stage={stage}

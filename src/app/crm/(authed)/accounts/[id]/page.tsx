@@ -79,7 +79,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url, dba, year_founded, ownership_type, current_carrier",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url, dba, year_founded, ownership_type, current_carrier, bol_role",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -450,6 +450,7 @@ export default async function AccountDetailPage({
     annual_freight_spend: account.annual_freight_spend as number | null,
     revenue_potential: account.revenue_potential as number | null,
     source: account.source as string | null,
+    bol_role: account.bol_role as string | null,
     lifecycle_status: stage,
     assigned_user_id: account.assigned_user_id as string | null,
   };
@@ -783,6 +784,8 @@ export default async function AccountDetailPage({
       accountId={account.id as string}
       accountName={accountName}
       industry={account.industry as string | null}
+      source={account.source as string | null}
+      bolRole={account.bol_role as string | null}
       city={accountCity}
       state={accountState}
       stage={stage}
@@ -884,6 +887,8 @@ export default async function AccountDetailPage({
           accountName={accountName}
           industry={account.industry as string | null}
           fullAddress={fullAddress}
+          source={account.source as string | null}
+          bolRole={account.bol_role as string | null}
           stage={stage}
           ownerLabel={currentRepLabel}
           reassign={

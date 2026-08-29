@@ -59,6 +59,8 @@ export function CompanyFile({
   accountName,
   industry,
   fullAddress,
+  source,
+  bolRole,
   stage,
   ownerLabel,
   reassign,
@@ -86,6 +88,10 @@ export function CompanyFile({
   accountId: string;
   accountName: string;
   industry: string | null;
+  /** crm_accounts.source, for the provenance pills on the header. */
+  source: string | null;
+  /** crm_accounts.bol_role, for the same. */
+  bolRole: string | null;
   fullAddress: string | null;
   stage: string;
   ownerLabel: string | null;
@@ -149,6 +155,8 @@ export function CompanyFile({
           createdLabel,
           gapCount: gaps.length,
           gapSummary,
+          source,
+          bolRole,
         }}
         accountId={accountId}
         stage={stage}
