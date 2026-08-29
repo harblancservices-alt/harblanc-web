@@ -205,6 +205,8 @@ export function CompanyFile({
           companyName: accountName,
           facts,
           bolDocs,
+          source,
+          bolRole,
           linkedPanel,
           gaps,
           allFieldsCount,

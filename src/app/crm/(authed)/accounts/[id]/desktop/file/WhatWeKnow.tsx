@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import { sourceLabel } from "../../../../admin/companies/companyRow";
+import { isBolRole, ROLE_FULL } from "../../provenance";
 import { useRouter } from "next/navigation";
 import { fillCompanyGap } from "../../details-actions";
 import { ContactDialog } from "../../ContactDialog";
@@ -73,6 +75,8 @@ export function WhatWeKnow({
   companyName,
   facts,
   bolDocs,
+  source,
+  bolRole,
   linkedPanel,
   gaps,
   allFieldsCount,
@@ -87,6 +91,10 @@ export function WhatWeKnow({
   /** The BOL PDFs themselves, newest first — joined company ->
    * crm_bol_entries -> crm_documents in page.tsx. See BolViewer. */
   bolDocs: BolDoc[];
+  /** crm_accounts.source / bol_role — shown as a labelled row here as
+   * well as a pill on the header. */
+  source: string | null;
+  bolRole: string | null;
   /** The "Linked company" control — the other companies off the same
    * bill of lading. Built on the server in page.tsx; null when this BOL
    * produced no other live company, which is the common case. */
@@ -111,6 +119,10 @@ export function WhatWeKnow({
   /* See the Row that uses this. Plain derivation, no memo: it is a scan of
      at most a couple of hundred small objects and it changes whenever the
      documents do. */
+  /* The same two facts the header pills carry, as plain text. */
+  const sourceRow = source ? sourceLabel(source) : null;
+  const roleRow = isBolRole(bolRole) ? ROLE_FULL[bolRole] : null;
+
   const roles = new Set(bolDocs.map((d) => d.role));
   const freightLabel =
     roles.size === 1 && roles.has("shipper")
@@ -268,6 +280,33 @@ export function WhatWeKnow({
             what they shipped, this says what we know about them as a
             customer. Two different kinds of knowledge, read in that order. */}
         <div className="border-t border-line-strong px-4 py-3">
+          {/* WHERE THIS RECORD CAME FROM, as a plain labelled row.
+              Brent, 2026-08-29: the source "used to be obvious and is now
+              hidden in the top bar". It was: the desktop rebuild on
+              2026-08-26 dropped the old details grid, and the two files
+              that carried a Source row (AtAGlanceCard, CompanyProfileGrid)
+              have been unreachable since. Mobile kept its row; desktop had
+              none, so the header pill was the only place it existed.
+
+              Two places showing the same fact is redundancy on purpose
+              here, not duplication - one of them is always in view. */}
+          {(sourceRow || roleRow) && (
+            <p className="mb-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line pb-2">
+              {sourceRow && (
+                <span className="text-[12.5px] text-fg">
+                  <Micro className="text-fg-muted">Source</Micro>{" "}
+                  <span className="font-bold">{sourceRow}</span>
+                </span>
+              )}
+              {roleRow && (
+                <span className="text-[12.5px] text-fg">
+                  <Micro className="text-fg-muted">Role</Micro>{" "}
+                  <span className="font-bold">{roleRow}</span>
+                </span>
+              )}
+            </p>
+          )}
+
           <p className="mb-1">
             <Micro className="text-fg-muted">Gaps</Micro>
             <span className="ml-2 text-[11.5px] text-fg-subtle">

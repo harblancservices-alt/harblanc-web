@@ -1,4 +1,5 @@
 import { formatMoney } from "../../../_shell/format";
+import { sourceLabel } from "../../../admin/companies/companyRow";
 
 export type MobileGlanceFacts = {
   annualFreightSpend: number | null;
@@ -26,7 +27,10 @@ export function MobileFacts({ facts }: { facts: MobileGlanceFacts }) {
   if (facts.yearFounded != null) rows.push({ k: "Founded", v: String(facts.yearFounded) });
   if (facts.companyType) rows.push({ k: "Type", v: facts.companyType });
   if (facts.ownershipType) rows.push({ k: "Ownership", v: facts.ownershipType });
-  if (facts.source) rows.push({ k: "Source", v: facts.source });
+  /* sourceLabel, not the raw column. This printed "bol" -- a code, not an
+     answer -- next to five rows of plain English. Same helper the pills and
+     Admin -> Companies use, so one company reads the same everywhere. */
+  if (facts.source) rows.push({ k: "Source", v: sourceLabel(facts.source) });
 
   if (rows.length === 0) return null;
 

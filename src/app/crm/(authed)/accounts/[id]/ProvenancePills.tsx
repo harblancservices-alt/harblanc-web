@@ -87,7 +87,12 @@ import { provenancePills, ROLE_TONE_ON_LIGHT, type PillTone } from "./provenance
 const TONE_ON_DARK: Record<PillTone, string> = {
   lead: "bg-amber text-graphite",
   broker: "bg-bad-bg text-bad ring-2 ring-inset ring-bad",
-  neutral: "bg-white/12 text-white/75",
+  /* WAS bg-white/12 -- a 1.42:1 chip on the graphite band, which is to say
+     no chip at all: the words floated on the header and the label read as
+     stray grey text. Brent: the source "used to be obvious and is now
+     hidden". A 90% white field is 14.65:1 and unmistakably a label, while
+     staying just under the company name's 17.95:1 so the name still leads. */
+  neutral: "bg-white/90 text-graphite",
 };
 
 /* The two role tones come from provenance.ts so this pill and the
@@ -97,7 +102,9 @@ const TONE_ON_DARK: Record<PillTone, string> = {
 const TONE_ON_LIGHT: Record<PillTone, string> = {
   lead: `${ROLE_TONE_ON_LIGHT.shipper} ring-2`,
   broker: `${ROLE_TONE_ON_LIGHT.broker} ring-2`,
-  neutral: "border border-line bg-inset text-fg-muted",
+  /* Same problem on the light header: a faint inset chip with muted text.
+     A stronger border and full-strength ink make it read as a label. */
+  neutral: "border border-line-strong bg-elevated text-fg",
 };
 
 export function ProvenancePills({
@@ -123,7 +130,10 @@ export function ProvenancePills({
         <span
           key={p.key}
           title={p.hint}
-          className={`inline-flex items-center rounded-full px-2.5 py-[3px] text-[10.5px] font-extrabold uppercase tracking-[0.06em] ${tones[p.tone]}`}
+          /* 12px, not 10.5px. These are labels an agent must not have to hunt
+             for, and at 10.5px on a 1920 screen they read as decoration.
+             Padding grows with the type so the chip keeps its shape. */
+          className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] font-extrabold uppercase tracking-[0.05em] ${tones[p.tone]}`}
         >
           {p.text}
         </span>

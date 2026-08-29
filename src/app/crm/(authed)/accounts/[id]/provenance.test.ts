@@ -11,7 +11,7 @@ import {
 describe("provenancePills", () => {
   it("puts the role before the source, because the role is what changes behaviour", () => {
     const pills = provenancePills({ source: "bol", bolRole: "shipper" });
-    expect(pills.map((p) => p.text)).toEqual(["Possible shipper", "From a BOL"]);
+    expect(pills.map((p) => p.text)).toEqual(["Possible shipper", "From a bill of lading"]);
   });
 
   it("says 'possible' on every role", () => {
@@ -78,7 +78,7 @@ describe("provenancePills", () => {
     // The column has a CHECK, but the reader does not get to assume the
     // writer was the app.
     expect(provenancePills({ source: "bol", bolRole: "consignee" })).toEqual([
-      expect.objectContaining({ text: "From a BOL" }),
+      expect.objectContaining({ text: "From a bill of lading" }),
     ]);
   });
 
@@ -155,5 +155,22 @@ describe("the PS / PR / PB short form", () => {
     for (const role of BOL_ROLES) {
       expect(ROLE_TONE_ON_LIGHT[role]).not.toMatch(/ring-\d/);
     }
+  });
+});
+
+describe("the profile spells things out", () => {
+  it("never abbreviates BOL in a pill", () => {
+    // Brent's bar for this surface: an agent who has never had it
+    // explained still understands it. "BOL" is jargon; the profile has the
+    // room to say it properly. The dense Work-to-assign list keeps PS/PR,
+    // which is a different surface with a different constraint.
+    const [pill] = provenancePills({ source: "bol", bolRole: null });
+    expect(pill.text).toBe("From a bill of lading");
+    expect(pill.text).not.toMatch(/BOL/);
+  });
+
+  it("still says 'possible' on the role, so nothing reads as confirmed", () => {
+    const [role] = provenancePills({ source: "bol", bolRole: "receiver" });
+    expect(role.text).toBe("Possible receiver");
   });
 });

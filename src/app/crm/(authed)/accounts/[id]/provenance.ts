@@ -89,7 +89,11 @@ const ROLE_HINT: Record<BolRole, string> = {
  * "Unknown" would be chrome that tells an agent nothing.
  */
 const SOURCE_TEXT: Record<string, string> = {
-  bol: "From a BOL",
+  /* SPELLED OUT, 2026-08-29. "BOL" is jargon to anyone who has not had it
+     explained, and Brent's bar for this profile is that nothing has to be
+     interpreted. The dense Work-to-assign list keeps its PS/PR short form;
+     a profile has the room to say it properly. */
+  bol: "From a bill of lading",
   otr: "From OTR",
   manual: "Added by hand",
 };
