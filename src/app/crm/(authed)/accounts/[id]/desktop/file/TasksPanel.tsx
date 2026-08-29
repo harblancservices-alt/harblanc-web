@@ -3,13 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CompleteTaskDialog } from "../../../../tasks/CompleteTaskDialog";
-import { snoozeTask, reassignTask, deleteTask } from "../../../../tasks/actions";
+import { snoozeTask, deleteTask } from "../../../../tasks/actions";
 import { SNOOZE_PRESETS } from "../../../../tasks/snooze";
 import { dueCountdown, timestampMs } from "../../../../_shell/format";
 import type { RepOption } from "../../../CompanyDialog";
 import { Modal } from "../../../../_shell/Modal";
-import { BTN_DANGER, BTN_NEUTRAL, DeleteIconButton } from "../../../../_shell/ui";
+import { BTN_DANGER, BTN_NEUTRAL } from "../../../../_shell/ui";
 import { FileCard, SectionHead } from "./chrome";
+import { TaskDialog, type TaskContactOption } from "../../../../tasks/TaskDialog";
 
 /**
  * PANEL 03 — TASKS.
@@ -53,6 +54,15 @@ export type FileTask = {
   definitionOfDone: string | null;
   dueAt: string | null;
   assigneeName: string | null;
+  /** ── EVERYTHING ELSE THE EDIT DIALOG NEEDS TO OPEN FAITHFULLY.
+   * All four already come back from the tasks query in page.tsx; they were
+   * simply not carried this far, because until 2026-08-29 desktop could not
+   * edit a task at all. Without them the dialog would open with blank
+   * fields and saving would quietly wipe the priority, type or contact. */
+  taskType: string | null;
+  priority: string | null;
+  assignedUserId: string | null;
+  contactId: string | null;
 };
 
 function Btn({
@@ -89,13 +99,21 @@ export function TasksPanel({
   tasks,
   reps,
   canReassign,
+  contacts,
+  currentUser,
   nowMs,
 }: {
-  /** Only used to revalidate the company after a delete. */
+  /** Used to revalidate the company after a delete, and as the fixed
+   * company on the edit dialog. */
   accountId: string;
   tasks: FileTask[];
   reps: RepOption[];
+  /** role === "owner". Gates the assignee picker INSIDE the edit dialog —
+   * see the note on the action row about why the separate Reassign control
+   * is gone. */
   canReassign: boolean;
+  contacts: TaskContactOption[];
+  currentUser: { id: string; label: string };
   nowMs: number;
 }) {
   const router = useRouter();
@@ -121,7 +139,6 @@ export function TasksPanel({
     setConfirming(null);
     router.refresh();
   }
-  const [reassignFor, setReassignFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function doSnooze(taskId: string, preset: string) {
@@ -134,21 +151,6 @@ export function TasksPanel({
     });
   }
 
-  function doReassign(taskId: string, userId: string) {
-    setError(null);
-    // An empty pick used to mean "un-assign". Tasks always have an owner
-    // now, so nothing to do rather than an ownerless task.
-    if (!userId) {
-      setReassignFor(null);
-      return;
-    }
-    startTransition(async () => {
-      const res = await reassignTask(taskId, userId);
-      setReassignFor(null);
-      if (!res.ok) setError(res.error);
-      else router.refresh();
-    });
-  }
 
   return (
     <FileCard className="flex flex-col">
@@ -210,23 +212,24 @@ export function TasksPanel({
                     </p>
                   )}
 
+                  {/* FOUR REAL BUTTONS, in the order Brent asked for:
+                      Set date - Edit - Done - Delete.
+
+                      Before this, "Set date" and "Reassign" rendered as bare
+                      words and Delete as a naked icon, so only one of the
+                      four looked pressable.
+
+                      REASSIGN IS GONE AS A SEPARATE CONTROL, not dropped.
+                      TaskDialog in edit mode shows a real "Assigned rep"
+                      picker to exactly the people `canReassign` allowed --
+                      role === "owner" -- and the server action re-enforces
+                      that regardless of what the form sends. Keeping an
+                      inline <select> beside it would be a second way to do
+                      the same thing, which is what put two task-making
+                      surfaces in this app once already. */}
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                    <Btn onClick={() => setClosing(t)} disabled={pending}>
-                      Done
-                    </Btn>
-
-                    {/* Completing and deleting say different things. Until
-                        2026-08-28 desktop offered only the first, so a task
-                        raised by mistake had to be marked done -- which is a
-                        claim that it happened. */}
-                    <DeleteIconButton
-                      label={`task "${t.title}"`}
-                      onClick={() => setConfirming({ id: t.id, title: t.title })}
-                      disabled={pending || removing}
-                    />
-
                     {snoozeFor === t.id ? (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {SNOOZE_PRESETS.map((p) => (
                           <button
                             key={p.key}
@@ -238,7 +241,7 @@ export function TasksPanel({
                             {p.label}
                           </button>
                         ))}
-                        <Btn variant="link" onClick={() => setSnoozeFor(null)}>
+                        <Btn variant="outline" onClick={() => setSnoozeFor(null)}>
                           cancel
                         </Btn>
                       </div>
@@ -252,33 +255,58 @@ export function TasksPanel({
                       </Btn>
                     )}
 
-                    {canReassign &&
-                      (reassignFor === t.id ? (
-                        <select
-                          autoFocus
-                          defaultValue=""
-                          disabled={pending}
-                          onChange={(e) => doReassign(t.id, e.target.value)}
-                          className="rounded-md border border-line bg-card px-2 py-1.5 text-[11.5px] font-semibold text-fg"
-                        >
-                          <option value="" disabled>
-                            Give it to…
-                          </option>
-                          {reps.map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.label}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <Btn
-                          variant="link"
-                          onClick={() => setReassignFor(t.id)}
-                          disabled={pending}
-                        >
-                          Reassign
+                    {/* EDIT reuses the dialog the rest of the CRM uses --
+                        title, notes, type, priority, due date, contact, and
+                        the owner-only assignee picker. Not a second editor. */}
+                    <TaskDialog
+                      mode="edit"
+                      accountId={accountId}
+                      contacts={contacts}
+                      reps={reps}
+                      canAssignOthers={canReassign}
+                      currentUser={currentUser}
+                      defaults={{
+                        id: t.id,
+                        title: t.title,
+                        notes: t.notes,
+                        task_type: t.taskType,
+                        due_at: t.dueAt,
+                        priority: t.priority,
+                        assigned_user_id: t.assignedUserId,
+                        account_id: accountId,
+                        contact_id: t.contactId,
+                      }}
+                      trigger={(open) => (
+                        <Btn variant="outline" onClick={open} disabled={pending}>
+                          Edit
                         </Btn>
-                      ))}
+                      )}
+                    />
+
+                    <Btn onClick={() => setClosing(t)} disabled={pending}>
+                      Done
+                    </Btn>
+
+                    {/* Still the trash icon he knows, but wearing a button:
+                        outlined red, which is this CRM's destructive
+                        treatment (filled red means "creates a record").
+                        Confirmation is unchanged. */}
+                    <button
+                      type="button"
+                      onClick={() => setConfirming({ id: t.id, title: t.title })}
+                      disabled={pending || removing}
+                      aria-label={`Delete task "${t.title}"`}
+                      className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors disabled:opacity-55 ${BTN_DANGER}`}
+                    >
+                      <svg
+                        aria-hidden
+                        viewBox="0 0 24 24"
+                        className="h-3.5 w-3.5 fill-none stroke-current stroke-2"
+                      >
+                        <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+                      </svg>
+                      Delete
+                    </button>
                   </div>
                 </div>
               );

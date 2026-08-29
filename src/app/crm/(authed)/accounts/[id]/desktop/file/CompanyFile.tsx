@@ -72,6 +72,7 @@ export function CompanyFile({
   composerContacts,
   quickTasks,
   taskOwnerLabel,
+  currentUser,
   activityItems,
   tasks,
   facts,
@@ -105,6 +106,9 @@ export function CompanyFile({
   composerContacts: { id: string; name: string; phoneLabel: string | null }[];
   quickTasks: QuickTask[];
   taskOwnerLabel: string | null;
+  /** Who is looking. The task edit dialog needs it for the assignee
+   * default; the server re-enforces the gate regardless. */
+  currentUser: { id: string; label: string };
   activityItems: CrmActivityLogItem[];
   tasks: FileTask[];
   facts: BolFacts;
@@ -198,7 +202,15 @@ export function CompanyFile({
           <HistoryPanel accountId={accountId} items={activityItems} nowMs={nowMs} />
         }
         tasksPanel={
-          <TasksPanel accountId={accountId} tasks={tasks} reps={reps} canReassign={canReassign} nowMs={nowMs} />
+          <TasksPanel
+            accountId={accountId}
+            tasks={tasks}
+            reps={reps}
+            canReassign={canReassign}
+            contacts={composerContacts}
+            currentUser={currentUser}
+            nowMs={nowMs}
+          />
         }
         knowProps={{
           accountId,

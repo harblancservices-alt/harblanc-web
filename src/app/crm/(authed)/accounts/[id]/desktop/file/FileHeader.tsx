@@ -153,14 +153,27 @@ export function FileHeader({
           <h1 className="truncate text-[34px] font-extrabold leading-none tracking-[-0.02em] text-white">
             {accountName}
           </h1>
-          {(industry || fullAddress) && (
-            /* 12px -> 14px, and mt-2 -> mt-1.5. Stepped up WITH the name
-               rather than left behind, so the hierarchy still reads as a
-               hierarchy instead of one size for everything. */
-            <p className="mt-1.5 flex items-center gap-1.5 truncate text-[14px]">
-              {industry && <span className="shrink-0 font-bold text-white/90">{industry}</span>}
+          {/* ONE LINE: pills, then what the company does and where it is.
+              Brent: put the descriptor "on the same line as the FROM OTR
+              pill" -- he could not see it as its own row of small grey text
+              above them. Merging the two rows also gives the left column
+              back ~22px of height, which is the emptiest part of the band.
+
+              The pills lead because they are fixed-width and loud; the
+              descriptor takes the remaining width and truncates rather than
+              pushing them. */}
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <ProvenancePills source={source} bolRole={bolRole} onDark />
+
+            {(industry || fullAddress) && (
+            /* 14px -> 15.5px, and the ink lifted: the industry to full
+               white and the address to white/85. This is the line that says
+               what the company does and where -- it was reading as a
+               footnote under the name. */
+            <p className="flex min-w-0 items-center gap-1.5 truncate text-[15.5px]">
+              {industry && <span className="shrink-0 font-bold text-white">{industry}</span>}
               {industry && fullAddress && (
-                <span aria-hidden className="shrink-0 text-white/35">
+                <span aria-hidden className="shrink-0 text-white/45">
                   ·
                 </span>
               )}
@@ -172,7 +185,7 @@ export function FileHeader({
                   <svg
                     aria-hidden
                     viewBox="0 0 24 24"
-                    className="h-3.5 w-3.5 shrink-0 fill-none stroke-white/50 stroke-2"
+                    className="h-4 w-4 shrink-0 fill-none stroke-white/70 stroke-2"
                   >
                     <path d="M12 21s7-6.5 7-11a7 7 0 1 0-14 0c0 4.5 7 11 7 11Z" />
                     <circle cx="12" cy="10" r="2.5" />
@@ -183,26 +196,27 @@ export function FileHeader({
                       target="_blank"
                       rel="noreferrer"
                       title={fullAddress}
-                      className="min-w-0 truncate text-white/70 underline decoration-white/30 underline-offset-2 hover:text-white hover:decoration-white"
+                      className="min-w-0 truncate text-white/85 underline decoration-white/40 underline-offset-2 hover:text-white hover:decoration-white"
                     >
                       {fullAddress}
                     </a>
                   ) : (
-                    <span className="min-w-0 truncate text-white/70">{fullAddress}</span>
+                    <span className="min-w-0 truncate text-white/85">{fullAddress}</span>
                   )}
                 </>
               )}
             </p>
-          )}
+            )}
+          </div>
 
-          {/* PROVENANCE, under the name and level with the Owner block.
+          {/* (was: PROVENANCE, under the name and level with the Owner block.
               Brent asked for these "near the sales agent assign area";
               this is that band, and it is also simply where the eye
               already is — a pill three inches from the company name gets
               read on the way past, which a pill in a side rail does not.
               See ProvenancePills for the colour reasoning and the measured
-              contrast against this near-black header. */}
-          <ProvenancePills source={source} bolRole={bolRole} onDark className="mt-2" />
+              contrast against this near-black header. Now rendered inline
+              with the descriptor above.) */}
         </div>
 
         {/* gap-4 -> gap-8. The three blocks were clustered against the

@@ -626,6 +626,12 @@ export default async function AccountDetailPage({
     definitionOfDone: (t as { definition_of_done?: string | null }).definition_of_done ?? null,
     dueAt: t.due_at ?? null,
     assigneeName: t.assigneeName ?? null,
+    /* Already in the tasks select above; carried through so the desktop
+       edit dialog opens on the real task rather than a blank form. */
+    taskType: (t.task_type as string | null) ?? null,
+    priority: (t.priority as string | null) ?? null,
+    assignedUserId: (t.assigned_user_id as string | null) ?? null,
+    contactId: (t.contact_id as string | null) ?? null,
   }));
 
   const bolRows = (bolRes.data ?? []) as {
@@ -946,6 +952,7 @@ export default async function AccountDetailPage({
           source={account.source as string | null}
           bolRole={account.bol_role as string | null}
           linkedPanel={<LinkedCompanies companies={linked} />}
+          currentUser={currentUser}
           stage={stage}
           ownerLabel={currentRepLabel}
           reassign={

@@ -113,12 +113,11 @@ export function StageStrip({
   return (
     <div className="border-b border-line-strong bg-card">
       <div className="flex items-stretch">
-        {/* The row's own label, not a cell — it is what the ten cells are. */}
-        <div className="w-[112px] shrink-0 px-4 py-2.5">
-          <Micro className="block text-fg">Stage</Micro>
-          <span className="mt-1 block text-[11px] text-fg-subtle">click to move</span>
-        </div>
-
+        {/* THE "STAGE / click to move" CAPTION CELL IS GONE (Brent,
+            2026-08-29). It spent 112px of a ten-cell row explaining what
+            the row obviously is, and those 112px now go to the stages
+            themselves — each cell is flex-1, so removing the fixed block
+            widens all ten evenly. */}
         {SELECTABLE_LIFECYCLE_STAGES.map((stage, i) => {
           const isActive = stage === active;
           const terminal = stageNeedsReason(stage);
@@ -167,7 +166,11 @@ export function StageStrip({
                      accent fill is 3.91:1, under the 4.5 a number this
                      small needs. Full white is 5.63:1. The inactive ones
                      ride --fg-subtle, which moved in the same pass. */
-                  isActive ? "text-white" : terminal ? "text-fg-subtle" : "text-fg-subtle"
+                  /* BLACK, both here and on the label below (Brent, asked
+                     explicitly — "not dark grey, black"). --fg is #14161c.
+                     The active cell keeps white because it sits on the
+                     accent fill. */
+                  isActive ? "text-white" : "text-fg"
                 }`}
               >
                 {num}
@@ -177,7 +180,7 @@ export function StageStrip({
               <span
                 /* 12.5px -> 15px, and centred within the cell. */
                 className={`mt-1 flex items-center justify-center gap-1 truncate text-[15px] font-extrabold uppercase tracking-[0.01em] ${
-                  isActive ? "text-white" : terminal ? "text-fg-subtle" : "text-fg"
+                  isActive ? "text-white" : "text-fg"
                 }`}
               >
                 <span className="truncate">{LIFECYCLE_LABEL[stage]}</span>
