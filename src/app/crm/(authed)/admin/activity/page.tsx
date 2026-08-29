@@ -93,15 +93,34 @@ export default async function AdminActivityPage({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-[12.5px]">
               <thead>
-                <tr className="border-b border-line text-[10.5px] font-bold uppercase tracking-[0.06em] text-fg-subtle">
+                {/* A HEADER ROW IS TIGHTER THAN A TILE, so the definition
+                    goes UNDER the column name in sentence case rather than
+                    into a tooltip — same rule as the dashboard tiles, and
+                    for the same reason: this is read on a phone, and hover
+                    does not exist there. One extra line on one row costs
+                    ~13px once, not per row. */}
+                <tr className="border-b border-line align-bottom text-[10.5px] font-bold uppercase tracking-[0.06em] text-fg-subtle">
                   <th className="px-3 py-2 text-left">Salesperson</th>
-                  <th className="px-3 py-2 text-right">Activities</th>
+                  <th className="px-3 py-2 text-right">
+                    Activities
+                    <span className="mt-0.5 block text-[10px] font-semibold normal-case tracking-normal text-fg-subtle">
+                      every column here, added up
+                    </span>
+                  </th>
                   {columns.map((c) => (
                     <th key={c} className="px-3 py-2 text-right">
                       {ACTIVITY_STYLE[c].label}
+                      <span className="mt-0.5 block text-[10px] font-semibold normal-case tracking-normal text-fg-subtle">
+                        {ACTIVITY_STYLE[c].definition}
+                      </span>
                     </th>
                   ))}
-                  <th className="px-3 py-2 text-right">Companies called</th>
+                  <th className="px-3 py-2 text-right">
+                    Companies called
+                    <span className="mt-0.5 block text-[10px] font-semibold normal-case tracking-normal text-fg-subtle">
+                      different companies, not calls
+                    </span>
+                  </th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>

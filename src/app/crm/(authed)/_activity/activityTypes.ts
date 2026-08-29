@@ -34,6 +34,23 @@ export type ActivityTypeStyle = {
   category: ActivityCategory;
   /** Plural, for metric tiles and filter chips. */
   label: string;
+  /**
+   * WHAT THE NUMBER COUNTS, in one line, shown UNDER it.
+   *
+   * Brent, 2026-08-29: "i need to have a description of what each tally
+   * means. 'companies' is 9 for tyler but companies called is 15 so idk
+   * whats what."
+   *
+   * He was right to be confused, and a tooltip would have been the wrong
+   * fix — see the note on the `company` entry below. These sentences are
+   * rendered inline and always visible rather than on hover, because this
+   * dashboard is read on a phone, where hover does not exist, and because
+   * a definition nobody knows to look for is a definition nobody reads.
+   *
+   * Kept beside the label so the two cannot drift: a label that stops
+   * matching its definition is exactly the bug this is fixing.
+   */
+  definition: string;
   /** Singular, for a row's type badge. */
   badge: string;
   /** Tinted pill classes — background + ink, never a fill. */
@@ -46,6 +63,7 @@ export const ACTIVITY_STYLE: Record<ActivityCategory, ActivityTypeStyle> = {
   call: {
     category: "call",
     label: "Calls",
+    definition: "call write-ups logged",
     badge: "Call",
     tone: "bg-accent-bg text-accent",
     dot: "bg-accent",
@@ -53,13 +71,29 @@ export const ACTIVITY_STYLE: Record<ActivityCategory, ActivityTypeStyle> = {
   task: {
     category: "task",
     label: "Tasks",
+    definition: "created, completed or reopened",
     badge: "Task",
     tone: "bg-ok-bg text-ok",
     dot: "bg-ok",
   },
   company: {
     category: "company",
-    label: "Companies",
+    /**
+     * "Companies" UNTIL 2026-08-29, AND THAT WAS THE BUG.
+     *
+     * This tile counts company-related EVENTS — created, stage changed,
+     * owner changed, details edited, location added or removed. Labelled
+     * "Companies" it reads as a count of companies, which it is not, and
+     * it sat next to "Companies called", which IS a count of companies.
+     * Two different units under two similar words.
+     *
+     * The real numbers made it plain: in one week the tile read 42 for one
+     * agent, of which exactly ONE was a company created. The other 41 were
+     * stage changes and edits. No tooltip fixes that — the label was
+     * wrong, so the label changed.
+     */
+    label: "Company updates",
+    definition: "created, stage, owner or details",
     badge: "Company",
     tone: "bg-admin-soft text-admin",
     dot: "bg-admin",
@@ -67,6 +101,7 @@ export const ACTIVITY_STYLE: Record<ActivityCategory, ActivityTypeStyle> = {
   contact: {
     category: "contact",
     label: "Contacts",
+    definition: "people added, edited or removed",
     badge: "Contact",
     tone: "bg-warn-bg text-warn",
     dot: "bg-warn",
@@ -74,6 +109,7 @@ export const ACTIVITY_STYLE: Record<ActivityCategory, ActivityTypeStyle> = {
   note: {
     category: "note",
     label: "Notes",
+    definition: "notes written",
     badge: "Note",
     tone: "bg-inset text-fg-muted",
     dot: "bg-line-strong",
@@ -81,6 +117,7 @@ export const ACTIVITY_STYLE: Record<ActivityCategory, ActivityTypeStyle> = {
   deal: {
     category: "deal",
     label: "Deals",
+    definition: "deals created",
     badge: "Deal",
     // NOT the red family. Red means overdue / destructive everywhere else in
     // this CRM, and a won deal rendered in red reads as a problem. Steel is
@@ -92,6 +129,7 @@ export const ACTIVITY_STYLE: Record<ActivityCategory, ActivityTypeStyle> = {
   other: {
     category: "other",
     label: "Other",
+    definition: "anything not in the columns beside it",
     badge: "Other",
     tone: "bg-inset text-fg-subtle",
     dot: "bg-line-strong",

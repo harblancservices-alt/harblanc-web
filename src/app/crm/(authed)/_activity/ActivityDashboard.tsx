@@ -132,11 +132,26 @@ export function ActivityDashboard({
 
   const agentName = agentId ? agents.find((a) => a.id === agentId)?.name ?? "Unknown" : null;
 
-  const TILES: { key: ActivityCategory | "total"; label: string; value: number; tone: string }[] = [
-    { key: "total", label: "Total activities", value: metrics.total, tone: "bg-fg text-white" },
+  /* Every tile carries its definition, from ACTIVITY_STYLE, so the words
+     under the number cannot drift from the label above it. */
+  const TILES: {
+    key: ActivityCategory | "total";
+    label: string;
+    definition: string;
+    value: number;
+    tone: string;
+  }[] = [
+    {
+      key: "total",
+      label: "Total activities",
+      definition: "every tile beside this, added up",
+      value: metrics.total,
+      tone: "bg-fg text-white",
+    },
     ...ACTIVITY_CATEGORIES.filter((c) => c !== "other").map((c) => ({
       key: c,
       label: ACTIVITY_STYLE[c].label,
+      definition: ACTIVITY_STYLE[c].definition,
       value: metrics.byCategory[c],
       tone: ACTIVITY_STYLE[c].tone,
     })),
@@ -229,6 +244,12 @@ export function ActivityDashboard({
                 <p className="crm-num mt-1.5 text-[22px] font-extrabold leading-none tracking-[-0.02em] text-fg">
                   {t.value}
                 </p>
+                {/* ALWAYS VISIBLE, never a tooltip. This dashboard is read
+                    on a phone, where hover does not exist, and a `title`
+                    cannot be discovered by somebody who does not already
+                    know to look for it. One line, 10.5px, so the tile grows
+                    by about a dozen pixels rather than becoming a card. */}
+                <p className="mt-1 text-[10.5px] leading-[1.25] text-fg-subtle">{t.definition}</p>
               </button>
             );
           })}
@@ -249,9 +270,18 @@ export function ActivityDashboard({
                 {" "}
                 reached{" "}
                 <span className="font-bold text-fg">{metrics.uniqueCompaniesCalled}</span>{" "}
-                {metrics.uniqueCompaniesCalled === 1 ? "company" : "companies"} and{" "}
+                {/* "DIFFERENT" IS THE LOAD-BEARING WORD and the reason this
+                    line was rewritten. Brent read "Companies 9" beside
+                    "Companies called 15" and could not tell what was what.
+                    These two are a count of COMPANIES; the tile above is a
+                    count of EVENTS. Saying "different" makes the unit
+                    explicit at the point of reading, rather than leaving it
+                    to be inferred from two similar words. */}
+                {metrics.uniqueCompaniesCalled === 1 ? "different company" : "different companies"}{" "}
+                and{" "}
                 <span className="font-bold text-fg">{metrics.uniqueContactsCalled}</span>{" "}
-                {metrics.uniqueContactsCalled === 1 ? "person" : "people"}.
+                {metrics.uniqueContactsCalled === 1 ? "different person" : "different people"} —
+                calling the same company twice counts once here.
               </>
             )}
           </p>
