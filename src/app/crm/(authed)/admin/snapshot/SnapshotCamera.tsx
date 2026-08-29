@@ -87,6 +87,8 @@ export function SnapshotCamera({
   const [shotCount, setShotCount] = useState(0);
   const [thumbs, setThumbs] = useState<{ id: number; src: string }[]>([]);
   const [flash, setFlash] = useState(false);
+  /** True once the element reports real dimensions — i.e. frames exist. */
+  const [feedReady, setFeedReady] = useState(false);
 
   const stop = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -108,11 +110,12 @@ export function SnapshotCamera({
         },
         audio: false,
       });
+      // ONLY store it. Attaching here was the bug that shipped a black
+      // preview: this runs while status === "starting", and that branch
+      // renders no <video> at all, so videoRef.current was null, the attach
+      // was skipped, and the element then mounted with no srcObject.
+      // The effect below binds it once the element actually exists.
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
-      }
       setStatus("live");
     } catch (err) {
       // NotAllowedError covers both "he just said no" and "Chrome already
@@ -123,6 +126,42 @@ export function SnapshotCamera({
       setStatus(name === "NotAllowedError" || name === "SecurityError" ? "denied" : "unavailable");
     }
   }, []);
+
+  /**
+   * ATTACH AFTER MOUNT. The <video> only exists in the "live" branch, so the
+   * stream can only be bound once React has rendered it — hence an effect
+   * keyed on status rather than a line inside start().
+   *
+   * `loadedmetadata` is what says the frames are really coming: until it
+   * fires the element has no dimensions and shoot() would (correctly) refuse
+   * to capture. The overlay stays up until then, so a black box is never
+   * presented as a working camera.
+   */
+  useEffect(() => {
+    if (status !== "live") return;
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream) return;
+
+    setFeedReady(false);
+    video.srcObject = stream;
+
+    const onMeta = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) setFeedReady(true);
+    };
+    video.addEventListener("loadedmetadata", onMeta);
+    video.addEventListener("playing", onMeta);
+    // Autoplay is declared on the element too, but Chrome can still need the
+    // explicit call after a programmatic srcObject swap.
+    void video.play().catch(() => {});
+    // Already had metadata (a re-attach of a running stream).
+    onMeta();
+
+    return () => {
+      video.removeEventListener("loadedmetadata", onMeta);
+      video.removeEventListener("playing", onMeta);
+    };
+  }, [status]);
 
   useEffect(() => stop, [stop]);
 
@@ -243,15 +282,37 @@ export function SnapshotCamera({
   return (
     <div className="border-b border-line-strong bg-card p-3">
       <div className="relative overflow-hidden rounded-md bg-black">
+        {/* autoPlay AND the explicit play() in the effect: Chrome for
+            Android will not start a programmatically-assigned srcObject
+            from the attribute alone, and iOS refuses to play inline without
+            playsInline. muted is what makes autoplay permissible at all.
+            All three, because dropping any one of them is a black box on
+            some device.
+
+            LANDSCAPE IS THE NORMAL CASE HERE. Brent shoots from a phone
+            mount over a table, so the viewport is ~412px tall: a 52vh cap
+            left a 214px preview with the controls sitting on top of it. The
+            preview now takes the height it can get and the controls move to
+            a column at the right edge, out of the document's way. */}
         <video
           ref={videoRef}
+          autoPlay
           playsInline
           muted
-          className="block max-h-[52vh] w-full object-contain"
+          className="block max-h-[52vh] w-full object-contain landscape:max-h-[74vh]"
         />
         {flash && <div className="pointer-events-none absolute inset-0 bg-white/70" />}
 
-        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-8">
+        {/* Never present a black rectangle as a working camera. */}
+        {!feedReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 px-4 text-center">
+            <p className="text-[13px] font-semibold text-white/80">
+              Waiting for the camera feed…
+            </p>
+          </div>
+        )}
+
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-3 bg-gradient-to-t from-black/70 to-transparent px-3 pb-3 pt-8 landscape:inset-x-auto landscape:inset-y-0 landscape:right-0 landscape:w-[92px] landscape:flex-col-reverse landscape:justify-center landscape:bg-gradient-to-l landscape:px-2 landscape:pb-0 landscape:pt-0">
           <span className="crm-num text-[13px] font-bold text-white">
             {shotCount} {shotCount === 1 ? "photo" : "photos"}
           </span>
@@ -262,8 +323,9 @@ export function SnapshotCamera({
           <button
             type="button"
             onClick={shoot}
+            disabled={!feedReady}
             aria-label="Take photo"
-            className="h-[68px] w-[68px] shrink-0 rounded-full border-4 border-white bg-white/25 transition-transform active:scale-95"
+            className="h-[68px] w-[68px] shrink-0 rounded-full border-4 border-white bg-white/25 transition-transform active:scale-95 disabled:opacity-40"
           />
 
           <button
