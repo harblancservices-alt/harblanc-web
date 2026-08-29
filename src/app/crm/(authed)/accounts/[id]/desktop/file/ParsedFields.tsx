@@ -143,12 +143,12 @@ export function ParsedFields({ doc, total }: { doc: BolDoc; total: number }) {
           label="Bill to"
           value={doc.billTo}
           isThisCompany={ROLE_FIELD[doc.role] === "Bill to"}
-          note="Broker or payer — shown for context, not added as a company."
+          note="Broker or payer on this document."
         />
         <Field
           label="Carrier"
           value={doc.carrier}
-          note="Who hauled it — shown for context, not added as a company."
+          note="Carrier named on this document."
         />
         <Field label="Commodity" value={doc.commodity} />
         <Field label="Weight" value={doc.weight} />
