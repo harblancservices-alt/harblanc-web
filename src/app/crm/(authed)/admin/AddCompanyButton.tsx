@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
 import { Field, SubmitButton, FormError } from "../_shell/form";
-import { BTN_PRIMARY } from "../_shell/ui";
+import { BTN_CREATE } from "../_shell/ui";
 import { addCompanyToPool } from "./add-company-actions";
 
 /**
@@ -47,7 +47,7 @@ export function AddCompanyButton() {
           setError(null);
           setOpen(true);
         }}
-        className={`inline-flex h-9.5 shrink-0 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-bold transition-colors ${BTN_PRIMARY}`}
+        className={`inline-flex h-9.5 shrink-0 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-bold transition-colors ${BTN_CREATE}`}
       >
         Add company
       </button>

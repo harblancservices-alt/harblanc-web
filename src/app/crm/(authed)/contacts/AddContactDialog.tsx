@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
 import { Field, SelectField, TextareaField, SubmitButton, FormError } from "../_shell/form";
 import { IconPlus } from "../_shell/icons";
-import { BTN_ACTION, BTN_EDIT, BTN_NEUTRAL } from "../_shell/ui";
+import { BTN_CREATE, BTN_EDIT, BTN_NEUTRAL } from "../_shell/ui";
 import { PhonesEditor } from "../_shell/PhonesEditor";
 import { LinksEditor } from "../_shell/LinksEditor";
 import { MoodPicker } from "../_shell/MoodPicker";
@@ -91,7 +91,7 @@ export function AddContactDialog({
         <button
           type="button"
           onClick={openDialog}
-          className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${variant === "secondary" ? BTN_EDIT : BTN_ACTION}`}
+          className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${variant === "secondary" ? BTN_EDIT : BTN_CREATE}`}
         >
           <IconPlus width={16} height={16} />
           Add contact

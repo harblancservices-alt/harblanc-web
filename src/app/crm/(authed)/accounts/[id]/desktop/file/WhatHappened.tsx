@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type ReactNode } from "react";
+import { BTN_CREATE } from "../../../../_shell/ui";
 import { useRouter } from "next/navigation";
 import { logCall } from "../../../../calls/actions";
 import {
@@ -89,9 +90,10 @@ const PICKABLE =
 const PICKED =
   "border-ok bg-ok text-white ring-2 ring-ok/35 hover:bg-ok/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ok/50";
 
-/* The commit action. Same token as "+ person" on the company profile. */
-const COMMIT =
-  "bg-bad text-white hover:bg-bad/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40";
+/* The commit action. BTN_CREATE -- the shared "this makes a record" token,
+   the same one "+ person" and the dashboard's Add buttons use. Was a
+   copy of that string until 2026-08-29. */
+const COMMIT = BTN_CREATE;
 
 /**
  * A STEP, not a label. The four things a call is — got through, how it

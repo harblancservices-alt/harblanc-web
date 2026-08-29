@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BTN_CREATE } from "../../../../_shell/ui";
 import Link from "next/link";
 import { ContactDialog, type ContactDefaults } from "../../ContactDialog";
 import { EditCompany } from "../../EditCompany";
@@ -179,7 +180,7 @@ export function WhoDoICall({
               <button
                 type="button"
                 onClick={open}
-                className="inline-flex min-h-9 items-center rounded-md bg-bad px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-bad/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40"
+                className={`inline-flex min-h-9 items-center rounded-md px-3.5 py-2 text-[12.5px] font-bold transition-colors ${BTN_CREATE}`}
               >
                 + person
               </button>
@@ -202,7 +203,7 @@ export function WhoDoICall({
               <button
                 type="button"
                 onClick={open}
-                className="mt-3 inline-flex min-h-11 items-center rounded-md bg-accent px-4 text-[12.5px] font-bold text-white transition-colors hover:bg-accent-hover"
+                className={`mt-3 inline-flex min-h-11 items-center rounded-md px-4 text-[12.5px] font-bold transition-colors ${BTN_CREATE}`}
               >
                 Add the first contact
               </button>

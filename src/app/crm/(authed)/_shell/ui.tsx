@@ -167,6 +167,8 @@ export const ZEBRA_ROWS =
  *                 colour distinction does not, because there is no longer
  *                 one. Destructive actions (BTN_DANGER) are unchanged —
  *                 that's a different semantic category.
+ *   BTN_CREATE  — FILLED RED. Makes a new record: Add company, Add contact,
+ *                 Add task, + person, Create task. See its definition.
  *   BTN_EDIT    — blue outline.  Edit / Open / View / secondary navigate.
  *   BTN_WARNING — amber outline. Reschedule / snooze / date changes.
  *   BTN_DANGER  — red outline.   Delete / Discard / Remove / Reject.
@@ -191,6 +193,36 @@ export const BTN_SUCCESS =
 // by weight (see BTN_EDIT) rather than by two blues nobody can tell apart.
 export const BTN_ACTION =
   "border border-accent bg-accent text-white hover:bg-accent-hover disabled:opacity-60";
+/**
+ * MAKES A NEW RECORD. Filled red.
+ *
+ * Brent, 2026-08-29: "add company, add task, add contact — make those
+ * buttons red like the +person on the company profiles."
+ *
+ * ── WHAT RED MEANS NOW, STATED PLAINLY ────────────────────────────────
+ *
+ * It meant "late or destructive". It now ALSO means "this button creates a
+ * record", which arrived one button at a time: "+ person" broke the old
+ * rule knowingly in August, Create task followed, and these three complete
+ * it. Two meanings for one colour is a cost, and it is worth naming rather
+ * than pretending it did not happen.
+ *
+ * What keeps it workable is that the two never share a surface as peers.
+ * Destructive controls in this CRM are OUTLINED red (BTN_DANGER) or a red
+ * TEXT link — Delete on a row, Delete on the snapshot list — and none of
+ * them is a filled red button. So on any given screen: filled red makes
+ * something, outlined or text red removes something. The distinction is
+ * weight, not hue, which is the same tool BTN_ACTION's note recommends.
+ *
+ * DEFINED ONCE, HERE. This exact string was copy-pasted in three places —
+ * WhoDoICall's "+ person", ContactsTab's, and WhatHappened's COMMIT — and
+ * a fourth, fifth and sixth call site was the moment to stop. If red ever
+ * stops meaning "create", it stops in one edit.
+ *
+ * Call sites keep their own sizing, like every other BTN_ token.
+ */
+export const BTN_CREATE =
+  "bg-bad text-white hover:bg-bad/90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bad/40";
 export const BTN_EDIT =
   "border border-accent/40 bg-card text-accent hover:bg-accent/10 disabled:opacity-60";
 export const BTN_WARNING =

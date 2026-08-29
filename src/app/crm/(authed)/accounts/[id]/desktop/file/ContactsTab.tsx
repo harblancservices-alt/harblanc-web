@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BTN_CREATE } from "../../../../_shell/ui";
 import { ContactDialog } from "../../ContactDialog";
 import { digitsForTel } from "../../../../_shell/contactFields";
 import type { CallPerson } from "./WhoDoICall";
@@ -124,7 +125,7 @@ export function ContactsTab({
             <button
               type="button"
               onClick={open}
-              className="mt-3 rounded-md bg-accent px-3.5 py-2 text-[12.5px] font-bold text-white transition-colors hover:bg-accent-hover"
+              className={`mt-3 rounded-md px-3.5 py-2 text-[12.5px] font-bold transition-colors ${BTN_CREATE}`}
             >
               Add the first contact
             </button>

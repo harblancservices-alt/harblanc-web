@@ -2,7 +2,7 @@
 
 import { CompanyDialog, type RepOption } from "./CompanyDialog";
 import { IconPlus } from "../_shell/icons";
-import { BTN_EDIT, BTN_PRIMARY } from "../_shell/ui";
+import { BTN_EDIT, BTN_CREATE } from "../_shell/ui";
 
 /**
  * "Add company" — the primary create action on the Companies list. A thin
@@ -41,7 +41,7 @@ export function AddCompany({
           type="button"
           onClick={open}
           className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${
-            variant === "secondary" ? BTN_EDIT : BTN_PRIMARY
+            variant === "secondary" ? BTN_EDIT : BTN_CREATE
           }`}
         >
           <IconPlus width={16} height={16} />

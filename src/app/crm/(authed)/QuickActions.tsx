@@ -14,7 +14,7 @@ import {
 import type { QuickTask } from "./admin/quick-task-actions";
 import { CompanyDialog, type RepOption } from "./accounts/CompanyDialog";
 import { LogCallDialog } from "./calls/LogCallDialog";
-import { BTN_PRIMARY, BTN_EDIT } from "./_shell/ui";
+import { BTN_CREATE, BTN_EDIT } from "./_shell/ui";
 
 /**
  * The dashboard's quick-actions strip, each wired to an existing dialog via
@@ -45,12 +45,21 @@ import { BTN_PRIMARY, BTN_EDIT } from "./_shell/ui";
 const BUTTON_CLASS =
   `inline-flex h-9.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[12.5px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${BTN_EDIT}`;
 
+/* THE THREE CREATE ACTIONS ON THIS STRIP. Same size and layout as the row
+   around them -- colour only, per Brent. Filled rather than outlined: an
+   outlined button on this light strip is what read as grey in the earlier
+   passes, which is the whole reason it was raised. "Log call" keeps the
+   outline: it was not named, and whether logging a call counts as creating
+   a record is his call, not mine. */
+const CREATE_CLASS =
+  `inline-flex h-9.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[12.5px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bad ${BTN_CREATE}`;
+
 export function QuickAddContactButton({ companies }: { companies: CompanyOption[] }) {
   return (
     <AddContactDialog
       companies={companies}
       trigger={(open) => (
-        <button type="button" onClick={open} className={BUTTON_CLASS}>
+        <button type="button" onClick={open} className={CREATE_CLASS}>
           <IconPlus width={18} height={18} />
           Add contact
         </button>
@@ -65,7 +74,7 @@ export function QuickAddCompanyButton({ reps }: { reps: RepOption[] }) {
       mode="create"
       reps={reps}
       trigger={(open) => (
-        <button type="button" onClick={open} className={BUTTON_CLASS}>
+        <button type="button" onClick={open} className={CREATE_CLASS}>
           <IconCompanyPlus width={18} height={18} />
           Add company
         </button>
@@ -85,7 +94,10 @@ export function HeaderAddCompanyButton({ reps }: { reps: RepOption[] }) {
         <button
           type="button"
           onClick={open}
-          className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md px-3.5 text-[13.5px] font-bold transition-colors ${BTN_PRIMARY}`}
+          /* The header's own Add-company pill. Same action as the strip's,
+             so the same colour -- one button must not be red below and blue
+             above. */
+          className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md px-3.5 text-[13.5px] font-bold transition-colors ${BTN_CREATE}`}
         >
           <IconPlus width={16} height={16} />
           Add
@@ -153,7 +165,7 @@ export function QuickAddTaskButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={BUTTON_CLASS}>
+      <button type="button" onClick={() => setOpen(true)} className={CREATE_CLASS}>
         <IconTasks width={18} height={18} />
         Add task
       </button>
