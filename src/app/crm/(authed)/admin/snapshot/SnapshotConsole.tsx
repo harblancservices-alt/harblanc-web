@@ -73,6 +73,26 @@ function stamp(iso: string): string {
   });
 }
 
+/**
+ * One figure on a parsed row. Label under value, so the three read as a
+ * row of numbers at a glance and the words are there when you want them.
+ * `crm-num` is the tabular-figure class the rest of the CRM uses, so the
+ * digits line up between rows.
+ */
+function Stat({ label, value, outOf }: { label: string; value: number; outOf?: number }) {
+  return (
+    <span className="flex items-baseline gap-1.5">
+      <span className="crm-num text-[13px] font-extrabold leading-none text-white">
+        {value}
+        {outOf ? <span className="text-white/60">/{outOf}</span> : null}
+      </span>
+      <span className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-white/70">
+        {label}
+      </span>
+    </span>
+  );
+}
+
 export function SnapshotConsole({
   orgId,
   initial,
@@ -140,7 +160,15 @@ export function SnapshotConsole({
         filesRef.current.delete(key);
         setPendingShots((prev) => prev.filter((p) => p.key !== key));
         setRows((prev) => [
-          { id: res.id, number: res.number, fileName: file.name || "shot.jpg", createdAt: res.createdAt },
+          {
+            id: res.id,
+            number: res.number,
+            fileName: file.name || "shot.jpg",
+            createdAt: res.createdAt,
+            // A photo taken one second ago has not been parsed. It joins
+            // the list plain and turns green when it has been.
+            parse: null,
+          },
           ...prev,
         ]);
       } catch {
@@ -300,28 +328,74 @@ export function SnapshotConsole({
           </div>
         ) : (
           <ul className="m-3 overflow-hidden rounded-md border border-line bg-card">
-            {rows.map((row) => (
-              <li
-                key={row.id}
-                className="flex items-center gap-3 border-t border-line px-3 py-2 first:border-t-0"
-              >
-                <span className="w-[54px] shrink-0 text-[13px] font-extrabold text-fg crm-num">
-                  #{row.number}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
-                  {row.fileName}
-                </span>
-                <span className="shrink-0 text-[11.5px] text-fg-subtle">{stamp(row.createdAt)}</span>
-                <button
-                  type="button"
-                  onClick={() => remove(row)}
-                  disabled={busyId === row.id}
-                  className="shrink-0 text-[12px] font-bold text-bad hover:underline disabled:opacity-50"
+            {rows.map((row) => {
+              const done = row.parse;
+              return (
+                <li
+                  key={row.id}
+                  /* THE GREEN CARD. `bg-ok` is the palette's success green
+                     (#0f7a4e) — 5.4:1 against the white list, which is
+                     "decently dark but not too dark" without inventing a
+                     hex. An unparsed row is untouched: the green is the
+                     signal that work has happened, so it only means
+                     something while most rows do not have it. */
+                  className={`border-t border-line first:border-t-0 ${
+                    done ? "bg-ok text-white" : ""
+                  }`}
                 >
-                  {busyId === row.id ? "…" : "Delete"}
-                </button>
-              </li>
-            ))}
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    <span
+                      className={`w-[54px] shrink-0 text-[13px] font-extrabold crm-num ${
+                        done ? "text-white" : "text-fg"
+                      }`}
+                    >
+                      #{row.number}
+                    </span>
+                    <span
+                      className={`min-w-0 flex-1 truncate text-[12.5px] ${
+                        done ? "text-white" : "text-fg"
+                      }`}
+                    >
+                      {row.fileName}
+                    </span>
+                    <span
+                      className={`shrink-0 text-[11.5px] ${done ? "text-white/70" : "text-fg-subtle"}`}
+                    >
+                      {stamp(row.createdAt)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => remove(row)}
+                      disabled={busyId === row.id}
+                      className={`shrink-0 text-[12px] font-bold hover:underline disabled:opacity-50 ${
+                        done ? "text-white/80" : "text-bad"
+                      }`}
+                    >
+                      {busyId === row.id ? "…" : "Delete"}
+                    </button>
+                  </div>
+
+                  {/* THE PARSE RESULT — a second line rather than more
+                      columns on the first. Brent shoots and checks these on
+                      a phone: four things already share that row, and three
+                      more would either truncate the filename to nothing or
+                      push the Delete button off a 375px screen. Wrapping
+                      is what a narrow screen needs, and it costs a desktop
+                      reader nothing. */}
+                  {done && (
+                    <div /* Indented to line up under the filename on a wide screen,
+                         flush left on a phone: the 66px of alignment is
+                         worth less at 375px than fitting all three
+                         figures on one line. */
+                      className="flex flex-wrap items-baseline gap-x-5 gap-y-1 border-t border-white/20 px-3 py-1.5 sm:pl-[66px]">
+                      <Stat label="phone numbers" value={done.phones} />
+                      <Stat label={done.companies === 1 ? "company" : "companies"} value={done.companies} />
+                      <Stat label="parse score" value={done.score} outOf={100} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
