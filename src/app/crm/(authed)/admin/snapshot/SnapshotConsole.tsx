@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { recordSnapshot, deleteSnapshot } from "./actions";
 import type { SnapshotRow } from "./snapshot-data";
+import { SnapshotCamera } from "./SnapshotCamera";
 
 /**
  * SNAPSHOT — the whole page. Capture at the top, list underneath, and the
@@ -160,10 +161,13 @@ export function SnapshotConsole({
     }
   }
 
-  function accept(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) return;
+  /** The one way anything enters the queue — the file input and the live
+   *  camera both land here, so numbering, retry and the saving count behave
+   *  identically whichever way the photo was taken. */
+  function enqueue(files: File[]) {
+    if (files.length === 0) return;
     const added: Pending[] = [];
-    for (const file of Array.from(fileList)) {
+    for (const file of files) {
       const key = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       filesRef.current.set(key, file);
       queueRef.current.push(key);
@@ -171,6 +175,11 @@ export function SnapshotConsole({
     }
     setPendingShots((prev) => [...prev, ...added]);
     pump();
+  }
+
+  function accept(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    enqueue(Array.from(fileList));
   }
 
   function retryAll() {
@@ -209,38 +218,42 @@ export function SnapshotConsole({
       </header>
 
       {/* ── CAPTURE ────────────────────────────────────────────────
-          A label wrapping the file input, so the whole block is the tap
-          target and no JavaScript stands between the tap and the camera.
-          capture="environment" opens the rear camera on iOS and Android;
-          on a desktop browser the same control is an ordinary file
-          picker, which is why there is no separate desktop path. */}
-      <div className="border-b border-line-strong bg-card p-3">
-        <label className="flex min-h-[112px] cursor-pointer select-none flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed border-accent/50 bg-accent-bg px-4 py-6 text-center transition-colors hover:border-accent hover:bg-accent/10">
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            multiple
-            className="sr-only"
-            onChange={(e) => {
-              accept(e.target.files);
-              // Clearing the value is what makes the NEXT tap reopen the
-              // camera. Without it the input holds the last file and
-              // re-picking the same name fires no change event at all —
-              // the shutter silently stops working mid-run.
-              e.target.value = "";
-            }}
-          />
-          <span className="text-[17px] font-extrabold text-accent">Take a photo</span>
-          <span className="text-[12px] text-fg-muted">
-            Snap, swap the paper, snap again. Nothing to dismiss.
-          </span>
-        </label>
+          The live camera, with the ORIGINAL file input handed to it as the
+          fallback. Whichever one takes the photo, it goes through enqueue()
+          and gets the same numbering, the same retry and the same saving
+          count — there is one pipeline, not two. */}
+      <SnapshotCamera
+        onCapture={(file) => enqueue([file])}
+        fallback={
+          <label className="flex min-h-[64px] cursor-pointer select-none flex-col items-center justify-center gap-0.5 rounded-md border-2 border-dashed border-line-strong bg-inset px-4 py-3 text-center transition-colors hover:border-accent">
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              className="sr-only"
+              onChange={(e) => {
+                accept(e.target.files);
+                // Clearing the value is what makes the NEXT tap reopen the
+                // camera. Without it the input holds the last file and
+                // re-picking the same name fires no change event at all —
+                // the shutter silently stops working mid-run.
+                e.target.value = "";
+              }}
+            />
+            <span className="text-[13.5px] font-bold text-fg">Use the phone camera app instead</span>
+            <span className="text-[11.5px] text-fg-subtle">One photo per tap</span>
+          </label>
+        }
+      />
 
-        {/* The only status this page shows: enough that it does not look
-            broken while photos are in flight, and nothing more. */}
-        {(workingCount > 0 || failedCount > 0) && (
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px]">
+      {/* The only status this page shows: enough that it does not look
+          broken while photos are in flight, and nothing more. The bar is not
+          rendered at all when there is nothing in flight — an empty strip
+          under the camera would just be chrome. */}
+      {(workingCount > 0 || failedCount > 0) && (
+        <div className="border-b border-line-strong bg-card px-3 py-2">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px]">
             {workingCount > 0 && (
               <span className="text-fg-muted">
                 <span className="crm-num">{workingCount}</span> saving…
@@ -261,8 +274,8 @@ export function SnapshotConsole({
               </>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── THE LIST ───────────────────────────────────────────────── */}
       <div className="flex-1">
