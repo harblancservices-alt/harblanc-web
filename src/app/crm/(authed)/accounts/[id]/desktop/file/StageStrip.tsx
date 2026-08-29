@@ -147,14 +147,22 @@ export function StageStrip({
                   ? `Currently ${LIFECYCLE_LABEL[stage]} — open the full stage list`
                   : `Move to ${LIFECYCLE_LABEL[stage]}`
               }
-              className={`w-full min-w-0 border-l border-line px-3 py-2.5 text-left transition-colors ${
+              /* TEXT AREA ONLY. The cell keeps flex-1 for its width and
+                 loses 4px of vertical padding to pay for the larger type,
+                 so the strip's height moves by 1px. Brent was explicit that
+                 this is the text, not the button.
+                 text-left -> text-center, as asked. */
+              className={`w-full min-w-0 border-l border-line px-3 py-2 text-center transition-colors ${
                 isActive
                   ? "bg-accent"
                   : "bg-card hover:bg-inset disabled:cursor-default"
               }`}
             >
               <span
-                className={`block truncate text-[10px] crm-num ${
+                /* 10px -> 11.5px. He called these out by name as light
+                   grey and small; the colour moved in the last pass, this
+                   is the size. */
+                className={`block truncate text-[11.5px] crm-num ${
                   /* The step number on the ACTIVE stage: white/75 over the
                      accent fill is 3.91:1, under the 4.5 a number this
                      small needs. Full white is 5.63:1. The inactive ones
@@ -167,7 +175,8 @@ export function StageStrip({
                 {!isActive && terminal && " · needs reason"}
               </span>
               <span
-                className={`mt-1 flex items-center gap-1 truncate text-[12.5px] font-extrabold uppercase tracking-[0.01em] ${
+                /* 12.5px -> 15px, and centred within the cell. */
+                className={`mt-1 flex items-center justify-center gap-1 truncate text-[15px] font-extrabold uppercase tracking-[0.01em] ${
                   isActive ? "text-white" : terminal ? "text-fg-subtle" : "text-fg"
                 }`}
               >

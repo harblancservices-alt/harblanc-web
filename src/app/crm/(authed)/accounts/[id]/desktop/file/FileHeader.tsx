@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Micro } from "./chrome";
 import { ProvenancePills } from "../../ProvenancePills";
 
 /**
@@ -75,12 +74,22 @@ function Stat({
        TEXT in this header already passes (labels 6.12:1, name 17.95:1); it
        reads flat because everything sits at a similar weight with nothing
        separating it, and this is the separation. */
-    <div className="min-w-0 border-l border-white/35 pl-4">
-      <Micro className="block text-white/55">{label}</Micro>
-      <div className="mt-1 truncate text-[17px] font-extrabold leading-none text-white">
+    <div className="min-w-0 border-l border-white/35 pl-5">
+      {/* NOT <Micro>. That component is shared with the panels below the
+          stage strip, which are explicitly out of scope — so the size steps
+          up here with an inline span rather than by moving a token that
+          would reach the whole profile. */}
+      <span className="block text-[11px] font-bold uppercase tracking-[0.09em] text-white/55">
+        {label}
+      </span>
+      {/* 17px -> 26px. The stats column was the shortest thing in the band
+          by 35px, so it is the one place type can grow without the band
+          growing at all — which is exactly the wasted space Brent is
+          pointing at. */}
+      <div className="mt-1 truncate text-[26px] font-extrabold leading-none text-white">
         {value}
       </div>
-      {sub ? <div className="mt-1.5 truncate text-[11px] text-white/55">{sub}</div> : null}
+      {sub ? <div className="mt-1.5 truncate text-[12.5px] text-white/55">{sub}</div> : null}
     </div>
   );
 }
@@ -133,14 +142,22 @@ export function FileHeader({
       {/* pb shrinks when tabs are present — they supply the band's bottom
           edge themselves, and padding under them would break the seam. */}
       <div
-        className={`flex items-end gap-6 bg-graphite px-4 pt-3.5 ${tabs ? "pb-0" : "pb-4"}`}
+        /* pt-3.5 -> pt-3 buys back 2 of the 6px the larger type costs.
+           Net band growth is 4px on a ~90px band — see the sizing note on
+           <Stat>. */
+        className={`flex items-end gap-6 bg-graphite px-5 pt-3 ${tabs ? "pb-0" : "pb-4"}`}
       >
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[27px] font-extrabold leading-none tracking-[-0.02em] text-white">
+          {/* 27px -> 34px. It is the primary object on the page and read
+              as "a small ass name in the corner" at 27 on a 1920 screen. */}
+          <h1 className="truncate text-[34px] font-extrabold leading-none tracking-[-0.02em] text-white">
             {accountName}
           </h1>
           {(industry || fullAddress) && (
-            <p className="mt-2 flex items-center gap-1.5 truncate text-[12px]">
+            /* 12px -> 14px, and mt-2 -> mt-1.5. Stepped up WITH the name
+               rather than left behind, so the hierarchy still reads as a
+               hierarchy instead of one size for everything. */
+            <p className="mt-1.5 flex items-center gap-1.5 truncate text-[14px]">
               {industry && <span className="shrink-0 font-bold text-white/90">{industry}</span>}
               {industry && fullAddress && (
                 <span aria-hidden className="shrink-0 text-white/35">
@@ -185,10 +202,14 @@ export function FileHeader({
               read on the way past, which a pill in a side rail does not.
               See ProvenancePills for the colour reasoning and the measured
               contrast against this near-black header. */}
-          <ProvenancePills source={source} bolRole={bolRole} onDark className="mt-2.5" />
+          <ProvenancePills source={source} bolRole={bolRole} onDark className="mt-2" />
         </div>
 
-        <div className="flex shrink-0 gap-4">
+        {/* gap-4 -> gap-8. The three blocks were clustered against the
+            right edge with empty band between them and the name; widening
+            the gaps distributes them across the space that was already
+            there. No height cost. */}
+        <div className="flex shrink-0 gap-8">
           <Stat
             label="Owner"
             value={ownerLabel ?? <span className="text-white/50">Unassigned</span>}
