@@ -1,3 +1,4 @@
+import { IconLink } from "../../_shell/icons";
 import { M_CARD } from "./mobile/ui";
 import type { LinkedCompany } from "./bolLinks";
 
@@ -76,7 +77,10 @@ export function LinkedCompanies({
           can come off different documents, and each row names its own BOL
           underneath anyway. */}
       <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
-        {companies.length > 1 ? "Linked companies" : "Linked company"}
+        {companies.length > 1 ? "Linked companies" : "Linked company"}{" "}
+        <span className="font-semibold normal-case tracking-normal text-fg-subtle">
+          — the other end of this load
+        </span>
       </p>
 
       <div className="mt-1.5 flex flex-col gap-1.5">
@@ -87,25 +91,44 @@ export function LinkedCompanies({
             target="_blank"
             rel="noopener noreferrer"
             title={`Open ${c.name} in a new tab`}
-            className="group flex items-center gap-2 rounded-lg border border-line bg-inset px-3 py-2 transition-colors hover:border-accent hover:bg-accent-bg"
+            /* GOLD, AND MEANT TO BE FOUND WITHOUT HUNTING.
+               Brent asked twice for things he can see without looking for
+               them, and this control had been a quiet inset card that read
+               as another list row - which is why he could not find it.
+               Filled amber, the same gold as the "Possible shipper" and
+               "Possible receiver" pills, so the BOL relationship and the
+               BOL roles share one colour: gold on this profile means "this
+               came off the bill of lading".
+               CONTRAST: #e2a33d is only 2.2:1 against the white panel, so
+               the #925c0a ring draws its edge (5.6:1) and the graphite
+               label sits on the field at 8.1:1 - exactly the treatment the
+               role pills use on a light ground. */
+            className="group flex items-center gap-2.5 rounded-lg bg-amber px-3 py-2.5 ring-1 ring-inset ring-warn transition-colors hover:bg-amber/85"
           >
+            {/* THE CHAIN LINK, asked for by name. Already in the icon set -
+                two interlocking links - so no new glyph was drawn. */}
+            <IconLink
+              width={18}
+              height={18}
+              className="shrink-0 stroke-graphite"
+              aria-hidden
+            />
+
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-[13px] font-bold text-fg group-hover:text-accent">
+              <span className="block truncate text-[13px] font-extrabold text-graphite">
                 {c.name}
               </span>
-              <span className="block truncate text-[11.5px] text-fg-subtle">
+              <span className="block truncate text-[11.5px] font-semibold text-graphite/75">
                 {ROLE_WORD[c.role]}
                 {c.bolNumber ? ` · BOL #${c.bolNumber}` : ""}
               </span>
             </span>
 
-            {/* The new-tab mark. Says what the click will do before it does
-                it, which matters more here than usual — an agent mid-call
-                should not be surprised by a context switch. */}
+            {/* Says the click opens a new tab before it does. */}
             <svg
               aria-hidden
               viewBox="0 0 24 24"
-              className="h-3.5 w-3.5 shrink-0 fill-none stroke-fg-subtle stroke-2 group-hover:stroke-accent"
+              className="h-3.5 w-3.5 shrink-0 fill-none stroke-graphite/70 stroke-2"
             >
               <path d="M14 4h6v6" />
               <path d="M20 4 10 14" />
