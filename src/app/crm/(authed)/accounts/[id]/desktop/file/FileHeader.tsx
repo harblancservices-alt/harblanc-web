@@ -69,7 +69,13 @@ function Stat({
   sub?: ReactNode;
 }) {
   return (
-    <div className="min-w-0 border-l border-white/15 pl-4">
+    /* THE ONLY MEASURED FAILURE IN THIS HEADER. white/15 over graphite is
+       1.57:1 -- a divider nobody can see, which is why the three stat
+       blocks read as one grey smear. white/35 is 3.21:1 and passes. The
+       TEXT in this header already passes (labels 6.12:1, name 17.95:1); it
+       reads flat because everything sits at a similar weight with nothing
+       separating it, and this is the separation. */
+    <div className="min-w-0 border-l border-white/35 pl-4">
       <Micro className="block text-white/55">{label}</Micro>
       <div className="mt-1 truncate text-[17px] font-extrabold leading-none text-white">
         {value}

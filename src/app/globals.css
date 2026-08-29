@@ -242,11 +242,31 @@ input[type="date"]::-webkit-date-and-time-value {
   --card: #ffffff;          /* crm-design --cd-surface       */
   --inset: #eef1f6;         /* crm-design --cd-surface-2 (CardHead/zebra/sunken fields) */
   --elevated: #e2e7f0;      /* crm-design --cd-surface-hover */
-  --line: #d3d7e1;          /* crm-design --cd-border        */
-  --line-strong: #a7adbd;   /* crm-design --cd-border-strong */
+  /* 2026-08-29 LEGIBILITY PASS. Brent: "a lot of the lines are gray to
+     grey ... there's really no distinct thing." Measured, then moved the
+     minimum distance that fixes it.
+
+     --line was #d3d7e1 -- 1.44:1 on white, which is a rule you cannot see.
+     Now 2.03:1. DELIBERATELY SHORT OF 3:1: a hairline at a true 3:1 is
+     roughly a mid-grey rule, and with one divider per field row that reads
+     as a ruled ledger -- the "too heavy" he rejected in an earlier pass.
+     This is the visible-but-quiet setting.
+
+     --line-strong was #a7adbd -- 1.86:1 on canvas, so card outlines and the
+     new profile frame barely existed. Now 2.87:1 on canvas and 3.45:1 on
+     card. Canvas sits a hair under 3.0 on purpose: the next step darker
+     puts every mobile card border at 4:1, which is heavy on a phone. */
+  --line: #aeb6ca;          /* was #d3d7e1 -- 1.44:1 -> 2.03:1 on white */
+  --line-strong: #828a9f;   /* was #a7adbd -- 1.86:1 -> 2.87:1 on canvas */
   --fg: #14161c;            /* crm-design --cd-text          */
   --fg-muted: #454b5c;      /* crm-design --cd-text-muted    */
-  --fg-subtle: #767c8f;     /* crm-design --cd-text-subtle   */
+  /* THE SINGLE BIGGEST WIN. #767c8f was 4.16:1 on white and 3.67:1 on
+     inset -- under 4.5 on both, and it is the colour of every field label,
+     caption, italic empty-state and stage step number in the CRM. One
+     token explains most of "a lot of the wording is grey". Now 5.33:1 on
+     white and 4.71:1 on inset: clear of the threshold with a small margin,
+     not pushed to maximum. */
+  --fg-subtle: #646b7d;     /* was #767c8f -- 4.16:1 -> 5.33:1 on white */
   --bar: #14161c;           /* unused by CardHead post-migration; kept for any
                                 remaining bare bg-bar/text-bar-fg call site */
   --bar-fg: #ffffff;

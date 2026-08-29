@@ -155,7 +155,11 @@ export function StageStrip({
             >
               <span
                 className={`block truncate text-[10px] crm-num ${
-                  isActive ? "text-white/75" : terminal ? "text-fg-subtle" : "text-fg-subtle"
+                  /* The step number on the ACTIVE stage: white/75 over the
+                     accent fill is 3.91:1, under the 4.5 a number this
+                     small needs. Full white is 5.63:1. The inactive ones
+                     ride --fg-subtle, which moved in the same pass. */
+                  isActive ? "text-white" : terminal ? "text-fg-subtle" : "text-fg-subtle"
                 }`}
               >
                 {num}
