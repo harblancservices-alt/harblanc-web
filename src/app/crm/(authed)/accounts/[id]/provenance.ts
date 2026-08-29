@@ -62,12 +62,6 @@ export type ProvenancePill = {
   hint: string;
 };
 
-const ROLE_TEXT: Record<BolRole, string> = {
-  shipper: "Possible shipper",
-  receiver: "Possible receiver",
-  broker: "Possible broker",
-};
-
 const ROLE_HINT: Record<BolRole, string> = {
   shipper:
     "Named as the shipper on a bill of lading. Read off the document and not yet confirmed with them.",
@@ -123,7 +117,7 @@ export function provenancePills(input: {
   if (isBolRole(input.bolRole)) {
     pills.push({
       key: `role:${input.bolRole}`,
-      text: ROLE_TEXT[input.bolRole],
+      text: ROLE_FULL[input.bolRole],
       tone: input.bolRole === "broker" ? "broker" : "lead",
       hint: ROLE_HINT[input.bolRole],
     });
@@ -141,3 +135,59 @@ export function provenancePills(input: {
 
   return pills;
 }
+
+/**
+ * THE SHORT FORM, for dense lists only.
+ *
+ * Brent, 2026-08-29, looking at Admin -> Work to assign: "i would like it to
+ * say PS or PR in a little pill to show if its a possible shipper possible
+ * receiver."
+ *
+ * That row already carries a company name, a town, a source pill, what it
+ * needs, how long it has waited and a View company link. There is no room
+ * for "Possible receiver" spelled out, and wrapping the row to fit it would
+ * cost more than the pill gives.
+ *
+ * ── AN ABBREVIATION IS ONLY HONEST IF IT CAN BE DECODED ───────────────
+ *
+ * PS and PR are obvious once you know and opaque until you do, so nothing
+ * relies on the letters alone:
+ *
+ *   1. The COLOUR is identical to the full-word pill on the company
+ *      profile — gold for a lead, red for a broker. Somebody who has
+ *      learned gold-means-shipper on a profile reads this list without
+ *      being taught twice. That is the real decoder.
+ *   2. Every pill carries the full wording as a title and an aria-label,
+ *      so hovering says it and a screen reader reads it.
+ *
+ * The full-word pills stay on the profile. This form exists only where
+ * space is the binding constraint.
+ */
+export const ROLE_ABBREV: Record<BolRole, string> = {
+  shipper: "PS",
+  receiver: "PR",
+  broker: "PB",
+};
+
+/** What each abbreviation stands for — the title, the aria-label, and the
+ * text the profile's pill shows in full. One definition, both surfaces. */
+export const ROLE_FULL: Record<BolRole, string> = {
+  shipper: "Possible shipper",
+  receiver: "Possible receiver",
+  broker: "Possible broker",
+};
+
+/**
+ * ROLE COLOUR ON A LIGHT GROUND — the single definition, shared by the
+ * profile header's full-word pill and the work list's abbreviation.
+ *
+ * Kept here rather than in either component precisely so the two cannot
+ * drift apart: the moment they do, the abbreviation stops being decodable
+ * by the colour and becomes two letters nobody can read. See
+ * ProvenancePills.tsx for the measured contrast behind these values.
+ */
+export const ROLE_TONE_ON_LIGHT: Record<BolRole, string> = {
+  shipper: "bg-amber text-graphite ring-inset ring-warn",
+  receiver: "bg-amber text-graphite ring-inset ring-warn",
+  broker: "bg-bad-bg text-bad ring-inset ring-bad",
+};

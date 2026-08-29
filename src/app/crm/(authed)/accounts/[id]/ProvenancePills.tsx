@@ -1,4 +1,4 @@
-import { provenancePills, type PillTone } from "./provenance";
+import { provenancePills, ROLE_TONE_ON_LIGHT, type PillTone } from "./provenance";
 
 /**
  * THE PROVENANCE PILLS — what this company is, and where it came from.
@@ -90,9 +90,13 @@ const TONE_ON_DARK: Record<PillTone, string> = {
   neutral: "bg-white/12 text-white/75",
 };
 
+/* The two role tones come from provenance.ts so this pill and the
+   abbreviation pill in Admin -> Work to assign cannot drift apart — see the
+   note on ROLE_TONE_ON_LIGHT. Only the ring WEIGHT differs between the two
+   surfaces: 2px here where there is room, 1px on a dense table row. */
 const TONE_ON_LIGHT: Record<PillTone, string> = {
-  lead: "bg-amber text-graphite ring-2 ring-inset ring-warn",
-  broker: "bg-bad-bg text-bad ring-2 ring-inset ring-bad",
+  lead: `${ROLE_TONE_ON_LIGHT.shipper} ring-2`,
+  broker: `${ROLE_TONE_ON_LIGHT.broker} ring-2`,
   neutral: "border border-line bg-inset text-fg-muted",
 };
 

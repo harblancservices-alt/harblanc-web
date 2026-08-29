@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isBolRole, provenancePills } from "./provenance";
+import {
+  isBolRole,
+  provenancePills,
+  ROLE_ABBREV,
+  ROLE_FULL,
+  ROLE_TONE_ON_LIGHT,
+  BOL_ROLES,
+} from "./provenance";
 
 describe("provenancePills", () => {
   it("puts the role before the source, because the role is what changes behaviour", () => {
@@ -91,5 +98,62 @@ describe("isBolRole", () => {
     expect(isBolRole(null)).toBe(false);
     expect(isBolRole(undefined)).toBe(false);
     expect(isBolRole(3)).toBe(false);
+  });
+});
+
+/**
+ * The short form used in Admin -> Work to assign. These letters are only
+ * safe because the colour and the spelled-out label carry the meaning; the
+ * tests below pin exactly that.
+ */
+describe("the PS / PR / PB short form", () => {
+  it("abbreviates each role the way Brent asked", () => {
+    expect(ROLE_ABBREV.shipper).toBe("PS");
+    expect(ROLE_ABBREV.receiver).toBe("PR");
+    expect(ROLE_ABBREV.broker).toBe("PB");
+  });
+
+  it("has an abbreviation and a full wording for every role", () => {
+    // A role with no short form would render a blank pill; one with no full
+    // wording would render two undecodable letters.
+    for (const role of BOL_ROLES) {
+      expect(ROLE_ABBREV[role]).toMatch(/^P[SRB]$/);
+      expect(ROLE_FULL[role].startsWith("Possible ")).toBe(true);
+    }
+  });
+
+  it("keeps every abbreviation two characters, so the column cannot jitter", () => {
+    for (const role of BOL_ROLES) expect(ROLE_ABBREV[role]).toHaveLength(2);
+  });
+
+  it("gives no two roles the same letters", () => {
+    expect(new Set(BOL_ROLES.map((r) => ROLE_ABBREV[r])).size).toBe(BOL_ROLES.length);
+  });
+
+  it("spells the short form out to exactly what the profile pill says", () => {
+    // THE DECODER. If these two ever disagree, "PS" stops being teachable
+    // by the profile and becomes two letters nobody can read.
+    for (const role of BOL_ROLES) {
+      const [pill] = provenancePills({ source: "bol", bolRole: role });
+      expect(pill.text).toBe(ROLE_FULL[role]);
+    }
+  });
+
+  it("gives the abbreviation the same colour as the full-word pill", () => {
+    // The other half of the decoder: gold is a lead on both surfaces, red
+    // is a broker on both. Shipper and receiver share a tone; broker does
+    // not share it with either.
+    expect(ROLE_TONE_ON_LIGHT.shipper).toBe(ROLE_TONE_ON_LIGHT.receiver);
+    expect(ROLE_TONE_ON_LIGHT.broker).not.toBe(ROLE_TONE_ON_LIGHT.shipper);
+    expect(ROLE_TONE_ON_LIGHT.broker).toContain("bad");
+    expect(ROLE_TONE_ON_LIGHT.shipper).toContain("amber");
+  });
+
+  it("carries no ring WIDTH, so each surface can pick its own", () => {
+    // 2px on the roomy profile header, 1px on a dense table row. The hue is
+    // shared; the weight is not, and baking one in here would force both.
+    for (const role of BOL_ROLES) {
+      expect(ROLE_TONE_ON_LIGHT[role]).not.toMatch(/ring-\d/);
+    }
   });
 });

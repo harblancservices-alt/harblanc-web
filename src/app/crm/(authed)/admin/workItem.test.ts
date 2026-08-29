@@ -30,6 +30,7 @@ function item(over: Partial<WorkItem> = {}): WorkItem {
     city: "Dallas",
     state: "TX",
     needs: "Assign an owner",
+    bolRole: null,
     waitingSince: ago(2 * HOUR),
     source: null,
     duplicateOf: [],

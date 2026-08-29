@@ -50,6 +50,15 @@ export type WorkItem = {
    */
   source: string | null;
   /**
+   * crm_accounts.bol_role — shipper / receiver / broker, or null.
+   *
+   * Separate from `source` and deliberately so: source says where the record
+   * came from, this says what the company WAS on the paperwork it came from.
+   * 84 of the 106 companies have no role because they never came off a BOL,
+   * and those rows show no pill at all rather than an empty one.
+   */
+  bolRole: string | null;
+  /**
    * Other companies already in the book that look like this one, by name.
    *
    * DERIVED AT READ TIME (admin/duplicates.ts), never stored — same call as

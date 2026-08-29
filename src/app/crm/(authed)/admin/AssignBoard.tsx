@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { RoleAbbrevPill } from "./RoleAbbrevPill";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, BTN_PRIMARY, BTN_NEUTRAL } from "../_shell/ui";
@@ -319,6 +320,12 @@ export function AssignBoard({
                               collapsing into "Other", which would hide the
                               junk that needs cleaning; null reads "Not
                               recorded". */}
+                          {/* The role, two letters, BEFORE the source pill:
+                              what a company IS ranks above where the record
+                              came from, and a broker pill is the one thing in
+                              this row that changes what an agent should do
+                              with it. Renders nothing when there is no role. */}
+                          <RoleAbbrevPill role={item.bolRole} />
                           <SourcePill source={item.source} />
                           {item.duplicateOf.length > 0 && (
                             <span
