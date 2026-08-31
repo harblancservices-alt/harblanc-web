@@ -355,6 +355,16 @@ export function WhoDoICall({
                 <div className="border-t border-line">
                   {rest.map((p, i) => {
                     const phone = p.phones[0] ?? null;
+                    /* Is this the switchboard rather than their own line?
+                       Same question the hero answers, asked the same way,
+                       so a roster row never implies a direct line that
+                       does not exist. On Magna Fab all four contacts carry
+                       (469) 415-9100 — the company main — and saying so is
+                       the difference between "ask for Mario" and dialling
+                       expecting Mario to pick up. */
+                    const onMain =
+                      phone !== null &&
+                      companyPhones.some((c) => sameDialledNumber(c.number, phone.number));
                     return (
                       <div
                         key={p.id}
@@ -370,13 +380,45 @@ export function WhoDoICall({
                           }`}
                         />
                         <div className="min-w-0 flex-1">
-                          <Link
-                            href={`/crm/contacts/${p.id}`}
-                            prefetch={false}
-                            className="block max-w-full truncate text-left text-[12.5px] font-semibold leading-snug text-fg hover:text-accent hover:underline"
-                          >
-                            {p.name}
-                          </Link>
+                          <span className="flex min-w-0 items-baseline gap-2">
+                            <Link
+                              href={`/crm/contacts/${p.id}`}
+                              prefetch={false}
+                              className={`block max-w-full truncate text-left text-[12.5px] font-semibold leading-snug hover:text-accent hover:underline ${
+                                p.nameUnknown ? "text-fg-muted italic" : "text-fg"
+                              }`}
+                            >
+                              {p.name}
+                            </Link>
+                            {/* ADD NAME, WHERE THE PROBLEM IS.
+                                Brent, 2026-08-31: "i need contact that says
+                                unknown or none would have 'add name' as an
+                                edit next to it ... right now we have many
+                                unknown contacts and they cant be edited."
+
+                                They were editable — but only by opening the
+                                contact's own page, which is not where you
+                                are when you notice. It opens the SAME
+                                ContactDialog the hero uses; there is no
+                                second editor. */}
+                            {p.nameUnknown && (
+                              <ContactDialog
+                                accountId={accountId}
+                                companyName={companyName}
+                                mode="edit"
+                                defaults={p.defaults}
+                                trigger={(open) => (
+                                  <button
+                                    type="button"
+                                    onClick={open}
+                                    className="shrink-0 rounded border border-accent bg-accent-bg px-1.5 py-px text-[10.5px] font-bold text-accent transition-colors hover:bg-accent hover:text-white"
+                                  >
+                                    Add name
+                                  </button>
+                                )}
+                              />
+                            )}
+                          </span>
                           <p
                             className={`truncate text-[11.5px] font-semibold leading-snug ${
                               p.title ? "text-fg-muted" : "text-fg-subtle"
@@ -385,13 +427,31 @@ export function WhoDoICall({
                             {p.title ?? "No title recorded"}
                           </p>
                         </div>
+                        {/* THE NUMBER, NOT JUST A HANDSET.
+                            Brent, 2026-08-31: "the numbers dont show up for
+                            others." The hero printed its digits and every
+                            roster row printed an icon, so you could not see
+                            what you were about to dial without tapping it.
+
+                            Still one tap target, still min-h-11, still
+                            tel: — the digits sit inside the same button
+                            rather than beside it, so the row gains a line
+                            of text and no height. */}
                         {phone && (
                           <a
                             href={`tel:${digitsForTel(phone.number)}`}
-                            aria-label={`Call ${p.name}`}
-                            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md border border-line bg-card text-accent transition-colors hover:border-accent hover:bg-accent-bg"
+                            aria-label={`Call ${p.name}${onMain ? " on the main line" : ""}`}
+                            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md border border-line bg-card px-2 text-accent transition-colors hover:border-accent hover:bg-accent-bg"
                           >
-                            <PhoneGlyph className="h-3.5 w-3.5 fill-accent" />
+                            <PhoneGlyph className="h-3.5 w-3.5 shrink-0 fill-accent" />
+                            <span className="flex flex-col items-start leading-none">
+                              <span className="crm-num text-[12px] font-bold">{phone.number}</span>
+                              {onMain && (
+                                <span className="mt-0.5 text-[9.5px] font-semibold text-fg-muted">
+                                  main line
+                                </span>
+                              )}
+                            </span>
                           </a>
                         )}
                         {p.email && (

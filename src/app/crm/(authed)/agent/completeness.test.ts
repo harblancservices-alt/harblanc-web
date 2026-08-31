@@ -180,6 +180,25 @@ describe("a contact with a number but no name", () => {
     expect(after).toHaveLength(before.length);
   });
 
+  it("STILL ASKS when a company has a real person AND a nameless number", () => {
+    /* THE MIXED CASE, closed 2026-08-31 (Brent).
+     *
+     * The rule used to require namedContactCount === 0, so one real
+     * person was enough to silence this — and the bare number sat on the
+     * panel unremarked, which is exactly what he was looking at.
+     *
+     * No company in the org hits this today: all three nameless contacts
+     * sit alone on their companies. This is the guard for the case
+     * arriving, not a fix for a live symptom. */
+    const gaps = gapsForCompany({ ...SOLAR_LINK, contactCount: 2, namedContactCount: 1 });
+    expect(gaps.map((g) => g.kind)).toEqual(["contact_name"]);
+  });
+
+  it("goes quiet once every contact has a name", () => {
+    const gaps = gapsForCompany({ ...SOLAR_LINK, contactCount: 4, namedContactCount: 4 });
+    expect(gaps.map((g) => g.kind)).not.toContain("contact_name");
+  });
+
   it("asks the smaller question now that there is a number to dial", () => {
     const [gap] = gapsForCompany({ ...SOLAR_LINK, contactCount: 1, namedContactCount: 0 });
     expect(gap.label).toBe("Find out who answers");
@@ -205,12 +224,22 @@ describe("a contact with a number but no name", () => {
     }
   });
 
-  it("does not fire when a named contact sits alongside a nameless number", () => {
-    // One person identified is enough to say somebody is on file here. The
-    // loose number is a stray, not a company-level gap.
+  it("DOES fire when a named contact sits alongside a nameless number", () => {
+    /* REVERSED 2026-08-31, by Brent, and worth recording as a reversal
+     * rather than quietly rewriting.
+     *
+     * This test used to assert the opposite, on the reasoning that "one
+     * person identified is enough to say somebody is on file here — the
+     * loose number is a stray, not a company-level gap". That was a
+     * defensible call and it is no longer the one we are making.
+     *
+     * His words: the gap "should reflect that there are unnamed contacts
+     * to resolve, not just whether any named one exists". An unnamed row
+     * sitting on the panel is work somebody has to do, and the record
+     * having one good person on it does not make that row go away. */
     expect(
-      gapsForCompany({ ...SOLAR_LINK, contactCount: 2, namedContactCount: 1 }),
-    ).toEqual([]);
+      gapsForCompany({ ...SOLAR_LINK, contactCount: 2, namedContactCount: 1 }).map((g) => g.kind),
+    ).toEqual(["contact_name"]);
   });
 
   it("leaves every existing caller's behaviour exactly as it was", () => {

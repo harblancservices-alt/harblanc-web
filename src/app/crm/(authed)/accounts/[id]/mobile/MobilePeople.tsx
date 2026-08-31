@@ -16,6 +16,8 @@ export type MobilePerson = {
   email: string | null;
   isPrimary: boolean;
   isDecisionMaker: boolean;
+  /** crm_contacts.name_unknown — a number with nobody's name on it. */
+  nameUnknown?: boolean;
   /** Everything ContactDialog needs to open in edit mode — plain data. */
   defaults: ContactDefaults;
 };
@@ -93,7 +95,15 @@ export function MobilePeople({
                 <span className="mt-0.5 block truncate text-[12.5px] font-semibold text-fg-muted">
                   <span className="crm-num">{formatPhone(p.phone)}</span>
                   {companyPhones.some((c) => sameDialledNumber(c.number, p.phone)) && (
-                    <span className="text-fg-subtle"> · ask for {p.name.split(" ")[0]}</span>
+                    /* "ask for Name" is what this printed on a nameless
+                       contact, whose name is the literal string "Name
+                       unknown". The desktop hero already guarded it; this
+                       row did not. */
+                    <span className="text-fg-subtle">
+                      {p.nameUnknown
+                        ? " · ask who you are speaking to"
+                        : ` · ask for ${p.name.split(" ")[0]}`}
+                    </span>
                   )}
                 </span>
               )}
@@ -127,7 +137,7 @@ export function MobilePeople({
                     onClick={open}
                     className="inline-flex h-[33px] shrink-0 items-center rounded-[9px] border border-line-strong bg-card px-2.5 text-[12px] font-extrabold text-fg transition-colors hover:bg-inset"
                   >
-                    Edit
+                    {p.nameUnknown ? "Add name" : "Edit"}
                   </button>
                 )}
               />

@@ -1031,6 +1031,7 @@ export default async function AccountDetailPage({
       email: c.email ?? null,
       isPrimary: c.id === (account.primary_contact_id as string | null),
       isDecisionMaker: decisionMakerIds.has(c.id),
+      nameUnknown: Boolean((c as { name_unknown?: boolean | null }).name_unknown),
       defaults: {
         id: c.id,
         name: c.name,

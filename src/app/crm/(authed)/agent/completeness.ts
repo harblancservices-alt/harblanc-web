@@ -166,10 +166,28 @@ export function gapsForCompany(company: CompletenessInput): CompletenessGap[] {
 
   if (company.contactCount === 0) {
     add("contact");
-  } else if ((company.namedContactCount ?? company.contactCount) === 0) {
-    // Contacts exist, but not one of them is a person yet — every row is a
-    // bare number. Mutually exclusive with "contact" above: a company is
-    // either missing people or missing their names, never told both.
+  } else if ((company.namedContactCount ?? company.contactCount) < company.contactCount) {
+    /* ANY nameless contact raises this, not only a company where every row
+       is one.
+     *
+     * It used to require namedContactCount === 0, so a company with one
+     * real person and one bare number said nothing at all and the unnamed
+     * row sat there unremarked. Brent asked on 2026-08-31 whether that was
+     * the rule, and it was.
+     *
+     * Worth being precise about what changed: NOTHING TODAY. All three
+     * nameless contacts in the org sit alone on their companies (Austin
+     * Hose OKC, Gates - Houston, Solar-Link Global — one contact each,
+     * that one nameless), so every one of them already raised this gap
+     * under the old condition. This closes the mixed case before it
+     * arrives rather than fixing a live symptom.
+     *
+     * Still mutually exclusive with "contact" above: that branch requires
+     * contactCount === 0, so the two can never both fire.
+     *
+     * The `?? contactCount` default is unchanged and still means "a caller
+     * that does not count named contacts can never raise this", because
+     * contactCount < contactCount is false. */
     add("contact_name");
   }
   if (isBlank(company.address) && (isBlank(company.city) || isBlank(company.state))) add("address");
