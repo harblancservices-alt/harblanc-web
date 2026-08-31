@@ -38,6 +38,27 @@ import { listQuickTasks } from "../../admin/quick-task-actions";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * TMS ACTIVITY, kept off the sales panel.
+ *
+ * Brent, 2026-08-31: "dont worry about my TMS ever." Rate confirmations and
+ * shipments are dispatch work; 66 such rows exist and none of them tell a
+ * salesperson anything about the relationship this panel is a record of.
+ */
+const TMS_KINDS: string[] = [
+  CRM_ACTIVITY.shipmentCreated,
+  CRM_ACTIVITY.shipmentStatusChanged,
+  CRM_ACTIVITY.shipmentDeleted,
+  CRM_ACTIVITY.rateConfirmationCreated,
+  CRM_ACTIVITY.rateConfirmationDeleted,
+  CRM_ACTIVITY.rateConfirmationGenerated,
+  CRM_ACTIVITY.rateConfirmationSent,
+  CRM_ACTIVITY.rateConfirmationAccepted,
+  CRM_ACTIVITY.rateConfirmationCompleted,
+  CRM_ACTIVITY.rateConfirmationCancelled,
+  CRM_ACTIVITY.rateConfirmationSuperseded,
+];
+
 
 type ProfileRow = { id: string; full_name: string | null; email: string | null; is_active: boolean; role: string };
 
@@ -125,7 +146,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_calls")
       .select(
-        "id, contact_id, outcome, duration_seconds, summary, notes, occurred_at, user_id, followup_required, reminder_at, summary_edited_at",
+        "id, contact_id, outcome, duration_seconds, summary, notes, occurred_at, user_id, followup_task_id, followup_required, reminder_at, summary_edited_at",
       )
       .eq("account_id", id)
       .is("deleted_at", null)
@@ -135,7 +156,19 @@ export default async function AccountDetailPage({
       .from("crm_activities")
       .select("id, kind, summary, body, occurred_at, user_id, contact_id")
       .eq("account_id", id)
-      .not("kind", "in", `(${CRM_ACTIVITY.call},${CRM_ACTIVITY.noteAdded})`)
+      /* EXCLUDED, and two different reasons.
+         call / note_added are DUPLICATES of the real crm_calls and
+         crm_notes rows this feed already carries; showing them would
+         double every call.
+         The rate-confirmation and shipment kinds are TMS activity. Brent,
+         2026-08-31: "dont worry about my TMS ever." Dispatch work does not
+         belong on a sales panel, so it is filtered here rather than being
+         drawn and then explained. */
+      .not(
+        "kind",
+        "in",
+        `(${CRM_ACTIVITY.call},${CRM_ACTIVITY.noteAdded},${TMS_KINDS.join(",")})`,
+      )
       .order("occurred_at", { ascending: false })
       .limit(150),
     supabase
@@ -334,6 +367,7 @@ export default async function AccountDetailPage({
     followup_required: boolean | null;
     reminder_at: string | null;
     summary_edited_at: string | null;
+    followup_task_id: string | null;
   }[];
   const activityFromCalls: CrmActivityLogItem[] = callRows.map((c) => {
     const durLabel = c.duration_seconds ? ` · ${Math.round(c.duration_seconds / 60)}m` : "";
@@ -356,6 +390,9 @@ export default async function AccountDetailPage({
       editableText: c.summary,
       editedAt: c.summary_edited_at,
       followupAt: c.followup_required ? c.reminder_at : null,
+      /* Both already on the row and never rendered until now. */
+      hasFollowupTask: c.followup_task_id != null,
+      outcome: c.outcome,
     };
   });
 
@@ -385,17 +422,28 @@ export default async function AccountDetailPage({
     occurred_at: string;
     user_id: string | null;
     contact_id: string | null;
-  }[]).map((a) => ({
-    id: a.id,
-    type: "activity" as const,
-    occurredAt: a.occurred_at,
-    author: a.user_id ? profileName(profileById.get(a.user_id)) : null,
-    contactId: a.contact_id,
-    contactName: a.contact_id ? contactNameById.get(a.contact_id) ?? null : null,
-    title: a.summary || "Activity",
-    body: a.body,
-    followupAt: null,
-  }));
+  }[]).map((a) => {
+    /* "Stage changed: Contacted → Quoting" is the only summary in the set
+       that packs two facts into a sentence. Split here rather than in the
+       component: the panel should be handed the two ends, not a string to
+       parse. Anything that does not match falls through with both null and
+       renders as an ordinary event line. */
+    const stage = /^Stage changed:\s*(.+?)\s*(?:→|->)\s*(.+)$/.exec(a.summary ?? "");
+    return {
+      id: a.id,
+      type: "activity" as const,
+      occurredAt: a.occurred_at,
+      author: a.user_id ? profileName(profileById.get(a.user_id)) : null,
+      contactId: a.contact_id,
+      contactName: a.contact_id ? contactNameById.get(a.contact_id) ?? null : null,
+      title: a.summary || "Activity",
+      body: a.body,
+      followupAt: null,
+      eventKind: a.kind,
+      stageFrom: stage?.[1] ?? null,
+      stageTo: stage?.[2] ?? null,
+    };
+  });
 
   const activityItems: CrmActivityLogItem[] = [...activityFromCalls, ...activityFromNotes, ...activityFromEvents].sort(
     (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),

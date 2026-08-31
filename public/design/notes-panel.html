@@ -1,0 +1,384 @@
+<meta charset="utf-8"><title>Notes &amp; what happened — design pass</title>
+<style>
+ :root{--canvas:#e7eaf1;--card:#fff;--inset:#eef1f6;--elevated:#e2e7f0;--line:#aeb6ca;
+  --line-strong:#828a9f;--fg:#14161c;--fg-muted:#454b5c;--fg-subtle:#646b7d;
+  --accent:#2f5fd6;--accent-bg:#eef2fc;--ok:#0f7a4e;--ok-bg:#d8f0e2;
+  --warn:#925c0a;--warn-bg:#f6e6c4;--bad:#ad2a2a;--bad-bg:#f6d9d9;
+  --admin:#6d3fd4;--admin-soft:#ece3fb;--steel:#2f5d80;--steel-bg:#e3eaf1;--graphite:#14171d;}
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--canvas);color:var(--fg);
+   font-family:ui-sans-serif,system-ui,"Segoe UI",Arial;line-height:1.45}
+ .wrap{max-width:1520px;margin:0 auto;padding:24px 20px 90px}
+ h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0 0 4px}
+ .sub{font-size:13px;color:var(--fg-muted);margin:0 0 6px}
+ .warnbar{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(146,92,10,.35);
+   border-radius:8px;padding:10px 14px;font-size:12.5px;font-weight:600;margin:14px 0 8px}
+ h2{font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;
+   color:var(--fg-muted);margin:36px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+ h3{font-size:14.5px;font-weight:800;margin:0 0 2px}
+ .src{font-size:11.5px;color:var(--fg-subtle);margin:0 0 10px}
+ .pair{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+ .col{min-width:0}
+ .tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.08em;
+   text-transform:uppercase;padding:2px 8px;border-radius:4px;margin-bottom:8px}
+ .tag.now{background:var(--elevated);color:var(--fg-muted)}
+ .tag.new{background:var(--ok-bg);color:var(--ok)}
+ .panel{background:var(--card);border:1px solid var(--line-strong);border-radius:10px;overflow:hidden}
+ .phead{border-bottom:1px solid var(--line);padding:9px 14px;font-size:12px;font-weight:800;
+   letter-spacing:.05em;text-transform:uppercase;color:var(--fg-muted)}
+ .pbody{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+
+ /* ── CURRENT render, copied from HistoryPanel.tsx ─────────── */
+ .old-card{border:1px solid var(--line);border-radius:6px;background:var(--card);padding:12px 14px}
+ .old-card.newest{border:0;border-left:3px solid var(--accent);border-radius:0;background:var(--inset)}
+ .old-head{font-size:12px;margin:0}
+ .old-head b{font-weight:800;color:var(--fg)}
+ .old-head .d{color:var(--fg-muted);font-weight:600}
+ .old-head .a{color:var(--fg-subtle)}
+ .old-body{margin:6px 0 0;font-size:12.5px;color:var(--fg);white-space:pre-wrap}
+ .old-sys{display:flex;gap:10px;align-items:baseline;font-size:11px;color:var(--fg-subtle);padding:0 2px;margin:0}
+ .old-sys .t{white-space:nowrap;font-variant-numeric:tabular-nums}
+ .old-pin{border:1px solid rgba(146,92,10,.4);background:var(--warn-bg);color:var(--warn);
+   border-radius:3px;padding:0 5px;font-size:9.5px;font-weight:800;text-transform:uppercase;margin-left:6px}
+
+ /* ── PROPOSED render ──────────────────────────────────────── */
+ .nc{border:1px solid var(--line);border-radius:8px;background:var(--card);overflow:hidden}
+ .nc.lift{border-color:var(--accent);box-shadow:0 0 0 2px rgba(47,95,214,.12)}
+ .nc-head{display:flex;align-items:center;gap:9px;padding:8px 12px;
+   border-bottom:1px solid var(--line);background:var(--inset);flex-wrap:wrap}
+ .chip{display:inline-flex;align-items:center;gap:5px;border-radius:4px;padding:2px 8px;
+   font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;flex-shrink:0}
+ .c-call{background:var(--accent-bg);color:var(--accent)}
+ .c-note{background:var(--card);color:var(--fg-muted);box-shadow:inset 0 0 0 1px var(--line)}
+ .c-ai{background:var(--steel-bg);color:var(--steel)}
+ .c-stage{background:var(--admin-soft);color:var(--admin)}
+ .c-contact{background:var(--warn-bg);color:var(--warn)}
+ .c-task{background:var(--ok-bg);color:var(--ok)}
+ .c-rec{background:var(--elevated);color:var(--fg-muted)}
+ /* THE TIMESTAMP. Fixed slot, 13px, tabular, full-strength ink. */
+ .ts{font-size:13px;font-weight:800;color:var(--fg);font-variant-numeric:tabular-nums;
+   white-space:nowrap;letter-spacing:-.01em}
+ .ago{font-size:11.5px;color:var(--fg-subtle);white-space:nowrap}
+ .who{margin-left:auto;font-size:12px;font-weight:700;color:var(--fg-muted);white-space:nowrap}
+ .nc-body{padding:11px 12px;font-size:13px;color:var(--fg);white-space:pre-wrap}
+ .nc-meta{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px}
+ .pill{border-radius:9999px;padding:2px 9px;font-size:11px;font-weight:700}
+ .p-out{background:var(--accent-bg);color:var(--accent)}
+ .p-good{background:var(--ok-bg);color:var(--ok)}
+ .p-bad{background:var(--bad-bg);color:var(--bad)}
+ .p-neutral{background:var(--elevated);color:var(--fg-muted)}
+ .empty{padding:11px 12px;font-size:12.5px;color:var(--fg-subtle);font-style:italic;
+   display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+ .mini{font-size:11.5px;font-weight:800;color:var(--accent);text-decoration:none;font-style:normal}
+ .fold{padding:0 12px 10px}
+ .fold a{font-size:11.5px;font-weight:800;color:var(--accent);text-decoration:none}
+ /* system one-liner, proposed */
+ .sys{display:flex;align-items:baseline;gap:10px;padding:3px 2px;font-size:12px}
+ .sys .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transform:translateY(-1px)}
+ .d-stage{background:var(--admin)}.d-contact{background:var(--warn)}
+ .d-task{background:var(--ok)}.d-rec{background:var(--line-strong)}
+ .d-doc{background:var(--steel)}
+ .sys .t{font-size:12px;font-weight:700;color:var(--fg-muted);font-variant-numeric:tabular-nums;
+   white-space:nowrap;width:70px;flex-shrink:0}
+ .sys .x{min-width:0;color:var(--fg-muted)}
+ .sys .x b{color:var(--fg);font-weight:700}
+ .stagearrow{display:inline-flex;align-items:center;gap:5px}
+ .sp{border-radius:3px;padding:1px 6px;font-size:11px;font-weight:800;background:var(--admin-soft);color:var(--admin)}
+ .sp.term{background:var(--bad-bg);color:var(--bad)}
+ .notes{margin-top:12px;font-size:12.5px;color:var(--fg-muted);background:var(--card);
+   border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:6px;padding:11px 13px}
+ .notes b{color:var(--fg)}
+ .notes ul{margin:6px 0 0;padding-left:18px}
+ .notes li{margin:4px 0}
+ .add{color:var(--ok);font-weight:800}
+ .rem{color:var(--bad);font-weight:800}
+ .keep{color:var(--fg-muted);font-weight:800}
+ table.inv{border-collapse:collapse;width:100%;font-size:12.5px;background:var(--card);
+   border:1px solid var(--line-strong);border-radius:8px;overflow:hidden}
+ table.inv th{text-align:left;padding:8px 10px;font-size:10.5px;font-weight:800;
+   letter-spacing:.07em;text-transform:uppercase;color:var(--fg-subtle);border-bottom:1px solid var(--line)}
+ table.inv td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+ table.inv tr:last-child td{border-bottom:0}
+ table.inv td.n{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+ .never{color:var(--bad);font-weight:700}
+</style>
+<div class="wrap">
+
+<h1>Notes &amp; what happened</h1>
+<p class="sub">Design pass · every card built from real production records · <strong>nothing shipped, no live component changed</strong></p>
+<div class="warnbar">
+  Mockup file only. Main example: <strong>repurposed Materials</strong> — 4 calls, 1 note, 13 system events, the richest real mix in the book.
+</div>
+
+<!-- ══════════════ 1 · INVENTORY ══════════════ -->
+<h2>1 · Every entry type that feeds this panel — real counts</h2>
+<table class="inv">
+  <tr><th>Type</th><th>Source</th><th>What it carries</th><th>In production</th><th>Renders now as</th></tr>
+  <tr><td><strong>Call</strong></td><td>crm_calls</td><td>outcome, write-up, contact, duration, reminder, follow-up task, edited-at</td><td class="n">67</td><td>Card. Header + body.</td></tr>
+  <tr><td><strong>Note</strong> (human)</td><td>crm_notes</td><td>body, author, pinned, edited-at</td><td class="n">29</td><td>Card. Header + body.</td></tr>
+  <tr><td><strong>Note</strong> (AI brief)</td><td>crm_notes is_ai</td><td>long research body, no author</td><td class="n">6</td><td><em>Never rendered — filtered out before the panel sees it.</em></td></tr>
+  <tr><td>Stage changed</td><td>crm_activities</td><td>from → to, who</td><td class="n">144</td><td>Grey one-liner.</td></tr>
+  <tr><td>Company created</td><td>crm_activities</td><td>origin, who</td><td class="n">89</td><td>Grey one-liner.</td></tr>
+  <tr><td>Task created</td><td>crm_activities</td><td>task title, who</td><td class="n">59</td><td>Grey one-liner.</td></tr>
+  <tr><td>Contact added</td><td>crm_activities</td><td>contact name, who</td><td class="n">55</td><td>Grey one-liner.</td></tr>
+  <tr><td>Task completed</td><td>crm_activities</td><td>task title, who</td><td class="n">46</td><td>Grey one-liner.</td></tr>
+  <tr><td>AI lead claimed</td><td>crm_activities</td><td>who claimed</td><td class="n">25</td><td>Grey one-liner.</td></tr>
+  <tr><td>Contact updated</td><td>crm_activities</td><td>contact name, who</td><td class="n">22</td><td>Grey one-liner.</td></tr>
+  <tr><td>Rate confirmation created / generated / deleted / cancelled</td><td>crm_activities</td><td>document ref</td><td class="n">51</td><td>Grey one-liner.</td></tr>
+  <tr><td>BOL created / generated / deleted</td><td>crm_activities</td><td>document ref</td><td class="n">47</td><td>Grey one-liner.</td></tr>
+  <tr><td>Location added / updated</td><td>crm_activities</td><td>address</td><td class="n">11</td><td>Grey one-liner.</td></tr>
+  <tr><td>Shipment created / deleted</td><td>crm_activities</td><td>shipment ref</td><td class="n">15</td><td>Grey one-liner.</td></tr>
+  <tr><td>Rep changed</td><td>crm_activities</td><td>new owner, who</td><td class="n">9</td><td>Grey one-liner.</td></tr>
+  <tr><td>AI lead released</td><td>crm_activities</td><td>who</td><td class="n">6</td><td>Grey one-liner.</td></tr>
+  <tr><td>AI research requested</td><td>crm_activities</td><td>who</td><td class="n">3</td><td>Grey one-liner.</td></tr>
+  <tr><td>Account deleted</td><td>crm_activities</td><td>who</td><td class="n">3</td><td>Grey one-liner.</td></tr>
+  <tr><td>Details updated</td><td>crm_activities</td><td>who</td><td class="n">1</td><td>Grey one-liner.</td></tr>
+  <tr><td><span class="never">activity kind = call</span></td><td>crm_activities</td><td>duplicate of the real call row</td><td class="n">68</td><td><span class="never">Never shown</span> — filtered out, correctly.</td></tr>
+  <tr><td><span class="never">activity kind = note_added</span></td><td>crm_activities</td><td>duplicate of the real note row</td><td class="n">32</td><td><span class="never">Never shown</span> — filtered out, correctly.</td></tr>
+</table>
+<div class="notes">
+  <b>What the inventory shows</b>
+  <ul>
+    <li><strong>25 distinct system event kinds all render identically</strong> — one grey line of <code>summary</code> text. The panel receives them pre-flattened to <code>type:&nbsp;"activity"</code>, so it cannot tell a stage change from a deleted rate confirmation.</li>
+    <li>Two kinds — <code>call</code> and <code>note_added</code> — are duplicates of the real rows and are already excluded by the query. That is correct and should stay.</li>
+    <li><strong>AI research briefs never reach this panel.</strong> All 6 are dropped by an <code>is_ai</code> filter upstream, so the six longest pieces of writing about these companies are invisible on the company profile. That is a separate question from this redesign &mdash; flagged, not changed.</li>
+  </ul>
+</div>
+
+<!-- ══════════════ 2 · THE WHOLE PANEL ══════════════ -->
+<h2>2 · The whole panel — before and after</h2>
+<div class="pair">
+  <div class="col">
+    <span class="tag now">Now</span>
+    <div class="panel"><div class="phead">Notes &amp; what happened</div><div class="pbody">
+      <div class="old-card newest"><p class="old-head"><b>Aug 27, 2:21 PM</b><span class="d"> · call · interested</span><span class="a"> · Tyler Poland</span></p></div>
+      <p class="old-sys"><span class="t">Aug 27</span><span>Task completed: Follow up on quote · Tyler Poland</span></p>
+      <p class="old-sys"><span class="t">Aug 27</span><span>Task completed: Follow up with Jeff · Tyler Poland</span></p>
+      <p class="old-sys"><span class="t">Aug 26</span><span>Task added: Follow up on quote · Brent Harbaugh</span></p>
+      <p class="old-sys"><span class="t">Aug 26</span><span>Stage changed: Contacted → Quoting · Brent Harbaugh</span></p>
+      <p class="old-sys"><span class="t">Aug 26</span><span>Task added: Follow up with Jeff · Tyler Poland</span></p>
+      <div class="old-card"><p class="old-head"><b>Aug 26, 1:08 PM</b><span class="d"> · call · call back</span><span class="a"> · Tyler Poland</span></p></div>
+      <div class="old-card"><p class="old-head"><b>Aug 17, 6:12 PM</b><span class="d"> · call · interested</span><span class="a"> · Tyler Poland</span></p></div>
+      <div class="old-card"><p class="old-head"><b>Aug 11, 4:04 PM</b><span class="d"> · call · voicemail</span><span class="a"> · Tyler Poland</span></p></div>
+      <p class="old-sys"><span class="t">Aug 9</span><span>AI research requested for repurposed Materials · Brent Harbaugh</span></p>
+      <p class="old-sys"><span class="t">Aug 9</span><span>Stage changed: Quoted → Contacted · Brent Harbaugh</span></p>
+      <p class="old-sys"><span class="t">Aug 3</span><span>Stage changed: Lead → Contacted · Tyler Poland</span></p>
+      <p class="old-sys"><span class="t">Aug 3</span><span>Contact added: Jeff · Tyler Poland</span></p>
+      <div class="old-card"><p class="old-head"><b>Aug 3, 7:54 PM</b><span class="d"> · note</span><span class="a"> · Tyler Poland</span></p>
+        <p class="old-body">Jeff does all the logistics for Texas. works from home.</p></div>
+      <p class="old-sys"><span class="t">Aug 3</span><span>Company created · Tyler Poland</span></p>
+    </div></div>
+    <p class="src">Four call cards render with an <strong>empty body</strong> — every real call here has no write-up.</p>
+  </div>
+
+  <div class="col">
+    <span class="tag new">Proposed</span>
+    <div class="panel"><div class="phead">Notes &amp; what happened</div><div class="pbody">
+      <div class="nc lift">
+        <div class="nc-head"><span class="chip c-call">Call</span><span class="ts">27 Aug · 2:21 PM</span><span class="ago">4d ago</span><span class="who">Tyler Poland</span></div>
+        <div class="empty">No write-up — outcome only. <a class="mini" href="#">Add what was said</a></div>
+        <div class="nc-meta"><span class="pill p-good">Interested</span><span class="pill p-neutral">Spoke to Jeff</span></div>
+      </div>
+      <div class="sys"><span class="dot d-task"></span><span class="t">27 Aug</span><span class="x"><b>Task done</b> — Follow up on quote · Tyler</span></div>
+      <div class="sys"><span class="dot d-task"></span><span class="t">27 Aug</span><span class="x"><b>Task done</b> — Follow up with Jeff · Tyler</span></div>
+      <div class="sys"><span class="dot d-task"></span><span class="t">26 Aug</span><span class="x"><b>Task added</b> — Follow up on quote · Brent</span></div>
+      <div class="sys"><span class="dot d-stage"></span><span class="t">26 Aug</span><span class="x"><span class="stagearrow"><span class="sp">Contacted</span>&rarr;<span class="sp">Quoting</span></span> · Brent</span></div>
+      <div class="sys"><span class="dot d-task"></span><span class="t">26 Aug</span><span class="x"><b>Task added</b> — Follow up with Jeff · Tyler</span></div>
+      <div class="nc">
+        <div class="nc-head"><span class="chip c-call">Call</span><span class="ts">26 Aug · 1:08 PM</span><span class="ago">5d ago</span><span class="who">Tyler Poland</span></div>
+        <div class="empty">No write-up — outcome only. <a class="mini" href="#">Add what was said</a></div>
+        <div class="nc-meta"><span class="pill p-out">Call back</span><span class="pill p-neutral">Spoke to Jeff</span><span class="pill p-good">Follow-up task created</span></div>
+      </div>
+      <div class="nc">
+        <div class="nc-head"><span class="chip c-call">Call</span><span class="ts">17 Aug · 6:12 PM</span><span class="ago">14d ago</span><span class="who">Tyler Poland</span></div>
+        <div class="empty">No write-up — outcome only. <a class="mini" href="#">Add what was said</a></div>
+        <div class="nc-meta"><span class="pill p-good">Interested</span><span class="pill p-neutral">Spoke to Jeff</span><span class="pill p-out">Reminder 19 Aug</span></div>
+      </div>
+      <div class="nc">
+        <div class="nc-head"><span class="chip c-call">Call</span><span class="ts">11 Aug · 4:04 PM</span><span class="ago">20d ago</span><span class="who">Tyler Poland</span></div>
+        <div class="empty">No write-up — outcome only. <a class="mini" href="#">Add what was said</a></div>
+        <div class="nc-meta"><span class="pill p-neutral">Voicemail</span><span class="pill p-neutral">Spoke to Jeff</span></div>
+      </div>
+      <div class="sys"><span class="dot d-rec"></span><span class="t">9 Aug</span><span class="x"><b>AI research requested</b> · Brent</span></div>
+      <div class="sys"><span class="dot d-stage"></span><span class="t">9 Aug</span><span class="x"><span class="stagearrow"><span class="sp">Quoted</span>&rarr;<span class="sp">Contacted</span></span> · Brent</span></div>
+      <div class="sys"><span class="dot d-stage"></span><span class="t">3 Aug</span><span class="x"><span class="stagearrow"><span class="sp">Lead</span>&rarr;<span class="sp">Contacted</span></span> · Tyler</span></div>
+      <div class="sys"><span class="dot d-contact"></span><span class="t">3 Aug</span><span class="x"><b>Contact added</b> — Jeff · Tyler</span></div>
+      <div class="nc">
+        <div class="nc-head"><span class="chip c-note">Note</span><span class="ts">3 Aug · 7:54 PM</span><span class="ago">28d ago</span><span class="who">Tyler Poland</span></div>
+        <div class="nc-body">Jeff does all the logistics for Texas. works from home.</div>
+      </div>
+      <div class="sys"><span class="dot d-rec"></span><span class="t">3 Aug</span><span class="x"><b>Company created</b> · Tyler</span></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="notes">
+  <b>Panel level</b>
+  <ul>
+    <li><span class="add">Add</span> — the timestamp gets a <strong>fixed slot at 13px, bold, tabular figures, full-strength ink</strong>. Today it is 12px buried mid-sentence between a descriptor and an author, and 11px grey on system rows. This is his named complaint and it is the single biggest change here.</li>
+    <li><span class="add">Add</span> — a coloured type chip per card and a coloured dot per system row, taken from the <em>existing</em> activity palette, so this panel and the Activity dashboard agree about what a stage change looks like. No new colours.</li>
+    <li><span class="add">Add</span> — a relative "4d ago" beside the absolute time. Absolute answers "when", relative answers "is this stale".</li>
+    <li><span class="add">Add</span> — an explicit empty-write-up state, because <strong>4 of 4 real calls on this company have no summary</strong>. Today they render as a header and nothing underneath.</li>
+    <li><span class="rem">Remove</span> — the run-on <code>·</code>-separated header. Chip, time, ago and author each get their own slot.</li>
+    <li><span class="keep">Keep</span> — written entries as cards, system events as one-liners. That weight split is Brent's own 28 Aug ruling and is not being reversed.</li>
+  </ul>
+</div>
+
+<!-- ══════════════ 3 · PER TYPE ══════════════ -->
+<h2>3 · A card per type</h2>
+
+<h3>Call — with a write-up</h3>
+<p class="src">Real: Tyler → Craig Brown, Core And Main Ww Kyle, 28 Aug. Outcome <em>no answer</em>, follow-up task created.</p>
+<div class="pair">
+  <div class="col"><span class="tag now">Now</span>
+    <div class="old-card"><p class="old-head"><b>Aug 28, 3:25 PM</b><span class="d"> · call · no answer</span><span class="a"> · Tyler Poland</span></p>
+      <p class="old-body">Spoke with Kim, she said Craig works from home on Fridays, she confirmed his email is craig.brown@coreandmain.com. she said "we have our own trucks."</p></div>
+  </div>
+  <div class="col"><span class="tag new">Proposed</span>
+    <div class="nc">
+      <div class="nc-head"><span class="chip c-call">Call</span><span class="ts">28 Aug · 3:25 PM</span><span class="ago">3d ago</span><span class="who">Tyler Poland</span></div>
+      <div class="nc-body">Spoke with Kim, she said Craig works from home on Fridays, she confirmed his email is craig.brown@coreandmain.com. she said "we have our own trucks."</div>
+      <div class="nc-meta"><span class="pill p-neutral">No answer</span><span class="pill p-neutral">Spoke to Craig Brown</span><span class="pill p-good">Follow-up task created</span></div>
+    </div>
+  </div>
+</div>
+<div class="notes"><b>Call</b><ul>
+  <li><span class="add">Add</span> — outcome as a coloured pill instead of lowercase text in the header run-on. Interested reads green, Not interested red, the rest neutral.</li>
+  <li><span class="add">Add</span> — "Spoke to &lt;contact&gt;" as a pill. The contact is already on the record and never shown.</li>
+  <li><span class="add">Add</span> — "Follow-up task created" when <code>followup_task_id</code> is set, and the reminder date when <code>reminder_at</code> is. Both exist in the data and neither is rendered today.</li>
+  <li><span class="add">Add</span> — duration when <code>duration_seconds</code> is set.</li>
+  <li><span class="rem">Remove</span> — the outcome from the header sentence; it becomes a pill.</li>
+</ul></div>
+
+<h3>Call — no write-up <span style="font-weight:600;color:var(--fg-subtle)">(the common real case)</span></h3>
+<p class="src">Real: all four calls on repurposed Materials. <strong>49 of 67 calls in the book &mdash; 73% &mdash; have an empty summary.</strong></p>
+<div class="pair">
+  <div class="col"><span class="tag now">Now</span>
+    <div class="old-card"><p class="old-head"><b>Aug 11, 4:04 PM</b><span class="d"> · call · voicemail</span><span class="a"> · Tyler Poland</span></p></div>
+    <p class="src">A bordered card containing one line and nothing else.</p>
+  </div>
+  <div class="col"><span class="tag new">Proposed</span>
+    <div class="nc">
+      <div class="nc-head"><span class="chip c-call">Call</span><span class="ts">11 Aug · 4:04 PM</span><span class="ago">20d ago</span><span class="who">Tyler Poland</span></div>
+      <div class="empty">No write-up — outcome only. <a class="mini" href="#">Add what was said</a></div>
+      <div class="nc-meta"><span class="pill p-neutral">Voicemail</span><span class="pill p-neutral">Spoke to Jeff</span></div>
+    </div>
+  </div>
+</div>
+<div class="notes"><b>Call with no write-up</b><ul>
+  <li><span class="add">Add</span> — say the write-up is missing rather than rendering a hollow card. <strong>73% of all logged calls are in this state.</strong></li>
+  <li><span class="add">Add</span> — an inline "Add what was said" so the gap is fixable where it is noticed. The edit action already exists on this panel.</li>
+  <li><span class="keep">Note</span> — this is the case that argues hardest against a generic card. A design built only around a write-up renders empty for half the real data.</li>
+</ul></div>
+
+<h3>Note — written by a person</h3>
+<p class="src">Real: Tyler, repurposed Materials, 3 Aug.</p>
+<div class="pair">
+  <div class="col"><span class="tag now">Now</span>
+    <div class="old-card"><p class="old-head"><b>Aug 3, 7:54 PM</b><span class="d"> · note</span><span class="a"> · Tyler Poland</span><span class="old-pin">Pinned</span></p>
+      <p class="old-body">Jeff does all the logistics for Texas. works from home.</p></div>
+  </div>
+  <div class="col"><span class="tag new">Proposed</span>
+    <div class="nc">
+      <div class="nc-head"><span class="chip c-note">Note</span><span class="ts">3 Aug · 7:54 PM</span><span class="ago">28d ago</span><span class="who">Tyler Poland</span></div>
+      <div class="nc-body">Jeff does all the logistics for Texas. works from home.</div>
+      <div class="nc-meta"><span class="pill p-neutral">Pinned</span></div>
+    </div>
+  </div>
+</div>
+<div class="notes"><b>Note</b><ul>
+  <li><span class="add">Add</span> — body at 13px rather than 12.5px. It is the thing the panel exists to show.</li>
+  <li><span class="keep">Keep</span> — the pinned badge and the edited marker; both already work.</li>
+  <li><span class="rem">Remove</span> — "note" as header text. The chip says it.</li>
+</ul></div>
+
+<h3>Note &mdash; AI research brief <span class="src" style="font-weight:400">(does not render &mdash; correction)</span></h3>
+<p class="src">An earlier draft of this page showed a before/after for AI research briefs and said they &ldquo;dominate the panel wherever they exist&rdquo;. <strong>That was wrong.</strong> Both note queries on the company profile filter <code>is_ai</code>, so none of the 6 briefs has ever appeared here. No card was built for them, and nothing about them changed.</p>
+<div class="notes"><b>What is actually true</b><ul>
+  <li>6 AI briefs exist on 6 companies, hundreds of words each, and the company profile shows <em>none</em> of them.</li>
+  <li>Whether they should appear is a real decision, not a rendering detail &mdash; it is left open.</li>
+</ul></div>
+
+<h3>Stage change</h3>
+<p class="src">Real: Brent, repurposed Materials, 26 Aug — and a terminal one, Tyler, Geo Solutions, 19 Aug.</p>
+<div class="pair">
+  <div class="col"><span class="tag now">Now</span>
+    <p class="old-sys"><span class="t">Aug 26</span><span>Stage changed: Contacted → Quoting · Brent Harbaugh</span></p>
+    <p class="old-sys" style="margin-top:8px"><span class="t">Aug 19</span><span>Stage changed: Researching → Lost · Tyler Poland</span></p>
+  </div>
+  <div class="col"><span class="tag new">Proposed</span>
+    <div class="sys"><span class="dot d-stage"></span><span class="t">26 Aug</span><span class="x"><span class="stagearrow"><span class="sp">Contacted</span>&rarr;<span class="sp">Quoting</span></span> · Brent</span></div>
+    <div class="sys" style="margin-top:6px"><span class="dot d-stage"></span><span class="t">19 Aug</span><span class="x"><span class="stagearrow"><span class="sp">Researching</span>&rarr;<span class="sp term">Lost</span></span> · Tyler — <em>no reason recorded</em></span></div>
+  </div>
+</div>
+<div class="notes"><b>Stage change</b><ul>
+  <li><span class="add">Add</span> — from and to as two chips with an arrow, instead of a sentence to parse. It is the most common event in the system by a wide margin (144).</li>
+  <li><span class="add">Add</span> — a terminal stage (Lost, Disqualified) renders red, and shows its <code>stage_loss_reason</code>.</li>
+  <li><span class="add">Add</span> — timestamp to 12px bold tabular in a fixed 70px column, from 11px grey.</li>
+  <li><span class="keep">Finding</span> — <strong>all six lost companies in the book have no loss reason recorded</strong>, even though the composer collects one and the stage rules require it. Worth checking separately; the card should say so rather than render an empty space.</li>
+</ul></div>
+
+<h3>Contact added / updated</h3>
+<p class="src">Real: Tyler adds Jeff, repurposed Materials, 3 Aug. 55 added + 22 updated in the book.</p>
+<div class="pair">
+  <div class="col"><span class="tag now">Now</span>
+    <p class="old-sys"><span class="t">Aug 3</span><span>Contact added: Jeff · Tyler Poland</span></p>
+  </div>
+  <div class="col"><span class="tag new">Proposed</span>
+    <div class="sys"><span class="dot d-contact"></span><span class="t">3 Aug</span><span class="x"><b>Contact added</b> — <a href="#" style="color:var(--accent);font-weight:700">Jeff</a> · Tyler</span></div>
+  </div>
+</div>
+<div class="notes"><b>Contact added / updated</b><ul>
+  <li><span class="add">Add</span> — the contact name links to that contact. <code>contact_id</code> is already on the row and unused here, and the audit already found the desktop profile has no route to a contact page at all.</li>
+  <li><span class="add">Add</span> — amber dot, matching Contacts on the Activity dashboard.</li>
+</ul></div>
+
+<h3>Task created / completed</h3>
+<p class="src">Real: Tyler completes "Follow up with Jeff", 27 Aug. 59 created + 46 completed.</p>
+<div class="pair">
+  <div class="col"><span class="tag now">Now</span>
+    <p class="old-sys"><span class="t">Aug 27</span><span>Task completed: Follow up with Jeff · Tyler Poland</span></p>
+  </div>
+  <div class="col"><span class="tag new">Proposed</span>
+    <div class="sys"><span class="dot d-task"></span><span class="t">27 Aug</span><span class="x"><b>Task done</b> — Follow up with Jeff · Tyler</span></div>
+  </div>
+</div>
+<div class="notes"><b>Task</b><ul>
+  <li><span class="add">Add</span> — green dot, matching Tasks on the Activity dashboard.</li>
+  <li><span class="add">Add</span> — where a completion note exists it belongs here; completing a task requires one, and it is written and then never shown on this panel.</li>
+  <li><span class="rem">Remove</span> — "Task completed:" / "Task added:" as prose. Becomes a bold two-word label.</li>
+</ul></div>
+
+<h3>Company created · rep changed · documents · everything else</h3>
+<p class="src">Real: repurposed Materials creation, and the document events that exist across the book.</p>
+<div class="pair">
+  <div class="col"><span class="tag now">Now</span>
+    <p class="old-sys"><span class="t">Aug 3</span><span>Company created · Tyler Poland</span></p>
+    <p class="old-sys" style="margin-top:8px"><span class="t">Aug 21</span><span>Company created from BOL 54354464LN (bill to) · Brent Harbaugh</span></p>
+    <p class="old-sys" style="margin-top:8px"><span class="t">Aug 9</span><span>AI research requested for repurposed Materials · Brent Harbaugh</span></p>
+  </div>
+  <div class="col"><span class="tag new">Proposed</span>
+    <div class="sys"><span class="dot d-rec"></span><span class="t">3 Aug</span><span class="x"><b>Company created</b> · Tyler</span></div>
+    <div class="sys" style="margin-top:6px"><span class="dot d-doc"></span><span class="t">21 Aug</span><span class="x"><b>Created from a bill of lading</b> — BOL 54354464LN · Brent</span></div>
+    <div class="sys" style="margin-top:6px"><span class="dot d-rec"></span><span class="t">9 Aug</span><span class="x"><b>AI research requested</b> · Brent</span></div>
+  </div>
+</div>
+<div class="notes"><b>The remaining kinds</b><ul>
+  <li><span class="add">Add</span> — one dot colour per family: documents steel, record-keeping grey, stage purple, contacts amber, tasks green. Same palette as the Activity dashboard, no new hues.</li>
+  <li><span class="rem">Remove</span> — the company name from event summaries ("AI research requested <em>for repurposed Materials</em>"). You are on that company's page; it is repeated on every row.</li>
+  <li><span class="rem">Remove</span> — "BOL" as an abbreviation, matching the profile pill change.</li>
+  <li><span class="keep">Open question for Brent</span> — <strong>rate confirmation and shipment events (66 rows)</strong> are TMS activity, not sales activity. They may not belong on a sales panel at all. Not proposing to remove them without a ruling.</li>
+</ul></div>
+
+<h2>4 · What is not being changed</h2>
+<div class="notes">
+  <ul>
+    <li>The written-vs-system weight split. That is his 28 Aug decision and this keeps it.</li>
+    <li>The newest-written-entry lift.</li>
+    <li>Edit / pin / delete on calls and notes.</li>
+    <li>The exclusion of duplicate <code>call</code> and <code>note_added</code> activity rows.</li>
+    <li>Any colour. Every colour here already exists in the activity palette.</li>
+  </ul>
+</div>
+
+</div>

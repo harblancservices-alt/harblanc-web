@@ -29,6 +29,23 @@ export type CrmActivityLogItem = {
   kind?: string;
   /** Status pill text — a call's outcome label, e.g. "Call Back". */
   tag?: string | null;
+  /**
+   * THE RAW crm_activities.kind, for `type: "activity"` rows only.
+   *
+   * Added 2026-08-31. Until then every one of the ~20 system event kinds
+   * arrived here already flattened to `type: "activity"` plus a `summary`
+   * string, so the panel could not tell a stage change from a contact
+   * edit and rendered all of them as one grey line. Carrying the kind is
+   * what lets each event be drawn as the thing it actually is.
+   */
+  eventKind?: string | null;
+  /** Calls only. Both were already on crm_calls and never rendered. */
+  hasFollowupTask?: boolean;
+  outcome?: string | null;
+  /** Stage moves only: the two ends, split out of the summary sentence so
+   * they can be drawn as chips rather than parsed by the reader. */
+  stageFrom?: string | null;
+  stageTo?: string | null;
   /** Tailwind tone classes for that pill (see calls/outcomes.ts's
    * callOutcomeTone) — always a fixed bg-*-bg/text-* status tint. */
   tagTone?: string | null;

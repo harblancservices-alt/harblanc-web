@@ -91,9 +91,70 @@ function stamp(iso: string, nowMs: number): string {
   const sameDay =
     new Date(t).toLocaleDateString("en-US", { timeZone: "America/Chicago" }) ===
     new Date(nowMs).toLocaleDateString("en-US", { timeZone: "America/Chicago" });
-  if (sameDay) return `Today ${time}`;
-  if (nowMs - t < 2 * DAY_MS) return `Yesterday ${time}`;
-  return day;
+  if (sameDay) return `Today · ${time}`;
+  if (nowMs - t < 2 * DAY_MS) return `Yesterday · ${time}`;
+  /* THE TIME NO LONGER FALLS OFF. This returned a bare "Aug 22" for
+     anything older than two days, so the panel whose one job is "when did
+     we last speak to these people" stopped saying WHEN as soon as the call
+     was three days old. */
+  return `${day} · ${time}`;
+}
+
+/** "4d ago". Absolute answers when; this answers whether it is stale. */
+function ago(iso: string, nowMs: number): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return "";
+  const days = Math.floor((nowMs - t) / DAY_MS);
+  if (days <= 0) return "today";
+  if (days === 1) return "1d ago";
+  if (days < 45) return `${days}d ago`;
+  return `${Math.round(days / 30)}mo ago`;
+}
+
+/**
+ * WHAT A SYSTEM EVENT IS, drawn as itself.
+ *
+ * Every one of these arrived as `type: "activity"` plus a summary string
+ * until 2026-08-31, so a stage change and a contact edit rendered as the
+ * same grey line. The raw kind now comes through (see page.tsx) and each
+ * family gets its own label and its own dot — the SAME colours the Activity
+ * dashboard uses for the same events, so the two surfaces agree.
+ */
+const EVENT_STYLE: Record<string, { label: string; dot: string }> = {
+  lifecycle_changed: { label: "Stage", dot: "bg-admin" },
+  account_created: { label: "Company created", dot: "bg-line-strong" },
+  account_deleted: { label: "Company removed", dot: "bg-line-strong" },
+  contact_added: { label: "Contact added", dot: "bg-warn" },
+  contact_updated: { label: "Contact edited", dot: "bg-warn" },
+  contact_deleted: { label: "Contact removed", dot: "bg-warn" },
+  task_created: { label: "Task added", dot: "bg-ok" },
+  task_completed: { label: "Task done", dot: "bg-ok" },
+  task_reopened: { label: "Task reopened", dot: "bg-ok" },
+  rep_changed: { label: "Owner changed", dot: "bg-line-strong" },
+  details_updated: { label: "Details edited", dot: "bg-line-strong" },
+  location_added: { label: "Location added", dot: "bg-line-strong" },
+  location_updated: { label: "Location edited", dot: "bg-line-strong" },
+  location_deleted: { label: "Location removed", dot: "bg-line-strong" },
+  bol_created: { label: "Bill of lading added", dot: "bg-steel" },
+  bol_generated: { label: "Bill of lading made", dot: "bg-steel" },
+  bol_deleted: { label: "Bill of lading removed", dot: "bg-steel" },
+  ai_lead_claimed: { label: "Lead claimed", dot: "bg-line-strong" },
+  ai_lead_released: { label: "Lead released", dot: "bg-line-strong" },
+  ai_research_requested: { label: "Research requested", dot: "bg-line-strong" },
+};
+
+/** The summary with its label prefix removed — the label is drawn
+ * separately now, so "Task added: Follow up with Jeff" would say it twice. */
+function eventDetail(item: CrmActivityLogItem, label: string | null): string {
+  const raw = (item.title ?? "").trim();
+  const cut = raw.indexOf(":");
+  const rest = cut > -1 ? raw.slice(cut + 1).trim() : raw;
+  /* Summaries that carry no colon ARE the label in sentence form —
+     "Company created", "AI research requested for repurposed Materials".
+     Printing them beside the label says the same thing twice, and the
+     second half also names the company whose page you are already on. */
+  if (label && rest.toLowerCase().includes(label.toLowerCase())) return "";
+  return rest;
 }
 
 /**
@@ -118,9 +179,23 @@ function shortStamp(iso: string): string {
 
 /** The middle segment of an entry's header — "call · reached", "note". */
 function descriptor(item: CrmActivityLogItem): string {
-  if (item.type === "call") return item.tag ? `call · ${item.tag.toLowerCase()}` : "call";
-  if (item.type === "note") return "note";
+  if (item.type === "call") return "Call";
+  if (item.type === "note") return "Note";
   return "";
+}
+
+/** Call = accent, note = quiet. The same two colours the Activity dashboard
+ * gives these, so an agent learns one mapping and not two. */
+function chipTone(item: CrmActivityLogItem): string {
+  return item.type === "call" ? "bg-accent-bg text-accent" : "bg-inset text-fg-muted";
+}
+
+/** How the call went, if anybody said. `tag` is the display form and
+ * `outcome` the raw column; either answers "did we reach them". */
+function outcomeOf(item: CrmActivityLogItem): string | null {
+  if (item.type !== "call") return null;
+  const raw = (item.tag ?? item.outcome ?? "").trim().replace(/_/g, " ");
+  return raw ? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase() : null;
 }
 
 export function HistoryPanel({
@@ -242,20 +317,59 @@ export function HistoryPanel({
                should read as something that happened TO the record beside
                what somebody did about it. */
             if (item.type === "activity") {
+              const ev = EVENT_STYLE[item.eventKind ?? ""] ?? null;
+              const detail = ev ? eventDetail(item, ev.label) : (item.title ?? "");
+              const isStage = item.stageFrom != null && item.stageTo != null;
+              /* Lost and Won are the two moves worth spotting from across
+                 the panel. Everything else is a step along the way. */
+              const lost = /lost|dead|dnq|disqual/i.test(item.stageTo ?? "");
+              const won = /won|customer|closed[- ]won/i.test(item.stageTo ?? "");
+
               return (
-                <p
-                  key={item.id}
-                  className="flex items-baseline gap-2.5 px-0.5 text-[11px] leading-[1.5] text-fg-subtle"
-                >
-                  <span className="crm-num shrink-0 whitespace-nowrap">
+                <div key={item.id} className="flex items-baseline gap-2.5 px-0.5">
+                  {/* THE DATE GETS ITS OWN COLUMN. It used to be 11px grey
+                      inline, so it wrapped mid-sentence and every row started
+                      at a different place. Fixed width + tabular figures makes
+                      the whole column readable as a column. */}
+                  <span className="crm-num w-[52px] shrink-0 text-right text-[12px] font-bold leading-[1.6] text-fg-muted">
                     {shortStamp(item.occurredAt)}
                   </span>
-                  <span className="min-w-0 flex-1">
-                    {item.title}
-                    {item.body ? ` — ${item.body}` : ""}
-                    {item.author ? ` · ${item.author}` : ""}
+                  <span
+                    aria-hidden
+                    className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${ev?.dot ?? "bg-line-strong"}`}
+                  />
+                  <span className="min-w-0 flex-1 text-[12px] leading-[1.6] text-fg-subtle">
+                    {ev && <span className="font-bold text-fg-muted">{ev.label}</span>}
+                    {isStage ? (
+                      /* FROM → TO, drawn instead of described. "Stage changed:
+                         Prospect → Lost" was a sentence you had to read; two
+                         chips and an arrow is a shape you can see. */
+                      <span className="ml-1.5 inline-flex items-center gap-1 align-middle">
+                        <span className="rounded bg-inset px-1.5 py-px text-[11px] font-semibold text-fg-muted">
+                          {item.stageFrom}
+                        </span>
+                        <span aria-hidden className="text-[13px] font-bold text-fg-muted">
+                          &rarr;
+                        </span>
+                        <span
+                          className={`rounded px-1.5 py-px text-[11px] font-bold ${
+                            lost
+                              ? "bg-bad-bg text-bad"
+                              : won
+                                ? "bg-ok-bg text-ok"
+                                : "bg-admin-soft text-admin"
+                          }`}
+                        >
+                          {item.stageTo}
+                        </span>
+                      </span>
+                    ) : (
+                      detail && <span className={ev ? "ml-1.5" : ""}>{detail}</span>
+                    )}
+                    {item.body && <span> &mdash; {item.body}</span>}
+                    {item.author && <span className="text-fg-subtle"> &middot; {item.author}</span>}
                   </span>
-                </p>
+                </div>
               );
             }
 
@@ -265,6 +379,7 @@ export function HistoryPanel({
                would wear the accent rule. */
             const newest = item.id === written[0]?.id;
             const desc = descriptor(item);
+            const outcome = outcomeOf(item);
             return (
               <article
                 key={item.id}
@@ -278,23 +393,44 @@ export function HistoryPanel({
                 }
               >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="min-w-0 text-[12px]">
-                    <span className="font-bold text-fg">{stamp(item.occurredAt, nowMs)}</span>
-                    {desc && <span className="font-semibold text-fg-muted"> · {desc}</span>}
-                    {item.author && <span className="text-fg-subtle"> · {item.author}</span>}
+                  {/* THE DATE IS THE HEADLINE, not a fragment of one.
+                      It used to be 12px inside a "·"-separated run-on with
+                      the type and the author, so the one fact the panel
+                      exists to answer — WHEN did this happen — had to be
+                      picked out of a sentence. It now gets its own slot at
+                      13px bold in tabular figures, with the type as a
+                      coloured chip beside it and the relative age after it,
+                      so "how stale is this" reads without arithmetic. */}
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    {desc && (
+                      <span
+                        className={`rounded px-1.5 py-px text-[10.5px] font-bold uppercase tracking-[0.06em] ${chipTone(item)}`}
+                      >
+                        {desc}
+                      </span>
+                    )}
+                    <span className="crm-num text-[13px] font-bold leading-tight text-fg">
+                      {stamp(item.occurredAt, nowMs)}
+                    </span>
+                    <span className="text-[11.5px] font-semibold text-fg-subtle">
+                      {ago(item.occurredAt, nowMs)}
+                    </span>
+                    {item.author && (
+                      <span className="text-[11.5px] text-fg-subtle">{item.author}</span>
+                    )}
                     {item.editedAt && (
                       /* History that can be quietly rewritten is not history.
                          A corrected write-up says so. */
-                      <span className="ml-1.5 text-[10.5px] font-semibold italic text-fg-subtle">
+                      <span className="text-[10.5px] font-semibold italic text-fg-subtle">
                         edited
                       </span>
                     )}
                     {item.isPinned && (
-                      <span className="ml-1.5 rounded-[3px] border border-warn/40 bg-warn-bg px-1.5 py-px text-[9.5px] font-bold uppercase tracking-[0.06em] text-warn">
+                      <span className="rounded-[3px] border border-warn/40 bg-warn-bg px-1.5 py-px text-[9.5px] font-bold uppercase tracking-[0.06em] text-warn">
                         Pinned
                       </span>
                     )}
-                  </p>
+                  </div>
 
                   {/* WHAT A PERSON WROTE, THEY CAN FIX. Until 2026-08-28 this
                       panel imported no actions at all: a desktop user could
@@ -376,11 +512,67 @@ export function HistoryPanel({
                     </div>
                   </div>
                 ) : (
-                  item.body && (
-                    <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] leading-[1.6] text-fg-muted">
-                      {item.body}
-                    </p>
-                  )
+                  <>
+                    {item.body ? (
+                      <p className="mt-1.5 whitespace-pre-wrap text-[12.5px] leading-[1.6] text-fg-muted">
+                        {item.body}
+                      </p>
+                    ) : (
+                      item.type === "call" && (
+                        /* SAYS THE WRITE-UP IS MISSING instead of drawing a
+                           card that looks complete. 49 of the 67 logged
+                           calls in this org — 73% — have no summary, and a
+                           silent gap there reads as "nothing was said",
+                           which is a different and much worse claim than
+                           "nobody wrote it down". */
+                        <p className="mt-1.5 text-[12.5px] italic leading-[1.6] text-fg-subtle">
+                          No write-up.{" "}
+                          <button
+                            type="button"
+                            disabled={pending || removing}
+                            onClick={() => {
+                              setEditing(item);
+                              setDraft(item.editableText ?? "");
+                              setError(null);
+                            }}
+                            className="font-semibold not-italic text-accent underline underline-offset-2 transition-colors hover:text-accent-hover disabled:opacity-40"
+                          >
+                            Add one
+                          </button>
+                        </p>
+                      )
+                    )}
+
+                    {/* WHAT THE CALL PRODUCED, as facts rather than prose.
+                        Who was spoken to, how it went, and whether anything
+                        was booked off the back of it — the three questions
+                        asked of a call record, none of which the write-up
+                        can be relied on to answer. */}
+                    {(outcome || item.contactName || item.followupAt || item.hasFollowupTask) && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {outcome && (
+                          <span className="rounded bg-inset px-1.5 py-0.5 text-[11px] font-bold text-fg-muted">
+                            {outcome}
+                          </span>
+                        )}
+                        {item.contactName && (
+                          <span className="rounded bg-warn-bg px-1.5 py-0.5 text-[11px] font-semibold text-warn">
+                            {item.contactName}
+                          </span>
+                        )}
+                        {item.followupAt && (
+                          <span className="crm-num rounded bg-ok-bg px-1.5 py-0.5 text-[11px] font-bold text-ok">
+                            Follow up {shortStamp(item.followupAt)}
+                          </span>
+                        )}
+                        {item.hasFollowupTask && !item.followupAt && (
+                          <span className="rounded bg-ok-bg px-1.5 py-0.5 text-[11px] font-bold text-ok">
+                            Task created
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </article>
             );
