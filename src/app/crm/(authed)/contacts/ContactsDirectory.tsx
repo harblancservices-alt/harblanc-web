@@ -303,7 +303,7 @@ export function ContactsDirectory({
           <a
             href={starredView ? "/crm/contacts" : "/crm/contacts?starred=1"}
             className={`${PILL} ${PILL_SIZE} ${starredView ? PILL_ACTIVE : PILL_INACTIVE}`}
-            aria-pressed={starredView}
+            aria-current={starredView ? "page" : undefined}
           >
             ★ Moves freight
           </a>
@@ -356,7 +356,19 @@ export function ContactsDirectory({
         <p className="text-[12px] font-medium text-fg-muted">
           Showing {sorted.length} of {contacts.length} contact{contacts.length === 1 ? "" : "s"}
           {byCompany ? ` across ${groups.length} compan${groups.length === 1 ? "y" : "ies"}` : ""}
-          {restricted ? " at the companies you own" : ""}.
+          {/* WHOSE STARS THESE ARE. An owner's Favourites spans the whole
+              org while every other view on this page stays scoped to what
+              they can see (contacts/page.tsx explains why). Two lists that
+              look identical and mean different things is worse than either,
+              so the one that is wider says so. */}
+          {starredView
+            ? orgWideStars
+              ? " who get freight moved, across every company in the org"
+              : " who get freight moved, at the companies you can see"
+            : restricted
+              ? " at the companies you own"
+              : ""}
+          .
         </p>
       </Card>
 
