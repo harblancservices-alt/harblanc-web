@@ -3,153 +3,168 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>What we know — research &amp; discovery</title>
 <style>
+/*
+  NO LIGHT GREY LETTERING. The old --fg-subtle (#646b7d) is deleted from this
+  file, not merely avoided: it was carrying every field label, every empty
+  state, every helper line and every note heading — which is exactly the
+  grey-on-grey Brent has called out before.
+
+  Hierarchy is now carried by SIZE and WEIGHT. A label is small, BOLD and
+  BLACK rather than normal and pale. Two ink tiers only:
+      --fg        #14161c   labels, values, body        ~15.9:1 on white
+      --fg-muted  #454b5c   supporting sentences only    ~8.7:1 on white
+  Nothing on this page is lighter than --fg-muted, and nothing under 11.5px.
+*/
 :root{
-  --canvas:#e7eaf1; --card:#fff; --inset:#eef1f6; --elevated:#e2e7f0;
-  --line:#aeb6ca; --line-strong:#828a9f;
-  --fg:#14161c; --fg-muted:#454b5c; --fg-subtle:#646b7d;
-  --accent:#2f5fd6; --accent-hover:#2650b8; --accent-bg:#eef2fc;
-  --ok:#0f7a4e; --ok-bg:#d8f0e2;
-  --warn:#925c0a; --warn-bg:#f6e6c4;
-  --bad:#ad2a2a; --bad-bg:#f6d9d9;
-  --admin:#6d3fd4; --admin-soft:#ece3fb;
+  --canvas:#e7eaf1; --card:#fff; --inset:#eaeef5; --elevated:#dde3ee;
+  --line:#9aa3ba; --line-strong:#6c7690;
+  --fg:#14161c; --fg-muted:#454b5c;
+  --accent:#22499f; --accent-bg:#e6ecfa;
+  --ok:#0b5f3c; --ok-bg:#cfead9;
+  --warn:#7a4a05; --warn-bg:#f4dfb4;
+  --bad:#94211f; --bad-bg:#f5cfcf;
+  --admin:#54289f; --admin-soft:#e5daf9;
   --graphite:#151a24;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--canvas);color:var(--fg);
   font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
-  font-size:14px;-webkit-font-smoothing:antialiased}
+  font-size:15px;-webkit-font-smoothing:antialiased}
 .page{max-width:1240px;margin:0 auto;padding:28px 20px 90px}
 
 /* ── document chrome (not part of the design) ── */
-.doc-head{border-bottom:2px solid var(--fg);padding-bottom:18px;margin-bottom:26px}
-.doc-head h1{font-size:26px;margin:0 0 8px;letter-spacing:-.01em}
-.doc-head p{margin:0;color:var(--fg-muted);font-size:14.5px;line-height:1.55;max-width:78ch}
-h2.sec{font-size:19px;margin:44px 0 4px;letter-spacing:-.005em}
-h2.sec:first-of-type{margin-top:26px}
-p.src{margin:0 0 14px;font-size:12.5px;color:var(--fg-subtle)}
-.tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.08em;
-  text-transform:uppercase;padding:3px 8px;border-radius:3px;margin-bottom:8px}
-.now{background:var(--elevated);color:var(--fg-muted)}
-.new{background:var(--ok-bg);color:var(--ok)}
-.notes{background:var(--card);border:1px solid var(--line);border-radius:6px;
-  padding:13px 16px;margin:14px 0 0;font-size:13px;line-height:1.6}
-.notes > b{display:block;margin-bottom:6px;font-size:12px;text-transform:uppercase;
-  letter-spacing:.06em;color:var(--fg-subtle)}
-.notes li b{font-weight:700}
-.notes ul{margin:0;padding-left:17px}
-.notes li{margin-bottom:5px}
+.doc-head{border-bottom:3px solid var(--fg);padding-bottom:18px;margin-bottom:26px}
+.doc-head h1{font-size:28px;margin:0 0 8px;letter-spacing:-.01em;font-weight:800}
+.doc-head p{margin:0;color:var(--fg);font-size:15px;line-height:1.55;max-width:78ch}
+h2.sec{font-size:21px;margin:46px 0 4px;letter-spacing:-.005em;font-weight:800}
+p.src{margin:0 0 14px;font-size:13.5px;color:var(--fg-muted);font-weight:600}
+.tag{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.07em;
+  text-transform:uppercase;padding:4px 9px;border-radius:3px;margin-bottom:9px}
+.now{background:var(--elevated);color:var(--fg)}
+.new{background:var(--ok);color:#fff}
+.notes{background:var(--card);border:1.5px solid var(--line);border-radius:6px;
+  padding:14px 17px;margin:15px 0 0;font-size:14px;line-height:1.6}
+.notes > b{display:block;margin-bottom:7px;font-size:12.5px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--fg);font-weight:800}
+.notes li b{font-weight:800}
+.notes ul{margin:0;padding-left:18px}
+.notes li{margin-bottom:6px}
 .add{color:var(--ok);font-weight:800}
 .rem{color:var(--bad);font-weight:800}
-.keep{color:var(--fg-subtle);font-weight:800}
+.keep{color:var(--fg);font-weight:800}
 .scroller{overflow-x:auto;padding-bottom:6px}
 
-/* ── the panel itself ── */
-.panel{width:1180px;background:var(--card);border:1px solid var(--line);
-  border-radius:8px;overflow:hidden;box-shadow:0 1px 2px rgba(20,22,28,.06)}
+/* ── the panel ── */
+.panel{width:1180px;background:var(--card);border:1.5px solid var(--line);
+  border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(20,22,28,.10)}
 .tabs{background:var(--graphite);display:flex;justify-content:center;gap:2px;padding:8px 12px 0}
-.tab{padding:7px 18px;border-radius:5px 5px 0 0;font-size:12.5px;font-weight:700;
-  background:#272c35;color:#c3c8d2}
-.tab.on{background:#fff;color:var(--fg)}
-.sec-head{display:flex;align-items:baseline;justify-content:space-between;
-  padding:11px 16px;border-bottom:1px solid var(--line)}
-.sec-head h3{margin:0;font-size:15px;font-weight:800}
-.sec-head span{font-size:12px;color:var(--fg-subtle)}
+.tab{padding:8px 19px;border-radius:5px 5px 0 0;font-size:13px;font-weight:700;
+  background:#2c323d;color:#e4e7ec}
+.tab.on{background:#fff;color:var(--fg);font-weight:800}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+  padding:12px 16px;border-bottom:1.5px solid var(--line)}
+.sec-head h3{margin:0;font-size:16px;font-weight:800}
+.sec-head span{font-size:13px;color:var(--fg);font-weight:600}
 .grid{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}
 .grid.re{grid-template-columns:1.35fr 1fr}
-.col-l{border-right:1px solid var(--line);display:flex;flex-direction:column}
+.col-l{border-right:1.5px solid var(--line);display:flex;flex-direction:column}
 .col-l .bolline{margin-top:auto}
-.pad{padding:14px 16px}
+.pad{padding:15px 16px}
 
 /* today's empty state */
 .empty-doc{min-height:330px;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;text-align:center;padding:40px 24px;color:var(--fg-subtle)}
-.empty-doc .ico{font-size:30px;color:var(--line-strong);line-height:1}
-.empty-doc b{display:block;margin-top:10px;font-size:13px;color:var(--fg)}
-.empty-doc p{margin:5px auto 0;max-width:38ch;font-size:12.5px;line-height:1.55}
-.micro{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
-  color:var(--fg-subtle)}
-.dead{outline:2px dashed var(--bad);outline-offset:-6px}
-.deadlbl{display:inline-block;background:var(--bad-bg);color:var(--bad);font-size:10.5px;
-  font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+  justify-content:center;text-align:center;padding:40px 24px;color:var(--fg)}
+.empty-doc .ico{font-size:32px;color:var(--line-strong);line-height:1}
+.empty-doc b{display:block;margin-top:11px;font-size:15px;font-weight:800;color:var(--fg)}
+.empty-doc p{margin:6px auto 0;max-width:40ch;font-size:13.5px;line-height:1.55;color:var(--fg-muted)}
+.micro{font-size:11.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--fg)}
+.dead{outline:2.5px dashed var(--bad);outline-offset:-6px}
+.deadlbl{display:inline-block;background:var(--bad);color:#fff;font-size:11px;
+  font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:3px}
 
 /* record rows */
-.row{display:flex;gap:14px;align-items:baseline;border-top:1px solid var(--line);padding:9px 0}
+.row{display:flex;gap:16px;align-items:baseline;border-top:1px solid var(--line);padding:10px 0}
 .row:first-child{border-top:0}
-.row .k{width:112px;flex:none;font-size:10px;font-weight:800;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--fg-subtle)}
-.row .v{flex:1;min-width:0;font-size:13px;line-height:1.5}
-.row .v.none{color:var(--fg-subtle);font-style:italic}
-.big{font-size:15px;font-weight:700;line-height:1.4}
-.chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
-.c-fit{background:var(--ok-bg);color:var(--ok)}
-.c-warn{background:var(--warn-bg);color:var(--warn)}
-.c-nb{background:var(--inset);color:var(--fg-muted)}
+.row .k{width:120px;flex:none;font-size:11.5px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--fg)}
+.row .v{flex:1;min-width:0;font-size:14px;line-height:1.5;color:var(--fg)}
+/* AN ABSENCE IS THE POINT OF THIS PANEL, so it is stated in red at full
+   weight — not whispered in pale italics, which is what it used to be. */
+.row .v.none{color:var(--bad);font-weight:700}
+.row .v .sub{color:var(--fg-muted)}
+.big{font-size:16px;font-weight:800;line-height:1.4}
+.chip{display:inline-block;font-size:12px;font-weight:800;padding:3px 8px;border-radius:4px}
+.c-fit{background:var(--ok);color:#fff}
+.c-warn{background:var(--warn);color:#fff}
+.c-nb{background:var(--elevated);color:var(--fg)}
 
 /* research column */
 .rescol{background:var(--inset)}
-.reshead{background:var(--accent);color:#fff;padding:11px 16px}
-.reshead > b{display:block;font-size:14.5px;font-weight:800}
-.reshead span{display:block;font-size:12px;opacity:.92;margin-top:2px}
+.reshead{background:var(--accent);color:#fff;padding:12px 16px}
+.reshead > b{display:block;font-size:16px;font-weight:800}
+.reshead span{display:block;font-size:13px;margin-top:3px;color:#fff;font-weight:600}
 .reshead.quiet{background:var(--ok)}
-.lk{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 4px}
+.lk{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 4px}
 .lk a{display:inline-flex;align-items:center;gap:5px;background:var(--card);
-  border:1.5px solid var(--accent);color:var(--accent);border-radius:5px;
-  padding:6px 10px;font-size:12.5px;font-weight:700;text-decoration:none}
-.lk a:hover{background:var(--accent-bg)}
-.lk .q{font-size:11.5px;color:var(--fg-subtle);width:100%;margin-bottom:2px}
+  border:2px solid var(--accent);color:var(--accent);border-radius:5px;
+  padding:7px 11px;font-size:13px;font-weight:800;text-decoration:none}
+.lk .q{font-size:13px;color:var(--fg);width:100%;margin-bottom:3px;font-weight:700}
 
-.ask{border-top:1px solid var(--line);padding:11px 0}
+.ask{border-top:1px solid var(--line);padding:12px 0}
 .ask:first-of-type{border-top:0}
-.ask .lab{font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:7px}
-.ask .why{font-size:12px;color:var(--fg-muted);margin:2px 0 7px;line-height:1.45}
-.inp{display:block;width:100%;background:var(--card);border:1.5px dashed var(--line-strong);
-  border-radius:5px;padding:7px 10px;font-size:12.5px;color:var(--fg-subtle)}
-.blocking{background:var(--bad);color:#fff;font-size:9.5px;font-weight:800;
-  letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px}
+.ask .lab{font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:8px;color:var(--fg)}
+.ask .why{font-size:13px;color:var(--fg-muted);margin:3px 0 8px;line-height:1.45}
+.inp{display:block;width:100%;background:var(--card);border:2px dashed var(--line-strong);
+  border-radius:5px;padding:8px 11px;font-size:13px;color:var(--fg-muted);font-weight:600}
+.blocking{background:var(--bad);color:#fff;font-size:10.5px;font-weight:800;
+  letter-spacing:.06em;text-transform:uppercase;padding:3px 7px;border-radius:3px}
 
 /* guess */
-.guess{background:var(--admin-soft);border:1.5px solid var(--admin);border-radius:6px;
-  padding:10px 12px;margin-top:8px}
-.guess p{margin:0 0 8px;font-size:12.5px;line-height:1.5;color:var(--fg)}
+.guess{background:var(--admin-soft);border:2px solid var(--admin);border-radius:6px;
+  padding:11px 13px;margin-top:9px}
+.guess p{margin:0 0 9px;font-size:13.5px;line-height:1.5;color:var(--fg)}
 .guess .val{font-weight:800}
-.btns{display:flex;gap:7px}
-.btn{border-radius:5px;padding:5px 13px;font-size:12.5px;font-weight:800;border:1.5px solid}
+.btns{display:flex;gap:8px}
+.btn{border-radius:5px;padding:6px 14px;font-size:13px;font-weight:800;border:2px solid}
 .b-yes{background:var(--ok);border-color:var(--ok);color:#fff}
-.b-no{background:var(--card);border-color:var(--line-strong);color:var(--fg-muted)}
-.done{background:var(--ok-bg);border-color:var(--ok);}
-.done p{color:var(--ok);font-weight:700}
-.gone{background:var(--elevated);border-color:var(--line);opacity:.75}
-.gone p{color:var(--fg-subtle);text-decoration:line-through}
-.gone .after{text-decoration:none;display:block;margin-top:5px;font-style:italic}
+.b-no{background:var(--card);border-color:var(--fg);color:var(--fg)}
+.done{background:var(--ok-bg);border-color:var(--ok)}
+.done p{color:var(--ok);font-weight:800}
+/* A dismissed guess stays READABLE — struck through and boxed, not faded.
+   You have to be able to see what you turned down. */
+.gone{background:var(--card);border-color:var(--fg-muted);border-style:dashed}
+.gone p{color:var(--fg);text-decoration:line-through;font-weight:600}
+.gone .after{text-decoration:none;display:block;margin-top:6px;color:var(--fg-muted);font-weight:700}
 
-.script{background:var(--warn-bg);border-left:4px solid var(--warn);border-radius:0 5px 5px 0;
-  padding:9px 12px;margin-top:8px;font-size:12.5px;line-height:1.5;color:var(--fg)}
-.script > b:first-child{color:var(--warn);display:block;font-size:10px;letter-spacing:.07em;
-  text-transform:uppercase;margin-bottom:3px}
+.script{background:var(--warn-bg);border-left:5px solid var(--warn);border-radius:0 5px 5px 0;
+  padding:10px 13px;margin-top:9px;font-size:13.5px;line-height:1.5;color:var(--fg)}
+.script > b:first-child{color:var(--warn);display:block;font-size:11.5px;letter-spacing:.06em;
+  text-transform:uppercase;margin-bottom:4px;font-weight:800}
 
-.bolline{border-top:1px solid var(--line);padding:9px 16px;font-size:12px;color:var(--fg-subtle);
-  display:flex;gap:9px;align-items:baseline;background:var(--card)}
-/* The target card. A thin record leaves the left column short; rather than
-   pad it with white, it carries the one thing a new hire has no way to
-   know — what a finished record looks like. */
-.target{margin:14px 16px;border:1.5px dashed var(--line-strong);border-radius:6px;
-  background:var(--inset);padding:12px 14px}
-.target > b{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--fg-subtle);margin-bottom:7px}
-.target .ex{font-size:12.5px;line-height:1.6;color:var(--fg-muted)}
-.target .ex b{color:var(--fg)}
-.target a{color:var(--accent);font-weight:700;text-decoration:none;font-size:12.5px;
-  display:inline-block;margin-top:7px}
+.bolline{border-top:1.5px solid var(--line);padding:10px 16px;font-size:13px;color:var(--fg);
+  display:flex;gap:10px;align-items:baseline;background:var(--card);font-weight:600}
 
-table.cmp{border-collapse:collapse;width:100%;background:var(--card);font-size:13px;
-  border:1px solid var(--line);border-radius:6px;overflow:hidden}
-table.cmp th,table.cmp td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);
-  vertical-align:top}
-table.cmp thead th{background:var(--inset);font-size:10.5px;letter-spacing:.07em;
-  text-transform:uppercase;color:var(--fg-subtle)}
+.target{margin:15px 16px;border:2px dashed var(--line-strong);border-radius:6px;
+  background:var(--inset);padding:13px 15px}
+.target > b{display:block;font-size:11.5px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--fg);margin-bottom:8px}
+.target .ex{font-size:13.5px;line-height:1.6;color:var(--fg)}
+.target .ex b{font-weight:800}
+.target a{color:var(--accent);font-weight:800;text-decoration:none;font-size:13.5px;
+  display:inline-block;margin-top:8px}
+
+table.cmp{border-collapse:collapse;width:100%;background:var(--card);font-size:14px;
+  border:1.5px solid var(--line);border-radius:6px;overflow:hidden}
+table.cmp th,table.cmp td{text-align:left;padding:10px 13px;border-bottom:1px solid var(--line);
+  vertical-align:top;color:var(--fg)}
+table.cmp thead th{background:var(--elevated);font-size:11.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--fg);font-weight:800}
 table.cmp tr:last-child td{border-bottom:0}
-.old-copy{color:var(--bad);font-style:italic}
-.new-copy{color:var(--ok);font-weight:600}
+.old-copy{color:var(--bad);font-weight:700}
+.new-copy{color:var(--ok);font-weight:700}
+code{background:var(--elevated);color:var(--fg);padding:1px 5px;border-radius:3px;
+  font-size:.9em;font-weight:600}
 </style>
 </head>
 <body>
@@ -157,7 +172,17 @@ table.cmp tr:last-child td{border-bottom:0}
 
 <div class="doc-head">
   <h1>“What we know” — the research &amp; discovery version</h1>
-  <p>For the 84 companies with no bill of lading behind them. Every render below uses <b>real records from your book</b>, unedited — including the awkward ones. Rendered at desktop width (1180px panel); scroll sideways inside each frame if your window is narrower.</p>
+  <p>For the 84 companies with no bill of lading behind them. Every render below uses <b>real records from your book</b>, unedited — including the awkward ones. Rendered at desktop width (1180px panel); scroll sideways inside a frame if your window is narrower.</p>
+</div>
+
+<div class="notes" style="border-left:5px solid var(--accent)">
+  <b>Changed in this version</b>
+  <ul>
+    <li><b>No light grey lettering anywhere.</b> The pale grey carrying every field label, empty state and helper line is deleted from the file, not just avoided.</li>
+    <li><b>Hierarchy is size and weight now, not lightness.</b> A label is small, bold and black instead of normal and faded.</li>
+    <li><b>An absence is stated in red at full weight.</b> “Nobody on file” is the whole point of this panel — it used to be whispered in pale italics.</li>
+    <li>Nothing is smaller than 11.5px and nothing is lighter than <b>#454b5c</b> (8.7:1 on white). Rules and borders got heavier too.</li>
+  </ul>
 </div>
 
 <!-- ═════════════ TODAY ═════════════ -->
@@ -180,28 +205,28 @@ table.cmp tr:last-child td{border-bottom:0}
     <div>
       <div class="pad dead">
         <span class="deadlbl">the same sentence again</span>
-        <p style="margin:9px 0 0"><span class="micro">From BOLs</span> <span style="font-size:11.5px;color:var(--fg-subtle)">none on file</span></p>
-        <p style="margin:8px 0 0;font-size:12.5px;line-height:1.6;color:var(--fg-subtle)">No bills of lading are matched to this company yet. When one is processed and matched to them — as the shipper, the receiver or the bill-to — their lanes, the freight and who hauled it last will appear here on their own.</p>
+        <p style="margin:10px 0 0"><span class="micro">From BOLs</span> <span style="font-size:13px;font-weight:600">none on file</span></p>
+        <p style="margin:8px 0 0;font-size:13.5px;line-height:1.6;color:var(--fg-muted)">No bills of lading are matched to this company yet. When one is processed and matched to them — as the shipper, the receiver or the bill-to — their lanes, the freight and who hauled it last will appear here on their own.</p>
       </div>
-      <div class="pad" style="border-top:1px solid var(--line-strong)">
-        <p style="margin:0 0 8px"><span class="micro">Source</span> <b style="font-size:12.5px">Added by hand</b></p>
-        <p style="margin:0 0 7px"><span class="micro">Gaps</span> <span style="font-size:11.5px;color:var(--fg-subtle)">ask on the next call</span></p>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <div class="pad" style="border-top:2px solid var(--line-strong)">
+        <p style="margin:0 0 9px"><span class="micro">Source</span> <b style="font-size:14px">Added by hand</b></p>
+        <p style="margin:0 0 8px"><span class="micro">Gaps</span> <span style="font-size:13px;font-weight:600">ask on the next call</span></p>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
           <span class="chip c-nb">What they actually do</span>
           <span class="chip c-nb">Current broker or carrier</span>
           <span class="chip c-nb">Freight spend per year</span>
         </div>
       </div>
-      <div class="pad" style="border-top:1px solid var(--line);font-size:12px;color:var(--fg-subtle)">All fields (41) — the full record</div>
+      <div class="pad" style="border-top:1px solid var(--line);font-size:13px;font-weight:600">All fields (41) — the full record</div>
     </div>
   </div>
 </div>
 </div>
 
 <div class="notes"><b>What is wrong with it</b><ul>
-  <li>The two largest regions of the panel both say the same thing: <em>there is no document</em>. Nothing else fills them.</li>
+  <li>The two largest regions of the panel both say the same thing: <b>there is no document</b>. Nothing else fills them.</li>
   <li>The tab is called <b>What we know</b> and shows almost nothing we know. This company has an address, a branch manager and his direct line on file — none of it appears here.</li>
-  <li>Three grey chips name what is missing and give no way to find any of it out. An agent reading this at 9pm has nowhere to go next.</li>
+  <li>Three chips name what is missing and give no way to find any of it out. An agent reading this at 9pm has nowhere to go next.</li>
 </ul></div>
 
 <!-- ═════════════ A ═════════════ -->
@@ -214,13 +239,12 @@ table.cmp tr:last-child td{border-bottom:0}
   <div class="sec-head"><h3>What we know</h3><span>Core And Main Ww Lubbock · added by hand · nobody has called them</span></div>
   <div class="grid re">
 
-    <!-- LEFT: the record -->
     <div class="col-l">
       <div class="pad">
         <div class="row"><span class="k">What they do</span><span class="v none">Nobody has said yet</span></div>
         <div class="row"><span class="k">Where</span><span class="v">408 County Road 7200, Lubbock, TX 79404</span></div>
         <div class="row"><span class="k">Reach them</span><span class="v none">No company phone, no website</span></div>
-        <div class="row"><span class="k">Who we know</span><span class="v"><span class="big">Alan Pribble</span><br><span style="color:var(--fg-muted)">Branch Manager · (806) 283-9220</span></span></div>
+        <div class="row"><span class="k">Who we know</span><span class="v"><span class="big">Alan Pribble</span><br><span class="sub">Branch Manager · (806) 283-9220</span></span></div>
         <div class="row"><span class="k">From calls</span><span class="v none">Nobody has called them yet</span></div>
       </div>
       <div class="target">
@@ -231,7 +255,6 @@ table.cmp tr:last-child td{border-bottom:0}
       <div class="bolline"><span class="micro">From BOLs</span><span>none on file</span></div>
     </div>
 
-    <!-- RIGHT: research -->
     <div class="rescol">
       <div class="reshead">
         <b>Find this out before you call</b>
@@ -247,7 +270,6 @@ table.cmp tr:last-child td{border-bottom:0}
           <a href="#">🏛 TX registry</a>
         </div>
 
-        <!-- guess: pending -->
         <div class="ask">
           <span class="lab">What they make or sell</span>
           <p class="why">This is your first sentence on the call — “I know you supply waterworks pipe…”. Without it you are calling a stranger about nothing.</p>
@@ -257,7 +279,6 @@ table.cmp tr:last-child td{border-bottom:0}
           </div>
         </div>
 
-        <!-- guess: accepted -->
         <div class="ask">
           <span class="lab">Company phone</span>
           <p class="why">You cannot ring a company without one.</p>
@@ -266,7 +287,6 @@ table.cmp tr:last-child td{border-bottom:0}
           </div>
         </div>
 
-        <!-- guess: rejected -->
         <div class="ask">
           <span class="lab">Website</span>
           <p class="why">Where you find what they make, and usually the main switchboard.</p>
@@ -274,7 +294,7 @@ table.cmp tr:last-child td{border-bottom:0}
             <p>coreandmain.com — guessed from the company name.</p>
             <span class="after">Dismissed. Type the right one below and it won’t ask again.</span>
           </div>
-          <span class="inp" style="margin-top:7px">type the address and press enter</span>
+          <span class="inp" style="margin-top:8px">type the address and press enter</span>
         </div>
 
         <div class="ask">
@@ -290,10 +310,10 @@ table.cmp tr:last-child td{border-bottom:0}
 
 <div class="notes"><b>A · what changed</b><ul>
   <li><span class="add">Add</span> — the research column, on the space the missing-document sentence used to hold. It is the loud half of the panel when the record is empty, which is exactly when an agent needs telling what to do.</li>
-  <li><span class="add">Add</span> — pre-filled lookups. Not “go and Google them”: the button already carries <em>“Core And Main Ww Lubbock” Lubbock TX</em>. Knowing where to look is most of the friction and all of what a new hire lacks.</li>
-  <li><span class="add">Add</span> — guesses that ask. Three states shown: <b>pending</b> (the sibling-branch industry), <b>accepted</b> (the phone lifted from the only contact on file), <b>rejected</b> (a guessed domain, dismissed, never asked again). Nothing is ever written silently.</li>
-  <li><span class="add">Add</span> — the ask-for script, because a name on file is not the same as the right name. 7 calls so far ended in <em>decision maker unavailable</em>.</li>
-  <li><span class="rem">Remove</span> — the BOL half. It becomes one line at the foot of the record: <em>From BOLs — none on file</em>.</li>
+  <li><span class="add">Add</span> — pre-filled lookups. Not “go and Google them”: the button already carries <b>“Core And Main Ww Lubbock” Lubbock TX</b>. Knowing where to look is most of the friction and all of what a new hire lacks.</li>
+  <li><span class="add">Add</span> — guesses that ask. Three states shown: <b>pending</b> (the sibling-branch industry), <b>accepted</b> (the phone lifted from the only contact on file), <b>dismissed</b> (a guessed domain, still legible, never asked again). Nothing is ever written silently.</li>
+  <li><span class="add">Add</span> — the ask-for script, because a name on file is not the same as the right name. 7 calls so far ended in <b>decision maker unavailable</b>.</li>
+  <li><span class="rem">Remove</span> — the BOL half. It becomes one line at the foot of the record: <b>From BOLs — none on file</b>.</li>
   <li><span class="rem">Remove</span> — the second paragraph repeating that there is no document.</li>
 </ul></div>
 
@@ -308,8 +328,8 @@ table.cmp tr:last-child td{border-bottom:0}
   <div class="grid re">
     <div class="col-l">
       <div class="pad">
-        <div class="row"><span class="k">What they do</span><span class="v"><span class="big">Access equipment rental</span> <span class="chip c-fit">Good fit · 8/10</span><br><span style="color:var(--fg-muted);line-height:1.55">HQ 3005 Roy Orr Blvd, Grand Prairie. 12 locations; TX: DFW, Houston, San Antonio, Austin. One account, not two.</span></span></div>
-        <div class="row"><span class="k">Where</span><span class="v">Grand Prairie, TX <span style="color:var(--fg-subtle)">· 12 locations</span></span></div>
+        <div class="row"><span class="k">What they do</span><span class="v"><span class="big">Access equipment rental</span> <span class="chip c-fit">Good fit · 8/10</span><br><span class="sub" style="line-height:1.55">HQ 3005 Roy Orr Blvd, Grand Prairie. 12 locations; TX: DFW, Houston, San Antonio, Austin. One account, not two.</span></span></div>
+        <div class="row"><span class="k">Where</span><span class="v">Grand Prairie, TX <span class="sub">· 12 locations</span></span></div>
         <div class="row"><span class="k">Reach them</span><span class="v none">No company phone, no website</span></div>
         <div class="row"><span class="k">Who we know</span><span class="v none">Nobody on file</span></div>
         <div class="row"><span class="k">From calls</span><span class="v none">Nobody has called them yet</span></div>
@@ -356,7 +376,7 @@ table.cmp tr:last-child td{border-bottom:0}
           </div>
         </div>
 
-        <div class="script"><b>Worth knowing before you dial</b>The description says <em>“One account, not two”</em> — somebody has already decided their 12 branches are handled as a single customer. Don’t create a second record for a branch.</div>
+        <div class="script"><b>Worth knowing before you dial</b>The description says <b>“One account, not two”</b> — somebody has already decided their 12 branches are handled as a single customer. Don’t create a second record for a branch.</div>
       </div>
     </div>
   </div>
@@ -365,8 +385,8 @@ table.cmp tr:last-child td{border-bottom:0}
 
 <div class="notes"><b>B · what changed</b><ul>
   <li><span class="add">Add</span> — <b>reading the description back as offers.</b> A person, a phone and a domain are all sitting in that paragraph, and all three columns are empty. 53 companies have a description like this; 38 carry a fit score in it.</li>
-  <li><span class="add">Add</span> — the fit score as a chip, in words as well as a number. <em>“Good fit · 8/10”</em>, not a bare 8.</li>
-  <li><span class="add">Add</span> — “Nobody on file” said out loud in the record, not left as a blank row. It is true of 38 of the 67 New Leads.</li>
+  <li><span class="add">Add</span> — the fit score as a chip, in words as well as a number. <b>“Good fit · 8/10”</b>, not a bare 8.</li>
+  <li><span class="add">Add</span> — “Nobody on file” said out loud <b>in red</b>, not left as a blank row. It is true of 38 of the 67 New Leads.</li>
   <li><span class="keep">Keep</span> — the description in full on the left. It is the best thing we have about this company and it currently only appears on another tab.</li>
 </ul></div>
 
@@ -381,18 +401,18 @@ table.cmp tr:last-child td{border-bottom:0}
   <div class="grid re">
     <div class="col-l">
       <div class="pad">
-        <div class="row"><span class="k">What they do</span><span class="v"><span class="big">Steel service centre</span><br><span style="color:var(--fg-muted);line-height:1.55">Coworker-sourced (Discord), web-verified 21 Aug. Listed as Dallas; actual HQ North Richland Hills (DFW metro).</span></span></div>
+        <div class="row"><span class="k">What they do</span><span class="v"><span class="big">Steel service centre</span><br><span class="sub" style="line-height:1.55">Coworker-sourced (Discord), web-verified 21 Aug. Listed as Dallas; actual HQ North Richland Hills (DFW metro).</span></span></div>
         <div class="row"><span class="k">Where</span><span class="v">3700 Flory St, North Richland Hills, TX 76180</span></div>
-        <div class="row"><span class="k">Reach them</span><span class="v"><b>(817) 284-9800</b> · advantagesteelservice.com<br><span style="color:var(--fg-muted)">sales@advantagesteelservice.com</span></span></div>
+        <div class="row"><span class="k">Reach them</span><span class="v"><b>(817) 284-9800</b> · advantagesteelservice.com<br><span class="sub">sales@advantagesteelservice.com</span></span></div>
         <div class="row"><span class="k">Who we know</span><span class="v">
-          <span class="big">Pat Birdwell</span> <span style="color:var(--fg-muted)">— Estimator / Structural Sales · (817) 284-1693</span><br>
-          <span class="big">Tom Church</span> <span style="color:var(--fg-muted)">— President · (817) 589-0088</span>
+          <span class="big">Pat Birdwell</span> <span class="sub">— Estimator / Structural Sales · (817) 284-1693</span><br>
+          <span class="big">Tom Church</span> <span class="sub">— President · (817) 589-0088</span>
         </span></div>
         <div class="row"><span class="k">From calls</span><span class="v">
           <span class="chip c-warn">Ask for Edwin — logistics manager</span>
           <span class="chip c-nb">shipping@advantagesteelservice.com</span>
           <span class="chip c-nb">Receptionist is difficult</span>
-          <br><span style="color:var(--fg-muted);font-size:12.5px">Cold email to Edwin sent 27 Aug.</span>
+          <br><span style="font-size:13.5px">Cold email to Edwin sent 27 Aug.</span>
         </span></div>
       </div>
       <div class="bolline"><span class="micro">From BOLs</span><span>none on file</span></div>
@@ -422,7 +442,7 @@ table.cmp tr:last-child td{border-bottom:0}
   <li><span class="add">Add</span> — the <b>From calls</b> row. Everything Tyler learned by phone currently lives only in loose notes: the name to ask for, the shipping address, the difficult receptionist. That is the most valuable information on the record and it has no home.</li>
   <li><span class="add">Add</span> — the research column goes <b>green and quiet</b> when there is nothing left to look up, and shows only what a call can answer. The panel is loud when there is work and calm when there is not.</li>
   <li><span class="add">Add</span> — “Where you got to last time”, so picking up a half-worked company does not mean reading the whole history.</li>
-  <li><span class="keep">Keep</span> — the correction in the description (<em>“Listed as Dallas; actual HQ North Richland Hills”</em>). Provenance and corrections are why the record can be trusted.</li>
+  <li><span class="keep">Keep</span> — the correction in the description (<b>“Listed as Dallas; actual HQ North Richland Hills”</b>). Provenance and corrections are why the record can be trusted.</li>
 </ul></div>
 
 <!-- ═════════════ WORDING ═════════════ -->
@@ -442,11 +462,11 @@ table.cmp tr:last-child td{border-bottom:0}
 </table>
 
 <div class="notes"><b>Two more things a new hire has no way to know</b><ul>
-  <li><span class="add">Add</span> — <b>the ask-for line</b>, shown on the panel: <em>“Who schedules your outbound freight?”</em> Not “the owner”, not “purchasing”. Seven calls ended at the wrong desk.</li>
-  <li><span class="add">Add</span> — <b>a way to rule a company out.</b> Tyler found by calling that Sord Landfill has no shipping team, and that Sawyer Fabrication does not take brokers. Both are real notes. The research step should ask the plain-English version first — <em>do they move physical goods out of a building?</em> — rather than “are they a shipper”, which means nothing on day one.</li>
+  <li><span class="add">Add</span> — <b>the ask-for line</b>, shown on the panel: <b>“Who schedules your outbound freight?”</b> Not “the owner”, not “purchasing”. Seven calls ended at the wrong desk.</li>
+  <li><span class="add">Add</span> — <b>a way to rule a company out.</b> Tyler found by calling that Sord Landfill has no shipping team, and that Sawyer Fabrication does not take brokers. Both are real notes. The research step should ask the plain-English version first — <b>do they move physical goods out of a building?</b> — rather than “are they a shipper”, which means nothing on day one.</li>
 </ul></div>
 
-<div class="notes" style="border-left:4px solid var(--accent)"><b>The one rule behind all of it</b>
+<div class="notes" style="border-left:5px solid var(--accent)"><b>The one rule behind all of it</b>
   <p style="margin:0">The panel is <b>loud when the record is empty and quiet when it is full.</b> Today it is equally grey either way, which is why a company nobody has researched looks exactly like one that is ready to call. Nothing here is written to the record without somebody pressing Yes.</p>
 </div>
 
