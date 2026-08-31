@@ -139,7 +139,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_contacts")
       .select(
-        "id, name, name_unknown, title, email, phones, links, best_time_to_call, is_decision_maker, notes, next_followup_at, last_contacted_at, role_category, current_mood",
+        "id, name, name_unknown, title, email, phones, links, best_time_to_call, is_decision_maker, notes, next_followup_at, last_contacted_at, role_category, current_mood, starred_at",
       )
       .eq("account_id", id)
       .is("deleted_at", null)
@@ -603,6 +603,7 @@ export default async function AccountDetailPage({
         email: c.email ?? null,
         phones: c.phones,
         isPrimary: c.id === (account.primary_contact_id as string | null),
+        starred: (c as { starred_at?: string | null }).starred_at != null,
         lastContactLabel:
           status.freshness === "never" ? "never called" : `reached ${status.text.toLowerCase()}`,
         // Roster fields — rendered by the Contacts tab, not by the shortlist.
@@ -1032,6 +1033,7 @@ export default async function AccountDetailPage({
       isPrimary: c.id === (account.primary_contact_id as string | null),
       isDecisionMaker: decisionMakerIds.has(c.id),
       nameUnknown: Boolean((c as { name_unknown?: boolean | null }).name_unknown),
+      starred: (c as { starred_at?: string | null }).starred_at != null,
       defaults: {
         id: c.id,
         name: c.name,

@@ -7,6 +7,7 @@ import { digitsForTel } from "../../../../_shell/contactFields";
 import type { CallPerson } from "./WhoDoICall";
 import { FileCard, SectionHead } from "./chrome";
 import { phoneKey, sharedNumbers } from "./sharedNumbers";
+import { ContactStar } from "../../../../contacts/ContactStar";
 
 /**
  * THE CONTACTS TAB — the full roster.
@@ -162,6 +163,10 @@ export function ContactsTab({
         <table className="w-full min-w-[760px] border-collapse">
           <thead>
             <tr>
+              {/* The star's own column, first — see ContactStar.tsx. Its
+                  header is the words, since a lone glyph would not say
+                  what starring means and that is the whole point. */}
+              <Head>Moves freight</Head>
               <Head>Name</Head>
               <Head>Role</Head>
               <Head>Numbers</Head>
@@ -174,6 +179,14 @@ export function ContactsTab({
           <tbody>
             {people.map((p) => (
               <tr key={p.id} id={`contact-row-${p.id}`} className="target:bg-accent-bg">
+                <td className="px-2 py-1.5 align-middle">
+                  <ContactStar
+                    contactId={p.id}
+                    starred={Boolean(p.starred)}
+                    name={p.name}
+                    size="sm"
+                  />
+                </td>
                 <Cell>
                   {/* Same link as the Overview roster — the name is the
                       way into /crm/contacts/[id]. Edit keeps its own button

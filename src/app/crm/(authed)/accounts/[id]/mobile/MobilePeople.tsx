@@ -6,6 +6,7 @@ import { digitsForTel, sameDialledNumber } from "../../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
 import { IconMail, IconPhone } from "../../../_shell/icons";
 import { ContactDialog, type ContactDefaults } from "../ContactDialog";
+import { ContactStar } from "../../../contacts/ContactStar";
 import { M_DIVIDE, M_ROUND, M_ROUND_SOLID } from "./ui";
 
 export type MobilePerson = {
@@ -18,6 +19,8 @@ export type MobilePerson = {
   isDecisionMaker: boolean;
   /** crm_contacts.name_unknown — a number with nobody's name on it. */
   nameUnknown?: boolean;
+  /** crm_contacts.starred_at is not null — "gets freight moved". */
+  starred?: boolean;
   /** Everything ContactDialog needs to open in edit mode — plain data. */
   defaults: ContactDefaults;
 };
@@ -131,6 +134,12 @@ export function MobilePeople({
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5">
+              <ContactStar
+                contactId={p.id}
+                starred={Boolean(p.starred)}
+                name={p.name}
+                size="sm"
+              />
               {tel ? (
                 <>
                   <a href={`tel:${tel}`} aria-label={`Call ${p.name}`} className={M_ROUND_SOLID}>

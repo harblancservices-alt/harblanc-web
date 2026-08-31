@@ -29,6 +29,7 @@ type ContactRow = {
   role_category: string | null;
   last_contacted_at: string | null;
   current_mood: string | null;
+  starred_at: string | null;
 };
 
 /**
@@ -53,7 +54,7 @@ type ContactRow = {
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; dm?: string }>;
+  searchParams: Promise<{ q?: string; dm?: string; starred?: string }>;
 }) {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
@@ -77,7 +78,7 @@ export default async function ContactsPage({
   let contactsQuery = supabase
     .from("crm_contacts")
     .select(
-      "id, name, title, email, phone, mobile, extension, is_decision_maker, next_followup_at, account_id, role_category, last_contacted_at, current_mood",
+      "id, name, title, email, phone, mobile, extension, is_decision_maker, next_followup_at, account_id, role_category, last_contacted_at, current_mood, starred_at",
     )
     .is("deleted_at", null)
     .order("name", { ascending: true })
@@ -86,7 +87,35 @@ export default async function ContactsPage({
   // contact with NO company has no company to inherit visibility from, so it
   // is out too — .in() never matches a null account_id. Those surface on
   // Admin -> Contacts.
-  if (visibleAccountIds !== null) contactsQuery = contactsQuery.in("account_id", visibleAccountIds);
+  /* ── THE ONE DELIBERATE WIDENING, AND WHY IT IS NOT A LEAK ──────────
+   *
+   * Brent, 2026-08-31, on the Favourites view: "Admins see every star
+   * across the org."
+   *
+   * That collides with a rule set on 2026-08-25 and written up in
+   * companyVisibility.ts: ROLE IS NOT PART OF THE AGENT-FACING VISIBILITY
+   * RULE. Both owners currently have can_view_all_companies FALSE — that
+   * is deliberate, so Kartik sees every company under /crm/admin and only
+   * his own in the workspace. Under the plain rule an owner opening
+   * Favourites would see stars on three companies, which is not what was
+   * asked for.
+   *
+   * Resolved narrowly rather than by weakening the rule: the widening
+   * applies ONLY when the starred filter is on, ONLY for role === 'owner',
+   * and it is enforced HERE in the loader rather than by hiding rows in
+   * the client — the standing rule after the Activity exposure. Every
+   * other view on this page, for every caller including an owner, still
+   * goes through getVisibleAccountIds untouched. RLS still scopes to the
+   * caller's org, so "org-wide" means their org and no further.
+   *
+   * A member's Favourites shows the starred people on the companies they
+   * can already see, which is the correct answer for them. */
+  const starredOnly = sp.starred === "1";
+  const orgWideStars = starredOnly && user.role === "owner";
+  if (starredOnly) contactsQuery = contactsQuery.not("starred_at", "is", null);
+  if (visibleAccountIds !== null && !orgWideStars) {
+    contactsQuery = contactsQuery.in("account_id", visibleAccountIds);
+  }
   const { data } = await contactsQuery;
 
   const contacts = ((data ?? []) as ContactRow[]).map((c) => ({ ...c, name: titleCaseWords(c.name) }));
@@ -131,15 +160,20 @@ export default async function ContactsPage({
     roleCategory: c.role_category,
     lastContactedAt: c.last_contacted_at,
     currentMood: c.current_mood,
+    starred: (c as { starred_at?: string | null }).starred_at != null,
   }));
 
   return (
     <PageShell
       title="Contacts"
       subtitle={
-        visibility.restricted
-          ? `${cards.length} contact${cards.length === 1 ? "" : "s"} at the companies you own.`
-          : `${cards.length} contact${cards.length === 1 ? "" : "s"} across every company.`
+        starredOnly
+          ? `${cards.length} ${cards.length === 1 ? "person" : "people"} who get freight moved${
+              orgWideStars ? ", across every company in the org." : "."
+            }`
+          : visibility.restricted
+            ? `${cards.length} contact${cards.length === 1 ? "" : "s"} at the companies you own.`
+            : `${cards.length} contact${cards.length === 1 ? "" : "s"} across every company.`
       }
       // Add contact leads here, Add company leads on /crm/accounts — each
       // page's primary creates the thing that page is about. These two were
@@ -159,6 +193,8 @@ export default async function ContactsPage({
         restricted={visibility.restricted}
         initialQuery={initialQuery}
         initialDecisionMakers={initialDecisionMakers}
+        initialStarred={starredOnly}
+        orgWideStars={orgWideStars}
       />
     </PageShell>
   );

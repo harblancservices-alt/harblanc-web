@@ -8,6 +8,7 @@ import { IconMail, IconNote, IconPhone } from "../_shell/icons";
 import { DueCountdown } from "../_shell/DueCountdown";
 import { digitsForTel } from "../_shell/contactFields";
 import { MOOD_LABEL, normalizeMood, type ContactMood } from "../_shell/mood";
+import { ContactStar } from "./ContactStar";
 import { lastContactStatus, timestampMs } from "../_shell/format";
 import { LogCallDialog } from "../calls/LogCallDialog";
 
@@ -16,6 +17,8 @@ export type ContactCardData = {
   name: string;
   title: string | null;
   email: string | null;
+  /** crm_contacts.starred_at is not null — "gets freight moved". */
+  starred?: boolean;
   phone: string | null;
   /** Only meaningful alongside the office `phone` (mirrors the old table's
    * "x123" suffix) — never shown against a mobile number. */
@@ -152,6 +155,12 @@ export function ContactListCard({ contact }: { contact: ContactCardData }) {
 
       {/* Fixed three-slot action bar — same order, same position, every row. */}
       <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+        <ContactStar
+          contactId={contact.id}
+          starred={Boolean(contact.starred)}
+          name={contact.name}
+          size="sm"
+        />
         {contact.phone ? (
           <a
             href={`tel:${tel}`}

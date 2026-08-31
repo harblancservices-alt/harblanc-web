@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { BTN_CREATE } from "../../../../_shell/ui";
 import Link from "next/link";
+import { ContactStar } from "../../../../contacts/ContactStar";
 import { ContactDialog, type ContactDefaults } from "../../ContactDialog";
 import { EditCompany } from "../../EditCompany";
 import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
@@ -74,6 +75,10 @@ export type CallPerson = {
   /** Every stored number, label included. First is the one to try. */
   phones: { label: string; number: string }[];
   isPrimary: boolean;
+  /** crm_contacts.starred_at is not null — "gets freight moved". NOT the
+   * same thing as isPrimary; see ContactStar.tsx for why they are separate
+   * and why starring must never set primary. */
+  starred: boolean;
   /** "reached today 1:15 PM" / "never called" — already derived by the
    * page from crm_contacts.last_contacted_at. */
   lastContactLabel: string;
@@ -138,7 +143,17 @@ export function WhoDoICall({
   const [rosterOpen, setRosterOpen] = useState(false);
 
   const hero = pickHero(people);
-  const rest = hero ? people.filter((p) => p.id !== hero.id) : [];
+  /* STARRED FIRST below the hero. The one place the star touches ordering:
+     it is a display preference and overwrites no stored decision, unlike
+     primary_contact_id which the hero is picked from. Stable within each
+     group, so the roster does not reshuffle between renders. */
+  const rest = hero
+    ? people
+        .filter((p) => p.id !== hero.id)
+        .map((p, i) => ({ p, i }))
+        .sort((a, b) => Number(b.p.starred) - Number(a.p.starred) || a.i - b.i)
+        .map(({ p }) => p)
+    : [];
   const heroPhone = hero?.phones[0] ?? null;
 
   /** True when the hero's number is the company switchboard. Drives the
@@ -273,6 +288,12 @@ export function WhoDoICall({
                   <p className="mt-0.5 truncate text-[11.5px] text-fg-subtle">{heroMeta.join(" · ")}</p>
                 )}
               </div>
+              {/* THE STAR, on the most prominent contact on the page — and
+                  deliberately NOT the same thing as being the hero. The
+                  hero is picked from primary_contact_id; Brent's whole
+                  example is a company where the person who matters is not
+                  the one the record leads with. */}
+              <ContactStar contactId={hero.id} starred={hero.starred} name={hero.name} />
             </div>
 
             <div className="flex items-stretch gap-2">
@@ -449,6 +470,12 @@ export function WhoDoICall({
                             </p>
                           )}
                         </div>
+                        <ContactStar
+                          contactId={p.id}
+                          starred={p.starred}
+                          name={p.name}
+                          size="sm"
+                        />
                         {/* THE NUMBER, NOT JUST A HANDSET.
                             Brent, 2026-08-31: "the numbers dont show up for
                             others." The hero printed its digits and every

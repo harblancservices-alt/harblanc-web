@@ -133,6 +133,8 @@ export function ContactsDirectory({
   restricted = false,
   initialQuery,
   initialDecisionMakers,
+  initialStarred = false,
+  orgWideStars = false,
 }: {
   contacts: ContactCardData[];
   /** Only used for the empty-state "Add contact" affordance. */
@@ -147,9 +149,20 @@ export function ContactsDirectory({
   /** Seed from `?dm=1` — the dashboard's "Decision Makers" tile deep-links
    * here. Same definition as that tile: crm_contacts.is_decision_maker. */
   initialDecisionMakers: boolean;
+  /** Arrives true from ?starred=1 — the Favourites view. */
+  initialStarred?: boolean;
+  /** True when the server widened this caller's starred query to the whole
+   * org (owners only). Drives the note under the chip, so nobody has to
+   * guess whether they are looking at their book or everyone's. */
+  orgWideStars?: boolean;
 }) {
   const [query, setQuery] = useState(initialQuery);
   const [decisionMakers, setDecisionMakers] = useState(initialDecisionMakers);
+  /* NOT filtered client-side. The server already returned only starred
+     rows when ?starred=1, because scoping who can see whose stars has to
+     hold in the loader — hiding rows in the browser is not enforcement.
+     This state only drives the chip's own appearance and its link. */
+  const starredView = initialStarred;
   const [hasPhone, setHasPhone] = useState(false);
   const [hasEmail, setHasEmail] = useState(false);
   const [moods, setMoods] = useState<MoodChip[]>([]);
@@ -158,7 +171,8 @@ export function ContactsDirectory({
 
   const index = useMemo(() => buildIndex(contacts), [contacts]);
 
-  const anyFilter = query.trim().length > 0 || decisionMakers || hasPhone || hasEmail || moods.length > 0;
+  const anyFilter =
+    query.trim().length > 0 || decisionMakers || hasPhone || hasEmail || moods.length > 0;
 
   function clearAll() {
     setQuery("");
@@ -282,6 +296,17 @@ export function ContactsDirectory({
           >
             All
           </button>
+          {/* MOVES FREIGHT — the Favourites view. A link, not a toggle:
+              it changes what the SERVER returns (and, for an owner, how
+              widely it looks), so it has to be a navigation rather than a
+              client-side filter over rows already fetched. */}
+          <a
+            href={starredView ? "/crm/contacts" : "/crm/contacts?starred=1"}
+            className={`${PILL} ${PILL_SIZE} ${starredView ? PILL_ACTIVE : PILL_INACTIVE}`}
+            aria-pressed={starredView}
+          >
+            ★ Moves freight
+          </a>
           <button
             type="button"
             onClick={() => setDecisionMakers((v) => !v)}

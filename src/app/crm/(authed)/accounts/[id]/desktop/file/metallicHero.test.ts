@@ -27,6 +27,7 @@ function person(p: Partial<CallPerson> & { id: string; name: string }): CallPers
     email: null,
     phones: [],
     isPrimary: false,
+    starred: false,
     lastContactLabel: "never called",
     defaults,
     role: null,
