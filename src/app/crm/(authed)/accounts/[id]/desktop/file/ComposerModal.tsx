@@ -5,6 +5,15 @@ import { Modal } from "../../../../_shell/Modal";
 import { WhatHappened } from "./WhatHappened";
 import type { QuickTask } from "../../../../admin/quick-task-actions";
 
+type Mode = "call" | "note" | "task";
+
+/** The heading, following the tab on screen rather than the button pressed. */
+const TITLE: Record<Mode, string> = {
+  call: "Log a call",
+  note: "Add a note",
+  task: "Add a task",
+};
+
 /**
  * LOG CALL · NOTE · TASK, from the document panel — in a CENTRED DIALOG.
  *
@@ -47,7 +56,24 @@ export function ComposerModal({
   quickTasks: QuickTask[];
   taskOwnerLabel: string | null;
 }) {
-  const [mode, setMode] = useState<"call" | "note" | "task" | null>(null);
+  /** Which button opened it — null when shut. */
+  const [mode, setMode] = useState<Mode | null>(null);
+  /**
+   * The tab currently showing INSIDE the dialog, which is not the same
+   * thing as the button that opened it: the composer keeps its own
+   * call/note/task toggle and a rep may move it after opening.
+   *
+   * Brent, 2026-08-31 — the heading read "Add a note" with the Log a call
+   * tab selected, because the title followed the opening button and never
+   * moved again. A dialog whose title disagrees with its own contents is
+   * how somebody comes away believing they saved the wrong kind of thing.
+   */
+  const [showing, setShowing] = useState<Mode>("call");
+
+  function open(m: Mode) {
+    setMode(m);
+    setShowing(m);
+  }
 
   const BTN =
     "inline-flex items-center gap-1.5 rounded-md border-2 px-3 py-1.5 text-[12.5px] font-bold transition-colors";
@@ -57,21 +83,21 @@ export function ComposerModal({
       <div className="flex flex-wrap gap-2 border-b border-line px-4 py-2.5">
         <button
           type="button"
-          onClick={() => setMode("call")}
+          onClick={() => open("call")}
           className={`${BTN} border-accent bg-accent text-white hover:bg-accent-hover`}
         >
           Log call
         </button>
         <button
           type="button"
-          onClick={() => setMode("note")}
+          onClick={() => open("note")}
           className={`${BTN} border-accent bg-card text-accent hover:bg-accent-bg`}
         >
           Note
         </button>
         <button
           type="button"
-          onClick={() => setMode("task")}
+          onClick={() => open("task")}
           className={`${BTN} border-accent bg-card text-accent hover:bg-accent-bg`}
         >
           Task
@@ -81,7 +107,7 @@ export function ComposerModal({
       <Modal
         open={mode !== null}
         onClose={() => setMode(null)}
-        title={mode === "note" ? "Add a note" : mode === "task" ? "Add a task" : "Log a call"}
+        title={TITLE[showing]}
       >
         {mode && (
           <div className="p-1">
@@ -92,6 +118,13 @@ export function ComposerModal({
               quickTasks={quickTasks}
               taskOwnerLabel={taskOwnerLabel}
               initialMode={mode}
+              onModeChange={setShowing}
+              /* THE ENTRY BELONGS TO THE COMPANY. Brent: "they don't need
+                 to link to a name. just show in the company tasks and what
+                 happened notes." The Overview composer keeps its picker;
+                 see WhatHappened's hideContact note for why this surface
+                 in particular is the wrong place to ask. */
+              hideContact
               /* Its own key — see the note above and WhatHappened's own. */
               draftScope={`${accountId}::bol`}
             />

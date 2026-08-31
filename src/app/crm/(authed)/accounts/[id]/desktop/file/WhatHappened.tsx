@@ -102,7 +102,40 @@ const COMMIT = BTN_CREATE;
  * sequence. A numbered marker and a real heading make the order legible
  * without a word of explanation. The marker goes GREEN once its step is
  * answered, the same green a picked button uses.
+ *
+ * ── THE NUMBERS COUNT WHAT IS ON SCREEN (2026-08-31) ──────────────────
+ *
+ * They used to be hardcoded 1..4, and steps 2 and 3 only appear once an
+ * outcome is picked — so a freshly opened call read "1 Did you get
+ * through?" then "4 Save it". Brent spotted it in the dialog: skipping
+ * two numbers looks like the form failed to draw, and a rep who thinks
+ * something is missing goes looking for it.
+ *
+ * So the caller passes no number at all now; `stepNumbers()` counts the
+ * steps that are actually rendered. Fixed on BOTH surfaces, not just the
+ * dialog — the jump was equally wrong on Overview and nobody had said so.
  */
+/**
+ * Number the steps that are ACTUALLY RENDERED, in order.
+ *
+ * Exported for its test: this is the whole fix for "1 … 4", and the bug
+ * was invisible in code review precisely because the numbers looked
+ * correct written down as literals.
+ */
+export function stepNumbers(shown: { result: boolean; followup: boolean }): {
+  gotThrough: number;
+  result: number;
+  followup: number;
+  save: number;
+} {
+  let n = 0;
+  const gotThrough = ++n;
+  const result = shown.result ? ++n : 0;
+  const followup = shown.followup ? ++n : 0;
+  const save = ++n;
+  return { gotThrough, result, followup, save };
+}
+
 function Step({ n, children, done }: { n: number; children: ReactNode; done?: boolean }) {
   return (
     <div className="flex items-center gap-2">
@@ -127,6 +160,8 @@ export function WhatHappened({
   taskOwnerLabel,
   initialMode,
   draftScope,
+  hideContact = false,
+  onModeChange,
 }: {
   accountId: string;
   contacts: { id: string; name: string; phoneLabel: string | null }[];
@@ -169,6 +204,28 @@ export function WhatHappened({
    * scopes cost a key and remove the whole class of problem.
    */
   draftScope?: string;
+  /**
+   * DROP THE CONTACT PICKER, and save against the company alone.
+   *
+   * Brent, 2026-08-31: "remove the contact name on the pop up
+   * note/log/task maker. remove the drop down box for the names. they
+   * don't need to link to a name."
+   *
+   * Only the BOL panel's dialog passes it. The Overview composer keeps its
+   * picker, where a company with real named contacts genuinely benefits
+   * from saying who was spoken to.
+   *
+   * It reads oddly on the document panel for a reason we had already found
+   * the hard way: the companies you are looking at a bill of lading for
+   * are frequently the ones whose only "contact" is an unnamed number
+   * lifted off that document. Asking which of those you just called is a
+   * question with no sensible answer.
+   */
+  hideContact?: boolean;
+  /** Fires whenever the call/note/task toggle moves, so a host that draws
+   * its own heading can follow it. The dialog's title said "Add a note"
+   * with the call tab open until this existed. */
+  onModeChange?: (mode: Mode) => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -188,7 +245,13 @@ export function WhatHappened({
   const [mode, setMode] = useState<Mode>(initialMode ?? restored?.mode ?? "call");
   const [text, setText] = useState(restored?.text ?? "");
   const [restoredNotice, setRestoredNotice] = useState(restored !== null);
-  const [contactId, setContactId] = useState<string>(contacts[0]?.id ?? "");
+  /* Empty, and never set, when the picker is hidden — the entry belongs to
+     the company. Both save paths already guard `if (contactId)`, so a blank
+     one simply omits contact_id rather than writing a null over a column
+     that expects one. */
+  const [contactId, setContactId] = useState<string>(
+    hideContact ? "" : contacts[0]?.id ?? "",
+  );
   const [advance, setAdvance] = useState(false);
 
   /* ── THE TWO ANSWERS, and what they reveal ────────────────────────
@@ -395,8 +458,9 @@ export function WhatHappened({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2 px-4 pb-2 pt-3">
-        {/* Who this is about. Real rows only. */}
-        {contacts.length > 0 ? (
+        {/* Who this is about. Real rows only, and not at all when the host
+            has said this entry belongs to the company (see hideContact). */}
+        {hideContact ? null : contacts.length > 0 ? (
           <label className="relative">
             <span className="sr-only">Who</span>
             <select
@@ -447,6 +511,7 @@ export function WhatHappened({
               type="button"
               onClick={() => {
                 setMode(m);
+                onModeChange?.(m);
                 setError(null);
               }}
               disabled={pending}
@@ -485,10 +550,19 @@ export function WhatHappened({
       </div>
 
       {mode === "call" ? (
+        (() => {
+          /* WHAT IS ACTUALLY ON SCREEN, numbered in order. Steps 2 and 3
+             are conditional, so hardcoded numbers produced "1" then "4"
+             on a freshly opened call. See Step's own note. */
+          const step = stepNumbers({
+            result: gotThrough === RESULT_ROW_REQUIRES,
+            followup: showFollowup,
+          });
+          return (
         <div className="flex flex-col gap-3 px-4 pb-3.5 pt-2">
           {/* STEP 1 — the connection. */}
           <div>
-            <Step n={1} done={Boolean(gotThrough)}>Did you get through?</Step>
+            <Step n={step.gotThrough} done={Boolean(gotThrough)}>Did you get through?</Step>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {GOT_THROUGH_OUTCOMES.map((o) => {
                 const on = gotThrough === o.value;
@@ -513,7 +587,7 @@ export function WhatHappened({
               a result from a voicemail. */}
           {gotThrough === RESULT_ROW_REQUIRES && (
             <div>
-              <Step n={2} done={Boolean(result)}>How did it go?</Step>
+              <Step n={step.result} done={Boolean(result)}>How did it go?</Step>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {RESULT_OUTCOMES.map((o) => {
                   const on = result === o.value;
@@ -538,7 +612,7 @@ export function WhatHappened({
           {/* STEP 3 - what happens next, once an outcome makes one sensible. */}
           {showFollowup && (
             <div className="border-t border-line pt-3">
-              <Step n={3} done={Boolean(followupDate)}>What next?</Step>
+              <Step n={step.followup} done={Boolean(followupDate)}>What next?</Step>
 
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {/* THE PREFILL GETS OUT OF THE WAY — Brent, 2026-08-28:
@@ -649,7 +723,7 @@ export function WhatHappened({
 
           {/* STEP 4 - one save writes the call, the outcome and the task. */}
           <div className="border-t border-line pt-3">
-            <Step n={4}>Save it</Step>
+            <Step n={step.save}>Save it</Step>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -689,6 +763,8 @@ export function WhatHappened({
             </div>
           </div>
         </div>
+          );
+        })()
       ) : (
         /* THE TASK PRESETS RUN ALONG THE BOTTOM, on the same line as the
            action — Brent, 2026-08-28: "i want the list of blue task buttons
