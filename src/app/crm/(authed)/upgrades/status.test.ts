@@ -68,3 +68,49 @@ describe("status colour keeps its meanings straight", () => {
     }
   });
 });
+
+/**
+ * THE NAV BADGE'S DEFINITION.
+ *
+ * The badge filtered on `.neq("status", "done")` for three days after the
+ * 28 Aug migration renamed `done` to `completed`. Excluding a value that no
+ * longer exists is silently legal, so nothing failed — the badge simply
+ * counted every request ever filed and Brent saw "5" with all five
+ * finished. These tests exist so the next rename cannot do it again.
+ */
+describe("ACTIVE_STATUSES", () => {
+  it("counts open and in_progress, and nothing else", () => {
+    expect([...ACTIVE_STATUSES].sort()).toEqual(["in_progress", "open"]);
+  });
+
+  it("treats work that has been picked up as still outstanding", () => {
+    // A badge that emptied the moment somebody STARTED a job would report
+    // a clear queue with three things in flight.
+    expect(ACTIVE_STATUSES).toContain("in_progress");
+  });
+
+  it("counts neither finished state", () => {
+    expect(ACTIVE_STATUSES).not.toContain("completed");
+    expect(ACTIVE_STATUSES).not.toContain("closed");
+  });
+
+  it("names only statuses that actually exist", () => {
+    // The exact failure mode: a status string the database has never heard
+    // of, filtered against forever with no error.
+    for (const s of ACTIVE_STATUSES) {
+      expect(isUpgradeStatus(s)).toBe(true);
+      expect(UPGRADE_STATUSES).toContain(s);
+    }
+  });
+
+  it("reads zero when every request is finished — the state today", () => {
+    // All five live requests are `completed` as of 31 Aug. The badge must
+    // show nothing at all, which is the whole point of fixing it.
+    const rows = [{ status: "completed" }, { status: "completed" }, { status: "closed" }];
+    const outstanding = rows.filter((r) =>
+      (ACTIVE_STATUSES as readonly string[]).includes(r.status),
+    );
+    expect(outstanding).toHaveLength(0);
+  });
+});
+

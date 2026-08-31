@@ -66,10 +66,16 @@ export default async function UpgradesPage({
 
   const sp = await searchParams;
   const rawFilter = one(sp.show);
+  /* OPEN IS THE LANDING TAB (Brent, 2026-08-31): "default first site to
+     'open' on the upgrades tab". What you land on should be the work
+     outstanding, not the archive — five completed requests were the first
+     thing this page showed, which reads as a filing cabinet rather than a
+     queue. Every other tab is still one click away and every URL that
+     names a tab still resolves to it. */
   const filter: Filter =
     rawFilter === "all" || rawFilter === "mine" || (rawFilter && isUpgradeStatus(rawFilter))
       ? (rawFilter as Filter)
-      : "all";
+      : "open";
 
   const [requestsRes, attachmentsRes, profilesRes] = await Promise.all([
     supabase
@@ -146,7 +152,6 @@ export default async function UpgradesPage({
   });
 
   const mine = all.filter((r) => r.isMine);
-  const countOf = (status: string) => all.filter((r) => r.status === status).length;
 
   const visible =
     filter === "all"
@@ -155,14 +160,17 @@ export default async function UpgradesPage({
         ? mine
         : all.filter((r) => r.status === filter);
 
-  const TABS: { key: Filter; label: string; count: number }[] = [
-    { key: "all", label: "All", count: all.length },
+  /* NO COUNTS ON THE TABS (Brent, same message): "remove the indicator for
+     how many are in the tab". After this the sidebar badge is the ONLY
+     count on this surface, which is why the badge had to be made correct
+     in the same pass — see layout.tsx. */
+  const TABS: { key: Filter; label: string }[] = [
+    { key: "all", label: "All" },
     ...UPGRADE_STATUSES.map((s) => ({
       key: s as Filter,
       label: UPGRADE_STATUS_STYLE[s].label,
-      count: countOf(s),
     })),
-    { key: "mine", label: "Mine", count: mine.length },
+    { key: "mine", label: "Mine" },
   ];
 
   /** The agent's own one-line answer to "where did my reports get to". */
@@ -195,13 +203,6 @@ export default async function UpgradesPage({
               }`}
             >
               {t.label}
-              <span
-                className={`crm-num text-[11px] font-bold ${
-                  filter === t.key ? "text-white/80" : "text-fg-subtle"
-                }`}
-              >
-                {t.count}
-              </span>
             </Link>
           ))}
         </div>

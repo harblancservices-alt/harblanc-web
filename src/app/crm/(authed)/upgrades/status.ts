@@ -74,7 +74,22 @@ export const UPGRADE_STATUS_STYLE: Record<UpgradeStatus, UpgradeStatusStyle> = {
   },
 };
 
-/** Rows an agent is still waiting on, for the "Open: 4, In progress: 2" line. */
+/**
+ * Rows an agent is still waiting on — the "Open: 4, In progress: 2" line,
+ * AND the nav badge (2026-08-31).
+ *
+ * The badge did not use this and should have. It filtered on
+ * `.neq("status", "done")` for three days after the 28 Aug migration
+ * renamed `done` to `completed`, so it excluded nothing and counted every
+ * request ever filed — Brent: "it's currently showing 5 even though they
+ * are closed". Excluding a value that no longer exists is silently legal,
+ * which is why nothing failed and nobody noticed.
+ *
+ * in_progress IS outstanding: work picked up but unfinished is still work
+ * the reporter is waiting for, and a badge that emptied the moment a job
+ * STARTED would report a clear queue with three things in flight.
+ * completed and closed are both finished; neither counts.
+ */
 export const ACTIVE_STATUSES: readonly UpgradeStatus[] = ["open", "in_progress"];
 
 /**
