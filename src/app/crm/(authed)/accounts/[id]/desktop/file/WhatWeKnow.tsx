@@ -14,6 +14,10 @@ import { GapChip, GapChipInput, GapChipRow } from "../../../../_shell/gapChip";
 import { FileCard, SectionHead, Micro } from "./chrome";
 import { BolViewer, type BolDoc } from "./BolViewer";
 import { ParsedFields } from "./ParsedFields";
+import { ResearchColumn } from "./ResearchColumn";
+import { RecordColumn, type RecordFacts } from "./RecordColumn";
+import type { ResearchGuess } from "./researchGuesses";
+import type { Lookup } from "./lookups";
 
 /**
  * PANEL 04 — WHAT WE KNOW.
@@ -83,6 +87,7 @@ export function WhatWeKnow({
   companyDefaults,
   reps,
   active,
+  research,
 }: {
   accountId: string;
   /** Named in the contact dialog the "somebody to call" gap opens. */
@@ -108,6 +113,21 @@ export function WhatWeKnow({
   /** True while this tab is open. Forwarded to the viewer, which does not
    * fetch a 288KB-5.2MB scan until somebody actually looks at it. */
   active: boolean;
+  /**
+   * EVERYTHING THE RESEARCH BRANCH NEEDS, built on the server.
+   *
+   * Present always; USED only when this company has no bill of lading. See
+   * the branch below — a company with a document keeps the document, and a
+   * company without one gets the column that tells an agent what to go and
+   * find out. Two different jobs for the same half of the panel.
+   */
+  research: {
+    record: RecordFacts;
+    guesses: ResearchGuess[];
+    lookups: Lookup[];
+    exemplar: { id: string; name: string; line: string } | null;
+    lastCallNote: string | null;
+  };
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -169,6 +189,60 @@ export function WhatWeKnow({
           absence nobody had asked about and cost a row of vertical space on
           the tab whose whole job is showing a document. */}
       <SectionHead title="What we know" />
+
+      {/* ══════════════════════════════════════════════════════════════
+          THE NO-DOCUMENT BRANCH (2026-08-31).
+
+          84 of 103 companies have no bill of lading, and for every one of
+          them the two largest regions of this panel used to say the same
+          thing twice: that a document was missing. Nothing else filled
+          them, on the tab whose name promises what we know.
+
+          So when there is no document the halves do different work — the
+          RECORD on the left (what we know) and the RESEARCH column on the
+          right (how to find the rest). The document branch below is
+          untouched: a company with a BOL still gets the scan, the parsed
+          fields and the linked-company control exactly as before.
+          ══════════════════════════════════════════════════════════════ */}
+      {bolDocs.length === 0 ? (
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-stretch xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col overflow-y-auto border-r border-line">
+            {/* Source stays visible here. Brent, 2026-08-29: it "used to be
+                obvious and is now hidden in the top bar". */}
+            {(sourceRow || roleRow) && (
+              <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-line px-4 py-2">
+                {sourceRow && (
+                  <span className="text-[12.5px] text-fg">
+                    <Micro className="text-fg">Source</Micro>{" "}
+                    <span className="font-bold">{sourceRow}</span>
+                  </span>
+                )}
+                {roleRow && (
+                  <span className="text-[12.5px] text-fg">
+                    <Micro className="text-fg">Role</Micro>{" "}
+                    <span className="font-bold">{roleRow}</span>
+                  </span>
+                )}
+              </p>
+            )}
+            <RecordColumn facts={research.record} />
+            {/* A BOL-less company can still be linked to one off another
+                company's document, so this stays reachable. */}
+            {linkedPanel}
+          </div>
+
+          <ResearchColumn
+            accountId={accountId}
+            companyName={companyName ?? ""}
+            gaps={visible}
+            guesses={research.guesses}
+            lookups={research.lookups}
+            exemplar={research.exemplar}
+            lastCallNote={research.lastCallNote}
+          />
+        </div>
+      ) : (
+      <>
       {/* Two halves: the document on the left, what was read off it — and
           then what we know beyond it — on the right. `items-stretch` so the
           viewer's own column fills the taller side rather than floating. */}
@@ -386,6 +460,9 @@ export function WhatWeKnow({
         </div>
         </div>
       </div>
+
+      </>
+      )}
 
       {/* ── Footer ─────────────────────────────────────────────────── */}
       <div className="flex items-baseline gap-2 border-t border-line px-4 py-2.5">

@@ -24,6 +24,13 @@ import { CompanyFile } from "./desktop/file/CompanyFile";
 import { bolFacts, type BolRow } from "./desktop/file/bolFacts";
 import type { BolDoc } from "./desktop/file/BolViewer";
 import { fileGaps } from "./desktop/file/fileGaps";
+import {
+  researchGuesses,
+  fitScoreFrom,
+  descriptionWithoutFit,
+} from "./desktop/file/researchGuesses";
+import { lookupsFor } from "./desktop/file/lookups";
+import { ResearchColumn } from "./desktop/file/ResearchColumn";
 import type { CallPerson } from "./desktop/file/WhoDoICall";
 import type { FileTask } from "./desktop/file/TasksPanel";
 import { ReassignLink } from "./desktop/file/ReassignLink";
@@ -102,7 +109,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url, dba, year_founded, ownership_type, current_carrier, bol_role, stage_loss_reason",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url, dba, year_founded, ownership_type, current_carrier, bol_role, stage_loss_reason, research_marks",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -664,8 +671,131 @@ export default async function AccountDetailPage({
       (c) => !(c as { name_unknown?: boolean | null }).name_unknown,
     ).length,
     currentCarrier: account.current_carrier as string | null,
-    annualFreightSpend: account.annual_freight_spend as number | null,
+    phone: account.phone as string | null,
+    website: account.website as string | null,
   });
+
+  /* ══════════════════════════════════════════════════════════════════
+     THE RESEARCH BRANCH'S DATA (2026-08-31).
+
+     Built here, on the server, and handed to WhatWeKnow. It is only USED
+     when this company has no bill of lading — 84 of 103 today — but it is
+     built either way because the two extra reads are cheap and branching
+     the query on a document count would make this function harder to
+     follow than it already is.
+     ══════════════════════════════════════════════════════════════════ */
+
+  /* Sibling branches: other live companies whose name shares a two-word
+     stem. Ten Core & Main branches sit in this org and two of them know
+     their industry, so the other eight can be offered it. Names and
+     industries only — this is not a second company loader. */
+  const { data: siblingRows } = await supabase
+    .from("crm_accounts")
+    .select("id, name, industry")
+    .eq("org_id", user.orgId)
+    .is("deleted_at", null)
+    .neq("id", account.id as string)
+    .limit(500);
+
+  const researchGuessList = researchGuesses({
+    id: account.id as string,
+    name: accountName,
+    industry: account.industry as string | null,
+    phone: account.phone as string | null,
+    website: account.website as string | null,
+    contextNotes: account.context_notes as string | null,
+    contacts: contacts.map((c) => ({
+      name: c.name,
+      phone: c.phones[0]?.number ?? null,
+      email: c.email ?? null,
+    })),
+    siblings: ((siblingRows ?? []) as { id: string; name: string; industry: string | null }[]),
+    marks: (account.research_marks as Record<string, { state?: string }> | null)
+      ? Object.fromEntries(
+          Object.entries(
+            account.research_marks as Record<string, { state?: string }>,
+          ).map(([k, v]) => [k, v?.state === "accepted" ? "accepted" : "dismissed"] as const),
+        )
+      : {},
+  });
+
+  /* WHAT DONE LOOKS LIKE. Charia started on 2026-08-30 and has no
+     reference point, so the panel points at a real finished record rather
+     than describing one. Chosen by completeness, not hand-picked, so it
+     stays true as the book changes — and skipped entirely if nothing in
+     the org is complete enough to be worth copying. */
+  const exemplarRow = ((siblingRows ?? []) as {
+    id: string;
+    name: string;
+    industry: string | null;
+  }[]).length
+    ? await supabase
+        .from("crm_accounts")
+        .select("id, name, industry, city, state, phone, website")
+        .eq("org_id", user.orgId)
+        .is("deleted_at", null)
+        .neq("id", account.id as string)
+        .not("industry", "is", null)
+        .not("phone", "is", null)
+        .not("website", "is", null)
+        .limit(1)
+        .maybeSingle()
+    : null;
+
+  const ex = exemplarRow?.data as
+    | { id: string; name: string; industry: string; city: string | null; state: string | null; phone: string; website: string }
+    | null
+    | undefined;
+
+  /* The most recent thing a person wrote, which is almost always the
+     outcome of a call — "the logistics managers name is Edwin", "they
+     don't order any hotshots". Picking a half-worked company back up
+     should not mean reading the whole history. */
+  const lastCallNote = humanNotes[0]?.body?.trim() || null;
+
+  const researchProps = {
+    record: {
+      industry: account.industry as string | null,
+      description: descriptionWithoutFit(account.context_notes as string | null) || null,
+      fit: fitScoreFrom(account.context_notes as string | null),
+      place: [accountCity, accountState].filter(Boolean).join(", ") || null,
+      address: accountAddress,
+      phone: companyPhone,
+      website: account.website as string | null,
+      email: account.email as string | null,
+      contacts: contacts.slice(0, 6).map((c) => ({
+        id: c.id,
+        name: c.name,
+        title: c.title ?? null,
+        phone: c.phones[0]?.number ?? null,
+      })),
+      currentCarrier: account.current_carrier as string | null,
+      commodities: (account.commodities as string | null) ?? null,
+      callCount: callRows.length,
+    },
+    guesses: researchGuessList,
+    lookups: lookupsFor({
+      name: accountName,
+      city: accountCity,
+      state: accountState,
+      website: account.website as string | null,
+    }),
+    exemplar: ex
+      ? {
+          id: ex.id,
+          name: ex.name,
+          line: [
+            ex.industry,
+            [ex.city, ex.state].filter(Boolean).join(", ") || null,
+            ex.phone,
+            ex.website,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        }
+      : null,
+    lastCallNote,
+  };
 
   const fileTasks: FileTask[] = openTasks.map((t) => ({
     id: t.id,
@@ -900,6 +1030,22 @@ export default async function AccountDetailPage({
       state={accountState}
       stage={stage}
       lossReason={(account.stage_loss_reason as string | null) ?? null}
+      /* Only on a company with no document — the same branch the desktop
+         panel takes. A company with a BOL keeps its Documents accordion
+         and is not asked to be researched from scratch. */
+      researchPanel={
+        bolDocs.length === 0 ? (
+          <ResearchColumn
+            accountId={account.id as string}
+            companyName={accountName}
+            gaps={fileGapList}
+            guesses={researchProps.guesses}
+            lookups={researchProps.lookups}
+            exemplar={researchProps.exemplar}
+            lastCallNote={researchProps.lastCallNote}
+          />
+        ) : null
+      }
       repLabel={currentRepLabel}
       currentUserId={user.id}
       isAdmin={isOwner}
@@ -927,6 +1073,8 @@ export default async function AccountDetailPage({
       commodities={commodityChips}
       commoditiesFromAi={!!aiConfirmedFields.commodities}
       glance={{
+        /* Still SHOWN. Only the gap prompt for it was dropped (see
+           fileGaps.ts) — the column and every read of it stay. */
         annualFreightSpend: account.annual_freight_spend as number | null,
         companySize: account.company_size as string | null,
         yearFounded: account.year_founded as number | null,
@@ -1002,6 +1150,7 @@ export default async function AccountDetailPage({
           bolRole={account.bol_role as string | null}
           linkedPanel={<LinkedCompanies companies={linked} />}
           currentUser={currentUser}
+          research={researchProps}
           stage={stage}
           lossReason={(account.stage_loss_reason as string | null) ?? null}
           ownerLabel={currentRepLabel}

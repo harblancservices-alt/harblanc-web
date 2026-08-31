@@ -70,6 +70,7 @@ export function MobileProfile({
   state,
   stage,
   lossReason,
+  researchPanel,
   repLabel,
   currentUserId,
   isAdmin,
@@ -114,6 +115,16 @@ export function MobileProfile({
   stage: string;
   /** crm_accounts.stage_loss_reason, through to the stage tracker. */
   lossReason: string | null;
+  /**
+   * The research column, or null on a company that HAS a bill of lading.
+   *
+   * Composed on the server so this component stays dumb about guesses and
+   * gaps. It sits high on the page — above People — because on a company
+   * nobody has researched it IS the next action, and burying the only
+   * thing to do under four sections of empty cards is how the desktop
+   * version failed for 84 companies.
+   */
+  researchPanel: ReactNode | null;
   repLabel: string | null;
   currentUserId: string;
   isAdmin: boolean;
@@ -226,6 +237,13 @@ export function MobileProfile({
           />
           <MobileFacts facts={glance} />
         </div>
+
+        {researchPanel && (
+          <>
+            <SectionHead label="Before you call" />
+            <div className={M_CARD}>{researchPanel}</div>
+          </>
+        )}
 
         {/* ── PEOPLE ──────────────────────────────────────────────── */}
         <SectionHead label="People" count={people.length} action={<AddPersonLink accountId={accountId} />} />

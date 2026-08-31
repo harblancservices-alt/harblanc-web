@@ -7,6 +7,7 @@ import { FileBody } from "./FileBody";
 import type { BolFacts } from "./bolFacts";
 import type { BolDoc } from "./BolViewer";
 import type { FileGap } from "./fileGaps";
+import type { WhatWeKnow } from "./WhatWeKnow";
 import type { CrmActivityLogItem } from "../../ActivityLogSection";
 import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
 import type { QuickTask } from "../../../../admin/quick-task-actions";
@@ -78,6 +79,7 @@ export function CompanyFile({
   tasks,
   facts,
   bolDocs,
+  research,
   linkedPanel,
   allFieldsCount,
   companyDefaults,
@@ -116,6 +118,9 @@ export function CompanyFile({
   tasks: FileTask[];
   facts: BolFacts;
   bolDocs: BolDoc[];
+  /** Straight through to WhatWeKnow's no-document branch. Built on the
+   * server in page.tsx; ignored entirely when a BOL exists. */
+  research: React.ComponentProps<typeof WhatWeKnow>["research"];
   linkedPanel: ReactNode;
   allFieldsCount: number;
   companyDefaults: CompanyDefaults;
@@ -221,6 +226,7 @@ export function CompanyFile({
           companyName: accountName,
           facts,
           bolDocs,
+          research,
           source,
           bolRole,
           linkedPanel,

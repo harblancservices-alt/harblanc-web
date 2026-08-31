@@ -21,8 +21,9 @@ import { gapsForCompany, type CompletenessInput } from "../../../../agent/comple
  * change how I sell to these people. Two more facts qualify, and both have
  * a REAL COLUMN behind them — that is the bar for being in this list:
  *
+ *   phone                 a number to ring them on
+ *   website               where you find out what they make
  *   current_carrier       who moves their freight today
- *   annual_freight_spend  how much of it there is
  *
  * THE THREE SHARED GAPS ARE THE SAME DERIVATION, NOT A COPY. This calls
  * gapsForCompany and appends; it does not re-decide what a missing address
@@ -48,7 +49,7 @@ import { gapsForCompany, type CompletenessInput } from "../../../../agent/comple
  * the wrong column.
  */
 
-export type FileGapKind = "contact" | "address" | "industry" | "carrier" | "spend";
+export type FileGapKind = "contact" | "address" | "industry" | "carrier" | "phone" | "website";
 
 export type FileGap = {
   kind: FileGapKind;
@@ -72,18 +73,42 @@ export type FileGap = {
   blocking: boolean;
 };
 
-const EXTRA: Record<"carrier" | "spend", Omit<FileGap, "kind">> = {
-  carrier: {
-    label: "Current broker or carrier",
-    why: "you cannot pitch against nobody",
-    placeholder: "who moves it today?",
+/**
+ * THE FILE-ONLY GAPS. Each has a real column and is answerable — that is
+ * the bar, and it is why the list changed on 2026-08-31.
+ *
+ * `spend` WAS HERE AND IS GONE. annual_freight_spend was 0 of 103 after
+ * months on the panel, because companies do not tell a stranger their
+ * budget. A chip nobody can ever clear is not a prompt, it is furniture,
+ * and it teaches an agent to walk past the chips that DO work. Removed on
+ * Brent's call. The column still exists and is still editable from All
+ * fields; it just stops being asked for.
+ *
+ * `phone` and `website` replaced it. Both are researchable in under a
+ * minute, both block a call in practice, and both are things the research
+ * panel can often offer an answer for outright.
+ */
+const EXTRA: Record<"carrier" | "phone" | "website", Omit<FileGap, "kind">> = {
+  phone: {
+    label: "A number to ring",
+    why: "You cannot ring a company without one.",
+    placeholder: "(555) 555-5555",
     needsForm: false,
     blocking: false,
   },
-  spend: {
-    label: "Freight spend per year",
-    why: "tells you whether this is worth chasing",
-    placeholder: "roughly, in dollars",
+  website: {
+    label: "Their website",
+    why: "Where you find what they make, and usually the switchboard.",
+    placeholder: "theircompany.com",
+    needsForm: false,
+    blocking: false,
+  },
+  carrier: {
+    label: "Who moves their freight today",
+    // Was "you cannot pitch against nobody" — true, and meaningless to
+    // somebody in their first week. See the note on SHARED below.
+    why: "You are asking them to switch away from somebody. You need to know who.",
+    placeholder: "a broker, a carrier, or their own trucks",
     needsForm: false,
     blocking: false,
   },
@@ -98,7 +123,7 @@ const SHARED: Record<
 > = {
   contact: {
     label: "Somebody to call",
-    why: "nobody is on file here yet",
+    why: "You can't call a company. You call a person.",
     placeholder: null,
     needsForm: true,
   },
@@ -108,19 +133,19 @@ const SHARED: Record<
      box that would have nowhere to put it. */
   contact_name: {
     label: "Who answers this number",
-    why: "a number is on file, but nobody's name",
+    why: "We have a number but no name — you'd be asking a stranger for a stranger.",
     placeholder: null,
     needsForm: true,
   },
   address: {
     label: "Their address",
-    why: "no address on file",
+    why: "Tells you whether we can serve them, and where the trucks would go.",
     placeholder: "street, city, state",
     needsForm: false,
   },
   industry: {
     label: "What they actually do",
-    why: "not categorised",
+    why: "Your first sentence on the call — “I know you make X…”",
     placeholder: "e.g. Scaffolding, Pumps",
     needsForm: false,
   },
@@ -128,7 +153,8 @@ const SHARED: Record<
 
 export type FileGapInput = CompletenessInput & {
   currentCarrier?: string | null;
-  annualFreightSpend?: number | null;
+  phone?: string | null;
+  website?: string | null;
 };
 
 function isBlank(value: string | null | undefined): boolean {
@@ -154,10 +180,11 @@ export function fileGaps(company: FileGapInput): FileGap[] {
   }));
 
   const extra: FileGap[] = [];
+  // Ask-order: the two that stop you making the call, then the one that
+  // sharpens it once you are on it.
+  if (isBlank(company.phone)) extra.push({ kind: "phone", ...EXTRA.phone });
+  if (isBlank(company.website)) extra.push({ kind: "website", ...EXTRA.website });
   if (isBlank(company.currentCarrier)) extra.push({ kind: "carrier", ...EXTRA.carrier });
-  if (company.annualFreightSpend === null || company.annualFreightSpend === undefined) {
-    extra.push({ kind: "spend", ...EXTRA.spend });
-  }
 
   // Blocking first, the same rule structure A applies on the dashboard.
   // Stable within each group, so the list does not reshuffle between

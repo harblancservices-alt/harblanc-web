@@ -3,7 +3,7 @@ import { fileGaps } from "./fileGaps";
 import { gapsForCompany } from "../../../../agent/completeness";
 
 /** Fritz Industries as production actually holds it: an industry and an
- * address, and nothing else. 0 contacts, no carrier, no spend. */
+ * address, and nothing else. 0 contacts, no carrier, no phone, no site. */
 const FRITZ = {
   id: "a0021560-e37b-4edf-b5e1-8ab269a87fbc",
   name: "Fritz Industries, Inc.",
@@ -13,14 +13,16 @@ const FRITZ = {
   industry: "Industrial fabrication",
   contactCount: 0,
   currentCarrier: null,
-  annualFreightSpend: null,
+  phone: null,
+  website: null,
 };
 
 describe("fileGaps", () => {
   it("reports what the real Fritz record is missing", () => {
     const kinds = fileGaps(FRITZ).map((g) => g.kind);
-    // Address and industry ARE on file, so neither is a gap.
-    expect(kinds).toEqual(["contact", "carrier", "spend"]);
+    // Address and industry ARE on file, so neither is a gap. Spend is no
+    // longer asked for at all (2026-08-31); phone and website replaced it.
+    expect(kinds).toEqual(["contact", "phone", "website", "carrier"]);
   });
 
   it("stays in step with the dashboard on the three shared gaps", () => {
@@ -37,31 +39,47 @@ describe("fileGaps", () => {
   it("asks the record-hygiene gaps BEFORE the pitch-sharpening ones", () => {
     const kinds = fileGaps({ ...FRITZ, address: null, industry: null }).map((g) => g.kind);
     expect(kinds.indexOf("contact")).toBeLessThan(kinds.indexOf("carrier"));
-    expect(kinds.indexOf("industry")).toBeLessThan(kinds.indexOf("spend"));
+    expect(kinds.indexOf("industry")).toBeLessThan(kinds.indexOf("carrier"));
   });
 
   it("drops a gap the moment its column is filled", () => {
     expect(fileGaps({ ...FRITZ, currentCarrier: "Averitt" }).map((g) => g.kind)).not.toContain(
       "carrier",
     );
-    expect(fileGaps({ ...FRITZ, annualFreightSpend: 250_000 }).map((g) => g.kind)).not.toContain(
-      "spend",
+    expect(fileGaps({ ...FRITZ, phone: "(806) 283-9220" }).map((g) => g.kind)).not.toContain(
+      "phone",
     );
+    expect(fileGaps({ ...FRITZ, website: "x.com" }).map((g) => g.kind)).not.toContain("website");
   });
 
   it("treats a whitespace-only carrier as missing", () => {
     expect(fileGaps({ ...FRITZ, currentCarrier: "   " }).map((g) => g.kind)).toContain("carrier");
   });
 
-  it("treats a spend of ZERO as answered, not as missing", () => {
-    // Somebody who ships nothing is a real answer and a useful one. Only
-    // null means nobody has asked.
-    expect(fileGaps({ ...FRITZ, annualFreightSpend: 0 }).map((g) => g.kind)).not.toContain("spend");
+  it("no longer asks for freight spend at all", () => {
+    // Dropped 2026-08-31 (Brent). 0 of 103 companies ever had it filled —
+    // people do not tell a stranger their budget — and a chip nobody can
+    // clear trains an agent to ignore the chips that do work.
+    const kinds = fileGaps({ ...FRITZ, contactCount: 0, address: null, industry: null }).map(
+      (g) => g.kind,
+    );
+    expect(kinds).not.toContain("spend");
+  });
+
+  it("treats a whitespace-only phone or website as missing", () => {
+    expect(fileGaps({ ...FRITZ, phone: "  " }).map((g) => g.kind)).toContain("phone");
+    expect(fileGaps({ ...FRITZ, website: "  " }).map((g) => g.kind)).toContain("website");
   });
 
   it("goes silent when the record is complete", () => {
     expect(
-      fileGaps({ ...FRITZ, contactCount: 2, currentCarrier: "Averitt", annualFreightSpend: 1 }),
+      fileGaps({
+        ...FRITZ,
+        contactCount: 2,
+        currentCarrier: "Averitt",
+        phone: "(806) 283-9220",
+        website: "x.com",
+      }),
     ).toEqual([]);
   });
 
@@ -112,10 +130,23 @@ describe("fileGaps", () => {
     expect(gaps[0].kind).toBe("contact");
   });
 
-  it("never marks the two file-only gaps as blocking — they sharpen a pitch", () => {
-    const gaps = fileGaps({ ...FRITZ, currentCarrier: null, annualFreightSpend: null });
+  it("never marks the file-only gaps as blocking — they sharpen a pitch", () => {
+    const gaps = fileGaps({ ...FRITZ, currentCarrier: null, phone: null, website: null });
     for (const g of gaps) {
-      if (g.kind === "carrier" || g.kind === "spend") expect(g.blocking).toBe(false);
+      if (g.kind === "carrier" || g.kind === "phone" || g.kind === "website") {
+        expect(g.blocking).toBe(false);
+      }
+    }
+  });
+
+  it("explains every gap in words somebody in their first week can act on", () => {
+    // The bar Brent set: this screen is used at 9pm by a new hire with
+    // nobody to ask. "not categorised" told her nothing.
+    const gaps = fileGaps({ ...FRITZ, contactCount: 0, address: null, industry: null });
+    expect(gaps.length).toBeGreaterThan(0);
+    for (const g of gaps) {
+      expect(g.why.length).toBeGreaterThan(24);
+      expect(g.why).not.toMatch(/^not categorised$/);
     }
   });
 });

@@ -102,6 +102,13 @@ const GAP_COLUMN: Record<string, string> = {
   // they are asked on the company page and NOT added to the dashboard's
   // narrower list.
   carrier: "current_carrier",
+  // 2026-08-31: `phone` and `website` joined the panel's ask-list and
+  // `spend` left it (fileGaps.ts explains why). annual_freight_spend is
+  // deliberately still mapped: the column is unchanged and All fields
+  // still edits it — only the gap chip asking for it is gone, so a stale
+  // client that posts the old kind still writes to the right place.
+  phone: "phone",
+  website: "website",
   spend: "annual_freight_spend",
 };
 
