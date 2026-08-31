@@ -7,7 +7,9 @@ import { FormError } from "../_shell/form";
 import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
 import { sendTask } from "../admin/assign-actions";
 import { isDuplicateQuickTask, normalizeQuickTask } from "../admin/quickTasks";
-import { TASK_DAY_START, defaultTaskDueDateInput } from "./snooze";
+import { defaultTaskDueDateInput } from "./snooze";
+import { DEFAULT_TASK_TIME } from "./taskTime";
+import { TaskTimeSelect } from "./TaskTimeSelect";
 import { centralInputToIso } from "../_shell/format";
 import { addQuickTask, removeQuickTask, type QuickTask } from "../admin/quick-task-actions";
 
@@ -105,6 +107,10 @@ export function TaskComposer({
      cleared, so undated remains a choice rather than an accident.
      Lazy initialiser: the clock is read once, not on every render. */
   const [due, setDue] = useState<string>(() => defaultTaskDueDateInput());
+  /* The same 9am the profile composer opens on, so the two composers agree
+     with each other even while both disagree with TASK_DAY_START. See
+     taskTime.ts for that disagreement, which is deliberate. */
+  const [dueTime, setDueTime] = useState<string>(DEFAULT_TASK_TIME);
   const [accountId, setAccountId] = useState("");
   const [contactId, setContactId] = useState("");
   /** The BRIEF — why this task exists, what to walk in knowing. Stored in
@@ -186,7 +192,7 @@ export function TaskComposer({
         // the same pick produced a different instant from a different
         // machine. 08:00 Central via centralInputToIso is the one meaning
         // of "8am" this CRM has.
-        dueAt: due ? centralInputToIso(`${due}T${TASK_DAY_START}`) : null,
+        dueAt: due ? centralInputToIso(`${due}T${dueTime}`) : null,
         accountId: accountId || null,
       });
       if (!result.ok) {
@@ -206,6 +212,7 @@ export function TaskComposer({
       );
       setTitle("");
       setDue(defaultTaskDueDateInput());
+      setDueTime(DEFAULT_TASK_TIME);
       setAccountId("");
       setContactId("");
       setInstructions("");
@@ -327,6 +334,14 @@ export function TaskComposer({
             onChange={(e) => setDue(e.target.value)}
             aria-invalid={high && !due}
             className={`w-full ${CONTROL_SIZE} ${CONTROL} ${high && !due ? "border-bad" : ""}`}
+          />
+        </label>
+        <label className="flex flex-col gap-1">
+          <span className={LABEL}>At</span>
+          <TaskTimeSelect
+            value={dueTime}
+            onChange={setDueTime}
+            label="Task due time"
           />
         </label>
         <label className="flex flex-col gap-1">

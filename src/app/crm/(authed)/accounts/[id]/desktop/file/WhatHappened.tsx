@@ -10,7 +10,9 @@ import {
   RESULT_ROW_REQUIRES,
 } from "../../../../calls/outcomes";
 import { detectDate, draftFollowupTitle, warrantsFollowup, type DetectedDate } from "../../../../calls/followupDraft";
-import { TASK_DAY_START, defaultTaskDueDateInput } from "../../../../tasks/snooze";
+import { defaultTaskDueDateInput } from "../../../../tasks/snooze";
+import { DEFAULT_TASK_TIME } from "../../../../tasks/taskTime";
+import { TaskTimeSelect } from "../../../../tasks/TaskTimeSelect";
 import { addNote } from "../../../actions";
 import { readDraft, writeDraft, clearDraft, isRestorable } from "./composerDraft";
 import { createTask } from "../../../../tasks/actions";
@@ -280,6 +282,10 @@ export function WhatHappened({
      than one the system applied quietly. Lazily initialised: the React
      Compiler forbids reading the clock during render, and this runs once. */
   const [taskDue, setTaskDue] = useState<string>(() => defaultTaskDueDateInput());
+  /* 9am, per Brent 2026-08-31 — and an hour later than TASK_DAY_START,
+     which is what everything else means by the start of a day. The
+     disagreement is deliberate and documented in taskTime.ts. */
+  const [taskTime, setTaskTime] = useState<string>(DEFAULT_TASK_TIME);
   /* Same for the date. Until the rep picks a day themselves, the DATE
      BELONGS TO THE DETECTOR — which means the detector can also take it
      back when the words it read are no longer there. Without this the
@@ -320,6 +326,7 @@ export function WhatHappened({
     setTitleTouched(false);
     setTitleFocused(false);
     setTaskDue(defaultTaskDueDateInput());
+    setTaskTime(DEFAULT_TASK_TIME);
     setDateTouched(false);
   }
 
@@ -447,7 +454,7 @@ export function WhatHappened({
       if (contactId) fd.set("contact_id", contactId);
       // createTask reads due_at as a Central datetime-local string. Empty
       // means the rep cleared it deliberately, which stays legal.
-      if (taskDue) fd.set("due_at", `${taskDue}T${TASK_DAY_START}`);
+      if (taskDue) fd.set("due_at", `${taskDue}T${taskTime}`);
       done(await createTask(fd));
     });
   }
@@ -802,6 +809,11 @@ export function WhatHappened({
                 aria-label="Task due date"
                 className="rounded-md border border-line-strong bg-card px-2 py-1.5 text-[12px] text-fg outline-none focus:border-accent disabled:opacity-60"
               />
+              {/* Beside the date, inside the same label, so the pair wraps
+                  as one unit when the row runs out of width rather than
+                  the time orphaning onto the next line away from its
+                  date. */}
+              <TaskTimeSelect value={taskTime} onChange={setTaskTime} disabled={pending} />
             </label>
           )}
 
