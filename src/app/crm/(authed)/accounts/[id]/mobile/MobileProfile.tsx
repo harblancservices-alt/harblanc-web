@@ -69,6 +69,7 @@ export function MobileProfile({
   city,
   state,
   stage,
+  lossReason,
   repLabel,
   currentUserId,
   isAdmin,
@@ -111,6 +112,8 @@ export function MobileProfile({
   city: string | null;
   state: string | null;
   stage: string;
+  /** crm_accounts.stage_loss_reason, through to the stage tracker. */
+  lossReason: string | null;
   repLabel: string | null;
   currentUserId: string;
   isAdmin: boolean;
@@ -160,6 +163,7 @@ export function MobileProfile({
         city={city}
         state={state}
         stage={stage}
+        lossReason={lossReason}
         repLabel={repLabel}
         currentUserId={currentUserId}
         isAdmin={isAdmin}

@@ -71,7 +71,7 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
 
     supabase
       .from("crm_accounts")
-      .select("id, name, city, state, lifecycle_status, address, industry, source, stage_changed_at, primary_contact_id, created_at")
+      .select("id, name, city, state, lifecycle_status, address, industry, source, stage_changed_at, stage_loss_reason, primary_contact_id, created_at")
       .eq("assigned_user_id", user.id)
       .is("deleted_at", null)
       .order("name", { ascending: true })
@@ -190,6 +190,7 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     stage: (a.lifecycle_status as string | null) ?? null,
     source: (a.source as string | null) ?? null,
     stageChangedMs: timestampMs(a.stage_changed_at as string | null),
+    lossReason: (a.stage_loss_reason as string | null) ?? null,
     lastContactMs: lastContactMsByAccount.get(a.id as string) ?? null,
     contactName: contactByAccount.get(a.id as string)?.name ?? null,
     contactTitle: contactByAccount.get(a.id as string)?.title ?? null,

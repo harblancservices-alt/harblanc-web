@@ -62,6 +62,7 @@ export function CompanyFile({
   source,
   bolRole,
   stage,
+  lossReason,
   ownerLabel,
   reassign,
   onFileDays,
@@ -96,6 +97,8 @@ export function CompanyFile({
   bolRole: string | null;
   fullAddress: string | null;
   stage: string;
+  /** crm_accounts.stage_loss_reason, straight through to FileBody. */
+  lossReason: string | null;
   ownerLabel: string | null;
   reassign?: ReactNode;
   onFileDays: number;
@@ -189,6 +192,7 @@ export function CompanyFile({
         }}
         accountId={accountId}
         stage={stage}
+        lossReason={lossReason}
         composerContacts={composerContacts}
         quickTasks={quickTasks}
         taskOwnerLabel={taskOwnerLabel}

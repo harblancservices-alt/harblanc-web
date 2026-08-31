@@ -19,11 +19,14 @@ export function StageTrackerSection({
   accountId,
   accountName,
   stage,
+  lossReason = null,
   variant = "chevron",
 }: {
   accountId: string;
   accountName: string;
   stage: string;
+  /** Straight through to StageTracker. */
+  lossReason?: string | null;
   /** Passed straight through to StageTracker. "chevron" (the default) keeps
    * the original card-wrapped chevron chain; "strip" is the desktop
    * redesign's flush pipeline bar and "compact" the mobile rebuild's
@@ -58,6 +61,7 @@ export function StageTrackerSection({
       <StageTracker
         accountId={accountId}
         current={stage}
+        lossReason={lossReason}
         variant={variant}
         onStageChange={(next) => {
           if (next === "active") setJustGraduated(true);

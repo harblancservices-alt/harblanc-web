@@ -106,6 +106,17 @@ export function CompanyCard({
 
       {place && <p className="mt-0.5 truncate text-[11.5px] text-fg-subtle">{place}</p>}
 
+      {/* WHY IT DIED. The one fact that matters about a dead company, and
+          until 2026-08-31 the app collected it and then showed it nowhere.
+          Above the stage pill rather than below it, because on the pipeline
+          board `hideStage` drops that pill entirely and the reason must not
+          go with it — the Lost column is exactly where you go to ask why. */}
+      {card.lossReason && (
+        <p className="mt-1.5 rounded bg-bad-bg px-1.5 py-1 text-[11.5px] leading-snug text-bad">
+          {card.lossReason}
+        </p>
+      )}
+
       {/* Where it is, and for how long */}
       {!hideStage && (
         <div className="mt-2">

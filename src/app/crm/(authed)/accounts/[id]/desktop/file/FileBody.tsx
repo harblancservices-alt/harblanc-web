@@ -81,6 +81,7 @@ const LABEL: Record<PageTab, string> = {
 export function FileBody({
   accountId,
   stage,
+  lossReason,
   composerContacts,
   quickTasks,
   taskOwnerLabel,
@@ -99,6 +100,8 @@ export function FileBody({
 }: {
   accountId: string;
   stage: string;
+  /** crm_accounts.stage_loss_reason — passed to the strip, which draws it. */
+  lossReason: string | null;
   composerContacts: { id: string; name: string; phoneLabel: string | null }[];
   /** Passed through to the composer's Task tab — see WhatHappened's note on
    * why this is threaded rather than fetched there. */
@@ -147,7 +150,7 @@ export function FileBody({
 
       {/* The stage strip is the white surface the active folder tab runs
           into — see the note above about what that costs. */}
-      <StageStrip accountId={accountId} current={stage} />
+      <StageStrip accountId={accountId} current={stage} lossReason={lossReason} />
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
         {finalizeBanner}

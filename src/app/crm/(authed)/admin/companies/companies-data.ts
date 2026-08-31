@@ -35,7 +35,7 @@ export async function getCompaniesData(): Promise<CompaniesData> {
 
   const { data: accountData } = await supabase
     .from("crm_accounts")
-    .select("id, name, city, state, assigned_user_id, source, lifecycle_status, phone, primary_contact_id")
+    .select("id, name, city, state, assigned_user_id, source, lifecycle_status, stage_loss_reason, phone, primary_contact_id")
     .is("deleted_at", null)
     .order("name", { ascending: true });
 
@@ -97,6 +97,7 @@ export async function getCompaniesData(): Promise<CompaniesData> {
       ownerName: ownerId ? (nameByUser.get(ownerId) ?? "Former teammate") : null,
       source: (a.source as string | null) ?? null,
       stage: (a.lifecycle_status as string | null) ?? null,
+      lossReason: (a.stage_loss_reason as string | null) ?? null,
       lastContactMs: lastContactMsByAccount.get(a.id as string) ?? null,
       contactName: primaryByAccount.get(a.id as string)?.name ?? null,
       // The company's own line first, then the person's — same precedence

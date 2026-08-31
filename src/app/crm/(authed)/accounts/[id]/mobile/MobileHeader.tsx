@@ -41,6 +41,7 @@ export function MobileHeader({
   city,
   state,
   stage,
+  lossReason,
   repLabel,
   currentUserId,
   isAdmin,
@@ -57,6 +58,7 @@ export function MobileHeader({
   city: string | null;
   state: string | null;
   stage: string;
+  lossReason: string | null;
   /** Assigned rep's display name, or null when the company is unclaimed. */
   repLabel: string | null;
   /** Claim target for the unclaimed state — see ClaimCompanyButton. */
@@ -137,6 +139,7 @@ export function MobileHeader({
           accountId={accountId}
           accountName={accountName}
           stage={stage}
+          lossReason={lossReason}
           variant="compact"
         />
       </div>

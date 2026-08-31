@@ -279,6 +279,38 @@ export async function updateAccount(
   const nextStage = normalizeStage(
     str(formData, "lifecycle_status") || (prior?.lifecycle_status as string),
   );
+
+  /**
+   * THE SECOND DOOR ONTO A TERMINAL STAGE — closed 2026-08-31.
+   *
+   * This form carries a full Lifecycle select (CompanyDialog's "Assignment"
+   * block), so until today it could move a company to Lost or Disqualified
+   * with NO REASON AT ALL. updateLifecycleStatus refuses that and says a UI
+   * gate is not enforcement; this path was the counter-example, and it had
+   * no gate of any kind.
+   *
+   * It is not a theory. All six lost companies carry the fingerprint of this
+   * path — stage_loss_reason null, stage_changed_at null, and a
+   * lifecycle_changed activity whose meta is {from,to} with no `reason` key,
+   * which is exactly what the logActivity call below writes and exactly what
+   * updateLifecycleStatus never writes. Brent has been unable to see why a
+   * single deal died because six of them were killed through here.
+   *
+   * There is nowhere on this form to ask why, and inventing a reason box in
+   * the middle of a 40-field company editor would be the wrong place for it
+   * anyway. So this refuses and points at the control that DOES ask. Moving
+   * INTO a terminal stage is the only thing blocked: re-saving a company
+   * that is already Lost changes nothing and is never refused, so editing
+   * the phone number on a lost company still works.
+   */
+  const priorStageForGate = prior ? normalizeStage(prior.lifecycle_status as string) : null;
+  if (stageNeedsReason(nextStage) && priorStageForGate !== nextStage) {
+    return {
+      ok: false,
+      error: `${stageLabel(nextStage)} needs a reason. Use the stage control on the company's profile so the reason is recorded.`,
+    };
+  }
+
   const assigned = optStr(formData, "assigned_user_id");
 
   /**
@@ -315,6 +347,14 @@ export async function updateAccount(
     .update({
       ...fields,
       lifecycle_status: nextStage,
+      /* Same stamp updateLifecycleStatus writes, for the same reason: this
+         path moves stages too, and without it every staleness clock reads
+         "we don't know" for a company that demonstrably just moved. Only on
+         an actual move — an edit that leaves the stage alone must not reset
+         how long it has been sitting there. */
+      ...(priorStageForGate && priorStageForGate !== nextStage
+        ? { stage_changed_at: new Date().toISOString() }
+        : {}),
       ...(assigned !== null ? { assigned_user_id: assigned } : {}),
       needs_finalize: false,
     })
@@ -324,7 +364,8 @@ export async function updateAccount(
     return { ok: false, error: "Could not update the company. Please try again." };
   }
 
-  const priorStage = prior ? normalizeStage(prior.lifecycle_status as string) : null;
+  // Same value the terminal-stage gate above already computed.
+  const priorStage = priorStageForGate;
   if (priorStage && priorStage !== nextStage) {
     await logActivity(supabase, {
       orgId: user.orgId,

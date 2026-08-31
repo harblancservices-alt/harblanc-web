@@ -102,7 +102,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url, dba, year_founded, ownership_type, current_carrier, bol_role",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url, dba, year_founded, ownership_type, current_carrier, bol_role, stage_loss_reason",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -899,6 +899,7 @@ export default async function AccountDetailPage({
       city={accountCity}
       state={accountState}
       stage={stage}
+      lossReason={(account.stage_loss_reason as string | null) ?? null}
       repLabel={currentRepLabel}
       currentUserId={user.id}
       isAdmin={isOwner}
@@ -1002,6 +1003,7 @@ export default async function AccountDetailPage({
           linkedPanel={<LinkedCompanies companies={linked} />}
           currentUser={currentUser}
           stage={stage}
+          lossReason={(account.stage_loss_reason as string | null) ?? null}
           ownerLabel={currentRepLabel}
           reassign={
             <ReassignLink

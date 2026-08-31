@@ -45,10 +45,14 @@ import { StageReasonDialog } from "../StageReasonDialog";
 export function StageTracker({
   accountId,
   current,
+  lossReason = null,
   onStageChange,
 }: {
   accountId: string;
   current: string;
+  /** crm_accounts.stage_loss_reason. Same fact and same treatment the
+   * desktop strip carries — a lost company answers "why" on the phone too. */
+  lossReason?: string | null;
   /** Fires right after a stage write succeeds, with the stage just written —
    * lets the parent react to specific transitions (e.g. offering an
    * Onboarding task on reaching Active) from a component that stays mounted
@@ -152,6 +156,18 @@ export function StageTracker({
       </div>
 
       {error && <p className="mt-2 text-[12px] font-semibold text-bad">{error}</p>}
+
+      {/* Why this company is dead — the same band the desktop strip draws,
+          for the same reason. Collected since 26 Aug, displayed nowhere
+          until 2026-08-31. */}
+      {stageNeedsReason(active) && lossReason && (
+        <p className="mt-2 rounded-md bg-bad-bg px-2.5 py-2 text-[12.5px] font-semibold leading-snug text-bad">
+          <span className="mr-1.5 text-[10px] font-bold uppercase tracking-[0.08em] opacity-80">
+            Why
+          </span>
+          {lossReason}
+        </p>
+      )}
 
       {/* The prompt itself is shared with the pipeline board — see
           accounts/StageReasonDialog.tsx. Same wording, same rules, one copy. */}

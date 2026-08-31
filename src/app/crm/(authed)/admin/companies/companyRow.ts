@@ -29,6 +29,9 @@ export type CompanyRow = {
   source: string | null;
   /** crm_accounts.lifecycle_status, raw; render through lifecycle.ts. */
   stage: string | null;
+  /** crm_accounts.stage_loss_reason — why a Lost/Disqualified company died.
+   * Null on every other stage; the action clears it on the way out. */
+  lossReason?: string | null;
   /**
    * Epoch ms of the most recent real human contact, or null for never.
    * Derived by the EXISTING rule (accounts/page.tsx): the later of the last

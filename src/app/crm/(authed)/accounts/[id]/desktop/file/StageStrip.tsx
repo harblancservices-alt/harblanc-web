@@ -47,15 +47,32 @@ import { Micro } from "./chrome";
  * 1500px row and you would rather read a list than aim.
  *
  * Both routes go through the same pick(), so Lost and Disqualified still
- * open StageReasonDialog from the menu just as they do from the strip. There
- * is no second path to a terminal stage and no second copy of that rule.
+ * open StageReasonDialog from the menu just as they do from the strip.
+ *
+ * THIS USED TO CLAIM there was no second path to a terminal stage. There
+ * was: CompanyDialog's Lifecycle select posts every one of the ten stages
+ * to updateAccount, which had no reason gate at all, and six companies went
+ * Lost through it with no reason recorded. accounts/actions.ts now refuses
+ * that move and points back here. This really is the only door now.
  */
 export function StageStrip({
   accountId,
   current,
+  lossReason = null,
 }: {
   accountId: string;
   current: string;
+  /**
+   * crm_accounts.stage_loss_reason — why this company is Lost or
+   * Disqualified, drawn directly under the strip that says it is.
+   *
+   * THE WHOLE POINT OF COLLECTING IT. This column was added on 26 Aug, the
+   * dialog demanded a reason before it would let you commit, the action
+   * saved it correctly — and NOTHING IN THE APP EVER READ IT BACK. Brent
+   * asked why deals die and the answer was in the database the whole time
+   * with no surface on it.
+   */
+  lossReason?: string | null;
 }) {
   const active = normalizeStage(current);
   const router = useRouter();
@@ -263,6 +280,22 @@ export function StageStrip({
         <p className="border-t border-bad/30 bg-bad-bg px-4 py-1.5 text-[12px] font-semibold text-bad">
           {error}
         </p>
+      )}
+
+      {/* WHY, immediately under the stage that raises the question.
+          Full width, on the red ground the terminal stages already use, and
+          impossible to miss on a company you have opened to ask exactly
+          this. It renders only when a reason exists: a company that went
+          Lost before the reason gate was built has nothing to show, and an
+          empty "Reason: —" row would advertise the gap on every one of the
+          six rather than the fact. */}
+      {stageNeedsReason(active) && lossReason && (
+        <div className="flex items-baseline gap-2.5 border-t border-bad/30 bg-bad-bg px-4 py-2">
+          <Micro className="shrink-0 text-bad">Why</Micro>
+          <p className="min-w-0 flex-1 text-[13px] font-semibold leading-snug text-bad">
+            {lossReason}
+          </p>
+        </div>
       )}
 
       <StageReasonDialog

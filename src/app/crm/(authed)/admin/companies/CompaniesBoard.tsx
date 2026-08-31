@@ -416,8 +416,17 @@ export function CompaniesBoard({
                         <SourcePill source={row.source} />
                       </td>
                       <td className="px-2 py-2.5">
+                        {/* The loss reason rides the pill as its tooltip.
+                            This row is already dense and a second line of
+                            free text on every dead company would cost more
+                            than it returns — but "why did we lose this" has
+                            to be reachable from the list you scan, not only
+                            from the profile you have to open. */}
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${stageTone(row.stage)}`}
+                          title={row.lossReason ?? undefined}
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${stageTone(row.stage)} ${
+                            row.lossReason ? "cursor-help underline decoration-dotted underline-offset-2" : ""
+                          }`}
                         >
                           {stageLabel(row.stage)}
                         </span>

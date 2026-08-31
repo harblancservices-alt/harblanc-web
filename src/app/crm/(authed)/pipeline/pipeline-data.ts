@@ -36,7 +36,7 @@ export async function getPipelineData(user: CrmUser): Promise<PipelineData> {
 
   let query = supabase
     .from("crm_accounts")
-    .select("id, name, city, state, lifecycle_status, source, stage_changed_at, primary_contact_id")
+    .select("id, name, city, state, lifecycle_status, source, stage_changed_at, stage_loss_reason, primary_contact_id")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
@@ -80,6 +80,7 @@ export async function getPipelineData(user: CrmUser): Promise<PipelineData> {
     stage: (a.lifecycle_status as string | null) ?? null,
     source: (a.source as string | null) ?? null,
     stageChangedMs: timestampMs(a.stage_changed_at as string | null),
+    lossReason: (a.stage_loss_reason as string | null) ?? null,
     lastContactMs: lastContactMsByAccount.get(a.id as string) ?? null,
     contactName: contactByAccount.get(a.id as string)?.name ?? null,
     contactTitle: contactByAccount.get(a.id as string)?.title ?? null,

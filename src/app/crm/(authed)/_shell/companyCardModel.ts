@@ -36,6 +36,19 @@ export type CompanyCardData = {
    * pre-existing company.
    */
   stageChangedMs: number | null;
+  /**
+   * crm_accounts.stage_loss_reason — WHY a Lost or Disqualified company died.
+   *
+   * Added 2026-08-31. The column has existed since 26 Aug and was READ BY
+   * NOTHING: an agent typed a reason into the stage dialog, the action saved
+   * it correctly, and no surface in the app ever showed it back. Brent could
+   * not see why one single deal had been lost.
+   *
+   * Null on every non-terminal stage by design — updateLifecycleStatus
+   * clears it on the way out, because a company that came back from Lost
+   * must not keep the reason it was lost for.
+   */
+  lossReason?: string | null;
   /** Epoch ms of the last real human contact, or null for never. The shared
    * definition from lib/crm/lastContact.ts, not a second one. */
   lastContactMs: number | null;
