@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>What we know — research &amp; discovery</title>
+<style>
+:root{
+  --canvas:#e7eaf1; --card:#fff; --inset:#eef1f6; --elevated:#e2e7f0;
+  --line:#aeb6ca; --line-strong:#828a9f;
+  --fg:#14161c; --fg-muted:#454b5c; --fg-subtle:#646b7d;
+  --accent:#2f5fd6; --accent-hover:#2650b8; --accent-bg:#eef2fc;
+  --ok:#0f7a4e; --ok-bg:#d8f0e2;
+  --warn:#925c0a; --warn-bg:#f6e6c4;
+  --bad:#ad2a2a; --bad-bg:#f6d9d9;
+  --admin:#6d3fd4; --admin-soft:#ece3fb;
+  --graphite:#151a24;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--fg);
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px;-webkit-font-smoothing:antialiased}
+.page{max-width:1240px;margin:0 auto;padding:28px 20px 90px}
+
+/* ── document chrome (not part of the design) ── */
+.doc-head{border-bottom:2px solid var(--fg);padding-bottom:18px;margin-bottom:26px}
+.doc-head h1{font-size:26px;margin:0 0 8px;letter-spacing:-.01em}
+.doc-head p{margin:0;color:var(--fg-muted);font-size:14.5px;line-height:1.55;max-width:78ch}
+h2.sec{font-size:19px;margin:44px 0 4px;letter-spacing:-.005em}
+h2.sec:first-of-type{margin-top:26px}
+p.src{margin:0 0 14px;font-size:12.5px;color:var(--fg-subtle)}
+.tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;padding:3px 8px;border-radius:3px;margin-bottom:8px}
+.now{background:var(--elevated);color:var(--fg-muted)}
+.new{background:var(--ok-bg);color:var(--ok)}
+.notes{background:var(--card);border:1px solid var(--line);border-radius:6px;
+  padding:13px 16px;margin:14px 0 0;font-size:13px;line-height:1.6}
+.notes > b{display:block;margin-bottom:6px;font-size:12px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--fg-subtle)}
+.notes li b{font-weight:700}
+.notes ul{margin:0;padding-left:17px}
+.notes li{margin-bottom:5px}
+.add{color:var(--ok);font-weight:800}
+.rem{color:var(--bad);font-weight:800}
+.keep{color:var(--fg-subtle);font-weight:800}
+.scroller{overflow-x:auto;padding-bottom:6px}
+
+/* ── the panel itself ── */
+.panel{width:1180px;background:var(--card);border:1px solid var(--line);
+  border-radius:8px;overflow:hidden;box-shadow:0 1px 2px rgba(20,22,28,.06)}
+.tabs{background:var(--graphite);display:flex;justify-content:center;gap:2px;padding:8px 12px 0}
+.tab{padding:7px 18px;border-radius:5px 5px 0 0;font-size:12.5px;font-weight:700;
+  background:#272c35;color:#c3c8d2}
+.tab.on{background:#fff;color:var(--fg)}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;
+  padding:11px 16px;border-bottom:1px solid var(--line)}
+.sec-head h3{margin:0;font-size:15px;font-weight:800}
+.sec-head span{font-size:12px;color:var(--fg-subtle)}
+.grid{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}
+.grid.re{grid-template-columns:1.35fr 1fr}
+.col-l{border-right:1px solid var(--line);display:flex;flex-direction:column}
+.col-l .bolline{margin-top:auto}
+.pad{padding:14px 16px}
+
+/* today's empty state */
+.empty-doc{min-height:330px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;padding:40px 24px;color:var(--fg-subtle)}
+.empty-doc .ico{font-size:30px;color:var(--line-strong);line-height:1}
+.empty-doc b{display:block;margin-top:10px;font-size:13px;color:var(--fg)}
+.empty-doc p{margin:5px auto 0;max-width:38ch;font-size:12.5px;line-height:1.55}
+.micro{font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fg-subtle)}
+.dead{outline:2px dashed var(--bad);outline-offset:-6px}
+.deadlbl{display:inline-block;background:var(--bad-bg);color:var(--bad);font-size:10.5px;
+  font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+
+/* record rows */
+.row{display:flex;gap:14px;align-items:baseline;border-top:1px solid var(--line);padding:9px 0}
+.row:first-child{border-top:0}
+.row .k{width:112px;flex:none;font-size:10px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--fg-subtle)}
+.row .v{flex:1;min-width:0;font-size:13px;line-height:1.5}
+.row .v.none{color:var(--fg-subtle);font-style:italic}
+.big{font-size:15px;font-weight:700;line-height:1.4}
+.chip{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
+.c-fit{background:var(--ok-bg);color:var(--ok)}
+.c-warn{background:var(--warn-bg);color:var(--warn)}
+.c-nb{background:var(--inset);color:var(--fg-muted)}
+
+/* research column */
+.rescol{background:var(--inset)}
+.reshead{background:var(--accent);color:#fff;padding:11px 16px}
+.reshead > b{display:block;font-size:14.5px;font-weight:800}
+.reshead span{display:block;font-size:12px;opacity:.92;margin-top:2px}
+.reshead.quiet{background:var(--ok)}
+.lk{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 4px}
+.lk a{display:inline-flex;align-items:center;gap:5px;background:var(--card);
+  border:1.5px solid var(--accent);color:var(--accent);border-radius:5px;
+  padding:6px 10px;font-size:12.5px;font-weight:700;text-decoration:none}
+.lk a:hover{background:var(--accent-bg)}
+.lk .q{font-size:11.5px;color:var(--fg-subtle);width:100%;margin-bottom:2px}
+
+.ask{border-top:1px solid var(--line);padding:11px 0}
+.ask:first-of-type{border-top:0}
+.ask .lab{font-size:13.5px;font-weight:800;display:flex;align-items:center;gap:7px}
+.ask .why{font-size:12px;color:var(--fg-muted);margin:2px 0 7px;line-height:1.45}
+.inp{display:block;width:100%;background:var(--card);border:1.5px dashed var(--line-strong);
+  border-radius:5px;padding:7px 10px;font-size:12.5px;color:var(--fg-subtle)}
+.blocking{background:var(--bad);color:#fff;font-size:9.5px;font-weight:800;
+  letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:3px}
+
+/* guess */
+.guess{background:var(--admin-soft);border:1.5px solid var(--admin);border-radius:6px;
+  padding:10px 12px;margin-top:8px}
+.guess p{margin:0 0 8px;font-size:12.5px;line-height:1.5;color:var(--fg)}
+.guess .val{font-weight:800}
+.btns{display:flex;gap:7px}
+.btn{border-radius:5px;padding:5px 13px;font-size:12.5px;font-weight:800;border:1.5px solid}
+.b-yes{background:var(--ok);border-color:var(--ok);color:#fff}
+.b-no{background:var(--card);border-color:var(--line-strong);color:var(--fg-muted)}
+.done{background:var(--ok-bg);border-color:var(--ok);}
+.done p{color:var(--ok);font-weight:700}
+.gone{background:var(--elevated);border-color:var(--line);opacity:.75}
+.gone p{color:var(--fg-subtle);text-decoration:line-through}
+.gone .after{text-decoration:none;display:block;margin-top:5px;font-style:italic}
+
+.script{background:var(--warn-bg);border-left:4px solid var(--warn);border-radius:0 5px 5px 0;
+  padding:9px 12px;margin-top:8px;font-size:12.5px;line-height:1.5;color:var(--fg)}
+.script > b:first-child{color:var(--warn);display:block;font-size:10px;letter-spacing:.07em;
+  text-transform:uppercase;margin-bottom:3px}
+
+.bolline{border-top:1px solid var(--line);padding:9px 16px;font-size:12px;color:var(--fg-subtle);
+  display:flex;gap:9px;align-items:baseline;background:var(--card)}
+/* The target card. A thin record leaves the left column short; rather than
+   pad it with white, it carries the one thing a new hire has no way to
+   know — what a finished record looks like. */
+.target{margin:14px 16px;border:1.5px dashed var(--line-strong);border-radius:6px;
+  background:var(--inset);padding:12px 14px}
+.target > b{display:block;font-size:10px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--fg-subtle);margin-bottom:7px}
+.target .ex{font-size:12.5px;line-height:1.6;color:var(--fg-muted)}
+.target .ex b{color:var(--fg)}
+.target a{color:var(--accent);font-weight:700;text-decoration:none;font-size:12.5px;
+  display:inline-block;margin-top:7px}
+
+table.cmp{border-collapse:collapse;width:100%;background:var(--card);font-size:13px;
+  border:1px solid var(--line);border-radius:6px;overflow:hidden}
+table.cmp th,table.cmp td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);
+  vertical-align:top}
+table.cmp thead th{background:var(--inset);font-size:10.5px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--fg-subtle)}
+table.cmp tr:last-child td{border-bottom:0}
+.old-copy{color:var(--bad);font-style:italic}
+.new-copy{color:var(--ok);font-weight:600}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="doc-head">
+  <h1>“What we know” — the research &amp; discovery version</h1>
+  <p>For the 84 companies with no bill of lading behind them. Every render below uses <b>real records from your book</b>, unedited — including the awkward ones. Rendered at desktop width (1180px panel); scroll sideways inside each frame if your window is narrower.</p>
+</div>
+
+<!-- ═════════════ TODAY ═════════════ -->
+<h2 class="sec">Today, on a company with no BOL</h2>
+<p class="src">Real: Core And Main Ww Lubbock — manual, New Lead, 0 calls. This is what 84 of 103 companies render.</p>
+<span class="tag now">Now</span>
+<div class="scroller">
+<div class="panel">
+  <div class="tabs"><span class="tab">Overview</span><span class="tab on">What we know</span><span class="tab">Contacts · 1</span><span class="tab">Shipments</span></div>
+  <div class="sec-head"><h3>What we know</h3></div>
+  <div class="grid">
+    <div class="col-l dead">
+      <div class="empty-doc">
+        <span class="deadlbl">55% of the panel</span>
+        <span class="ico" style="margin-top:14px">▤</span>
+        <b>No bill of lading on file</b>
+        <p>When one of their BOLs is scanned and parsed, the document appears here and the fields read off it fill the panel beside this one.</p>
+      </div>
+    </div>
+    <div>
+      <div class="pad dead">
+        <span class="deadlbl">the same sentence again</span>
+        <p style="margin:9px 0 0"><span class="micro">From BOLs</span> <span style="font-size:11.5px;color:var(--fg-subtle)">none on file</span></p>
+        <p style="margin:8px 0 0;font-size:12.5px;line-height:1.6;color:var(--fg-subtle)">No bills of lading are matched to this company yet. When one is processed and matched to them — as the shipper, the receiver or the bill-to — their lanes, the freight and who hauled it last will appear here on their own.</p>
+      </div>
+      <div class="pad" style="border-top:1px solid var(--line-strong)">
+        <p style="margin:0 0 8px"><span class="micro">Source</span> <b style="font-size:12.5px">Added by hand</b></p>
+        <p style="margin:0 0 7px"><span class="micro">Gaps</span> <span style="font-size:11.5px;color:var(--fg-subtle)">ask on the next call</span></p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <span class="chip c-nb">What they actually do</span>
+          <span class="chip c-nb">Current broker or carrier</span>
+          <span class="chip c-nb">Freight spend per year</span>
+        </div>
+      </div>
+      <div class="pad" style="border-top:1px solid var(--line);font-size:12px;color:var(--fg-subtle)">All fields (41) — the full record</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="notes"><b>What is wrong with it</b><ul>
+  <li>The two largest regions of the panel both say the same thing: <em>there is no document</em>. Nothing else fills them.</li>
+  <li>The tab is called <b>What we know</b> and shows almost nothing we know. This company has an address, a branch manager and his direct line on file — none of it appears here.</li>
+  <li>Three grey chips name what is missing and give no way to find any of it out. An agent reading this at 9pm has nowhere to go next.</li>
+</ul></div>
+
+<!-- ═════════════ A ═════════════ -->
+<h2 class="sec">A · A company with almost nothing on file</h2>
+<p class="src">Real: Core And Main Ww Lubbock. Manual, New Lead. No industry, no phone, no website, no description. One contact: Alan Pribble, Branch Manager, (806) 283-9220.</p>
+<span class="tag new">Proposed</span>
+<div class="scroller">
+<div class="panel">
+  <div class="tabs"><span class="tab">Overview</span><span class="tab on">What we know</span><span class="tab">Contacts · 1</span><span class="tab">Shipments</span></div>
+  <div class="sec-head"><h3>What we know</h3><span>Core And Main Ww Lubbock · added by hand · nobody has called them</span></div>
+  <div class="grid re">
+
+    <!-- LEFT: the record -->
+    <div class="col-l">
+      <div class="pad">
+        <div class="row"><span class="k">What they do</span><span class="v none">Nobody has said yet</span></div>
+        <div class="row"><span class="k">Where</span><span class="v">408 County Road 7200, Lubbock, TX 79404</span></div>
+        <div class="row"><span class="k">Reach them</span><span class="v none">No company phone, no website</span></div>
+        <div class="row"><span class="k">Who we know</span><span class="v"><span class="big">Alan Pribble</span><br><span style="color:var(--fg-muted)">Branch Manager · (806) 283-9220</span></span></div>
+        <div class="row"><span class="k">From calls</span><span class="v none">Nobody has called them yet</span></div>
+      </div>
+      <div class="target">
+        <b>What a finished one looks like</b>
+        <p class="ex" style="margin:0"><b>Advantage Steel Service</b> — steel service centre · North Richland Hills TX · (817) 284-9800 · two named contacts with direct lines · <b>ask for Edwin, he runs logistics</b> · receptionist is difficult.<br>That is the target. You do not need all of it before you call — you need the top three.</p>
+        <a href="#">Open Advantage Steel Service →</a>
+      </div>
+      <div class="bolline"><span class="micro">From BOLs</span><span>none on file</span></div>
+    </div>
+
+    <!-- RIGHT: research -->
+    <div class="rescol">
+      <div class="reshead">
+        <b>Find this out before you call</b>
+        <span>4 things missing. Takes about two minutes.</span>
+      </div>
+      <div class="pad">
+        <div class="lk">
+          <span class="q">Look them up — opens a new tab, already filled in:</span>
+          <a href="#">🔍 Google</a>
+          <a href="#">📍 Maps</a>
+          <a href="#">🌐 Website</a>
+          <a href="#">🚛 FMCSA</a>
+          <a href="#">🏛 TX registry</a>
+        </div>
+
+        <!-- guess: pending -->
+        <div class="ask">
+          <span class="lab">What they make or sell</span>
+          <p class="why">This is your first sentence on the call — “I know you supply waterworks pipe…”. Without it you are calling a stranger about nothing.</p>
+          <div class="guess">
+            <p>9 other <span class="val">Core And Main</span> branches are recorded as <span class="val">Waterworks distribution — pipe, valves, hydrants</span>. Same for this one?</p>
+            <div class="btns"><span class="btn b-yes">Yes, use that</span><span class="btn b-no">No</span></div>
+          </div>
+        </div>
+
+        <!-- guess: accepted -->
+        <div class="ask">
+          <span class="lab">Company phone</span>
+          <p class="why">You cannot ring a company without one.</p>
+          <div class="guess done">
+            <p>✓ Added <span class="val">(806) 283-9220</span> — taken from Alan Pribble’s number, the only one on file.</p>
+          </div>
+        </div>
+
+        <!-- guess: rejected -->
+        <div class="ask">
+          <span class="lab">Website</span>
+          <p class="why">Where you find what they make, and usually the main switchboard.</p>
+          <div class="guess gone">
+            <p>coreandmain.com — guessed from the company name.</p>
+            <span class="after">Dismissed. Type the right one below and it won’t ask again.</span>
+          </div>
+          <span class="inp" style="margin-top:7px">type the address and press enter</span>
+        </div>
+
+        <div class="ask">
+          <span class="lab">Who to ask for <span class="blocking">stops you</span></span>
+          <p class="why">Alan is the Branch Manager — he may not be the one who books trucks. You want whoever schedules freight going out.</p>
+          <div class="script"><b>Say this when they answer</b>“Hi — who schedules your outbound freight?” Then ask for that person by name. Don’t ask for the owner or purchasing; it sends you to the wrong desk.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="notes"><b>A · what changed</b><ul>
+  <li><span class="add">Add</span> — the research column, on the space the missing-document sentence used to hold. It is the loud half of the panel when the record is empty, which is exactly when an agent needs telling what to do.</li>
+  <li><span class="add">Add</span> — pre-filled lookups. Not “go and Google them”: the button already carries <em>“Core And Main Ww Lubbock” Lubbock TX</em>. Knowing where to look is most of the friction and all of what a new hire lacks.</li>
+  <li><span class="add">Add</span> — guesses that ask. Three states shown: <b>pending</b> (the sibling-branch industry), <b>accepted</b> (the phone lifted from the only contact on file), <b>rejected</b> (a guessed domain, dismissed, never asked again). Nothing is ever written silently.</li>
+  <li><span class="add">Add</span> — the ask-for script, because a name on file is not the same as the right name. 7 calls so far ended in <em>decision maker unavailable</em>.</li>
+  <li><span class="rem">Remove</span> — the BOL half. It becomes one line at the foot of the record: <em>From BOLs — none on file</em>.</li>
+  <li><span class="rem">Remove</span> — the second paragraph repeating that there is no document.</li>
+</ul></div>
+
+<!-- ═════════════ B ═════════════ -->
+<h2 class="sec">B · A description already written, and nobody to call</h2>
+<p class="src">Real: Contractors Access Equipment. OTR, New Lead. Industry and a full description on file — and <b>zero contacts</b>, no phone, no website, no address, despite the description containing all three.</p>
+<span class="tag new">Proposed</span>
+<div class="scroller">
+<div class="panel">
+  <div class="tabs"><span class="tab">Overview</span><span class="tab on">What we know</span><span class="tab">Contacts · 0</span><span class="tab">Shipments</span></div>
+  <div class="sec-head"><h3>What we know</h3><span>Contractors Access Equipment · from OTR · nobody has called them</span></div>
+  <div class="grid re">
+    <div class="col-l">
+      <div class="pad">
+        <div class="row"><span class="k">What they do</span><span class="v"><span class="big">Access equipment rental</span> <span class="chip c-fit">Good fit · 8/10</span><br><span style="color:var(--fg-muted);line-height:1.55">HQ 3005 Roy Orr Blvd, Grand Prairie. 12 locations; TX: DFW, Houston, San Antonio, Austin. One account, not two.</span></span></div>
+        <div class="row"><span class="k">Where</span><span class="v">Grand Prairie, TX <span style="color:var(--fg-subtle)">· 12 locations</span></span></div>
+        <div class="row"><span class="k">Reach them</span><span class="v none">No company phone, no website</span></div>
+        <div class="row"><span class="k">Who we know</span><span class="v none">Nobody on file</span></div>
+        <div class="row"><span class="k">From calls</span><span class="v none">Nobody has called them yet</span></div>
+      </div>
+      <div class="target">
+        <b>Before you dial</b>
+        <p class="ex" style="margin:0">Three offers on the right will fill this record in about ten seconds — the person, the phone and the website are all already written in the description. Accept them, then call.</p>
+      </div>
+      <div class="bolline"><span class="micro">From BOLs</span><span>none on file</span></div>
+    </div>
+
+    <div class="rescol">
+      <div class="reshead"><b>Find this out before you call</b><span>The description already answers most of it.</span></div>
+      <div class="pad">
+        <div class="lk">
+          <span class="q">Look them up — opens a new tab, already filled in:</span>
+          <a href="#">🔍 Google</a><a href="#">📍 Maps</a><a href="#">🌐 Website</a><a href="#">🚛 FMCSA</a><a href="#">🏛 TX registry</a>
+        </div>
+
+        <div class="ask">
+          <span class="lab">Who to ask for <span class="blocking">stops you</span></span>
+          <p class="why">There is nobody on file here at all, so there is no call to make yet.</p>
+          <div class="guess">
+            <p>The description names <span class="val">David Chamberlain</span> — <span class="val">dchamberlain@contractorsaccess.com</span>. Add him as a contact?</p>
+            <div class="btns"><span class="btn b-yes">Yes, add him</span><span class="btn b-no">No</span></div>
+          </div>
+        </div>
+
+        <div class="ask">
+          <span class="lab">Company phone</span>
+          <p class="why">You cannot ring a company without one.</p>
+          <div class="guess">
+            <p>The description has <span class="val">(972) 857-3310</span> against the Grand Prairie HQ. Use it as the company number?</p>
+            <div class="btns"><span class="btn b-yes">Yes</span><span class="btn b-no">No</span></div>
+          </div>
+        </div>
+
+        <div class="ask">
+          <span class="lab">Website</span>
+          <p class="why">Where you check what they rent out before you dial.</p>
+          <div class="guess">
+            <p>From David’s email address: <span class="val">contractorsaccess.com</span>. Correct?</p>
+            <div class="btns"><span class="btn b-yes">Yes</span><span class="btn b-no">No</span></div>
+          </div>
+        </div>
+
+        <div class="script"><b>Worth knowing before you dial</b>The description says <em>“One account, not two”</em> — somebody has already decided their 12 branches are handled as a single customer. Don’t create a second record for a branch.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="notes"><b>B · what changed</b><ul>
+  <li><span class="add">Add</span> — <b>reading the description back as offers.</b> A person, a phone and a domain are all sitting in that paragraph, and all three columns are empty. 53 companies have a description like this; 38 carry a fit score in it.</li>
+  <li><span class="add">Add</span> — the fit score as a chip, in words as well as a number. <em>“Good fit · 8/10”</em>, not a bare 8.</li>
+  <li><span class="add">Add</span> — “Nobody on file” said out loud in the record, not left as a blank row. It is true of 38 of the 67 New Leads.</li>
+  <li><span class="keep">Keep</span> — the description in full on the left. It is the best thing we have about this company and it currently only appears on another tab.</li>
+</ul></div>
+
+<!-- ═════════════ C ═════════════ -->
+<h2 class="sec">C · A finished record — what “done” looks like</h2>
+<p class="src">Real: Advantage Steel Service. Everything below is on file today. This is the record to point Charia at when she asks what good looks like.</p>
+<span class="tag new">Proposed</span>
+<div class="scroller">
+<div class="panel">
+  <div class="tabs"><span class="tab">Overview</span><span class="tab on">What we know</span><span class="tab">Contacts · 2</span><span class="tab">Shipments</span></div>
+  <div class="sec-head"><h3>What we know</h3><span>Advantage Steel Service · from OTR · New Lead</span></div>
+  <div class="grid re">
+    <div class="col-l">
+      <div class="pad">
+        <div class="row"><span class="k">What they do</span><span class="v"><span class="big">Steel service centre</span><br><span style="color:var(--fg-muted);line-height:1.55">Coworker-sourced (Discord), web-verified 21 Aug. Listed as Dallas; actual HQ North Richland Hills (DFW metro).</span></span></div>
+        <div class="row"><span class="k">Where</span><span class="v">3700 Flory St, North Richland Hills, TX 76180</span></div>
+        <div class="row"><span class="k">Reach them</span><span class="v"><b>(817) 284-9800</b> · advantagesteelservice.com<br><span style="color:var(--fg-muted)">sales@advantagesteelservice.com</span></span></div>
+        <div class="row"><span class="k">Who we know</span><span class="v">
+          <span class="big">Pat Birdwell</span> <span style="color:var(--fg-muted)">— Estimator / Structural Sales · (817) 284-1693</span><br>
+          <span class="big">Tom Church</span> <span style="color:var(--fg-muted)">— President · (817) 589-0088</span>
+        </span></div>
+        <div class="row"><span class="k">From calls</span><span class="v">
+          <span class="chip c-warn">Ask for Edwin — logistics manager</span>
+          <span class="chip c-nb">shipping@advantagesteelservice.com</span>
+          <span class="chip c-nb">Receptionist is difficult</span>
+          <br><span style="color:var(--fg-muted);font-size:12.5px">Cold email to Edwin sent 27 Aug.</span>
+        </span></div>
+      </div>
+      <div class="bolline"><span class="micro">From BOLs</span><span>none on file</span></div>
+    </div>
+
+    <div class="rescol">
+      <div class="reshead quiet"><b>✓ Ready to call</b><span>Nothing left to look up. 2 things only they can tell you.</span></div>
+      <div class="pad">
+        <div class="ask">
+          <span class="lab">Who moves their steel today</span>
+          <p class="why">You are asking them to switch away from somebody. You need to know who that is before you can say why we are better.</p>
+          <span class="inp">only they can tell you — ask on the call</span>
+        </div>
+        <div class="ask">
+          <span class="lab">How often, and where to</span>
+          <p class="why">Tells you whether this is one load a year or one a week.</p>
+          <span class="inp">only they can tell you — ask on the call</span>
+        </div>
+        <div class="script"><b>Where you got to last time</b>Edwin is the logistics manager and he was out. The receptionist gave up his email. An email has gone; the call is the follow-up.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="notes"><b>C · what changed</b><ul>
+  <li><span class="add">Add</span> — the <b>From calls</b> row. Everything Tyler learned by phone currently lives only in loose notes: the name to ask for, the shipping address, the difficult receptionist. That is the most valuable information on the record and it has no home.</li>
+  <li><span class="add">Add</span> — the research column goes <b>green and quiet</b> when there is nothing left to look up, and shows only what a call can answer. The panel is loud when there is work and calm when there is not.</li>
+  <li><span class="add">Add</span> — “Where you got to last time”, so picking up a half-worked company does not mean reading the whole history.</li>
+  <li><span class="keep">Keep</span> — the correction in the description (<em>“Listed as Dallas; actual HQ North Richland Hills”</em>). Provenance and corrections are why the record can be trusted.</li>
+</ul></div>
+
+<!-- ═════════════ WORDING ═════════════ -->
+<h2 class="sec">The wording, tested against somebody who started today</h2>
+<p class="src">These are the real <code>why</code> strings in fileGaps.ts. They were written for Tyler, who already knows what they mean. Charia does not.</p>
+
+<table class="cmp">
+  <thead><tr><th style="width:22%">Field</th><th style="width:30%">What it says now</th><th>What it should say</th></tr></thead>
+  <tbody>
+    <tr><td><b>What they actually do</b></td><td class="old-copy">“not categorised”</td><td class="new-copy">“This is your first sentence on the call — ‘I know you make X…’. Without it you are calling a stranger about nothing.”</td></tr>
+    <tr><td><b>Somebody to call</b></td><td class="old-copy">“nobody is on file here yet”</td><td class="new-copy">“You can’t call a company. You call a person. Nothing happens here until there is one.”</td></tr>
+    <tr><td><b>Who answers this number</b></td><td class="old-copy">“a number is on file, but nobody’s name”</td><td class="new-copy">“We have a number but no name — so you’d be asking a stranger for a stranger.”</td></tr>
+    <tr><td><b>Their address</b></td><td class="old-copy">“no address on file”</td><td class="new-copy">“Tells you whether we can actually serve them, and which of their sites the trucks would go to.”</td></tr>
+    <tr><td><b>Current broker or carrier</b></td><td class="old-copy">“you cannot pitch against nobody”</td><td class="new-copy">“Who moves their freight today. You are asking them to switch away from somebody — you need to know who.”</td></tr>
+    <tr><td><b>Freight spend per year</b></td><td class="old-copy">“tells you whether this is worth chasing”</td><td class="new-copy"><b style="color:var(--bad)">Drop this one.</b> 0 of 103 companies have it. Companies do not tell strangers their budget, and a chip nobody can ever clear teaches agents to ignore all the others.</td></tr>
+  </tbody>
+</table>
+
+<div class="notes"><b>Two more things a new hire has no way to know</b><ul>
+  <li><span class="add">Add</span> — <b>the ask-for line</b>, shown on the panel: <em>“Who schedules your outbound freight?”</em> Not “the owner”, not “purchasing”. Seven calls ended at the wrong desk.</li>
+  <li><span class="add">Add</span> — <b>a way to rule a company out.</b> Tyler found by calling that Sord Landfill has no shipping team, and that Sawyer Fabrication does not take brokers. Both are real notes. The research step should ask the plain-English version first — <em>do they move physical goods out of a building?</em> — rather than “are they a shipper”, which means nothing on day one.</li>
+</ul></div>
+
+<div class="notes" style="border-left:4px solid var(--accent)"><b>The one rule behind all of it</b>
+  <p style="margin:0">The panel is <b>loud when the record is empty and quiet when it is full.</b> Today it is equally grey either way, which is why a company nobody has researched looks exactly like one that is ready to call. Nothing here is written to the record without somebody pressing Yes.</p>
+</div>
+
+</div>
+</body></html>
