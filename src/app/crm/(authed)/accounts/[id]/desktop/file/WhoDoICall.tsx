@@ -260,6 +260,15 @@ export function WhoDoICall({
                     </span>
                   )}
                 </div>
+                {/* THE ADDRESS, not just a button that opens a mail client.
+                    The hero carried an "Email" action and never printed the
+                    address, so the most prominent contact on the page was
+                    one you could write to but not read. */}
+                {hero.email && (
+                  <p className="mt-0.5 select-text truncate text-[12px] font-semibold leading-snug text-fg-muted">
+                    {hero.email}
+                  </p>
+                )}
                 {heroMeta.length > 0 && (
                   <p className="mt-0.5 truncate text-[11.5px] text-fg-subtle">{heroMeta.join(" · ")}</p>
                 )}
@@ -426,6 +435,19 @@ export function WhoDoICall({
                           >
                             {p.title ?? "No title recorded"}
                           </p>
+                          {/* THE ADDRESS ITSELF, READABLE AND SELECTABLE.
+                              Tyler, 31 Aug: "Trying to bring up Mario's
+                              email address" — and this row offered only an
+                              "@" button. A mailto opens a mail client; it
+                              does not let you READ an address, check it
+                              before you send, or copy it into something
+                              else. select-text so a drag actually selects
+                              rather than starting to drag the row. */}
+                          {p.email && (
+                            <p className="select-text truncate text-[11.5px] font-semibold leading-snug text-fg-muted">
+                              {p.email}
+                            </p>
+                          )}
                         </div>
                         {/* THE NUMBER, NOT JUST A HANDSET.
                             Brent, 2026-08-31: "the numbers dont show up for

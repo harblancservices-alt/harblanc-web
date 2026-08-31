@@ -126,6 +126,20 @@ export function ContactListCard({ contact }: { contact: ContactCardData }) {
             "No company"
           )}
         </p>
+        {/* THE PHONE AND THE EMAIL AS TEXT. This card carried Call and
+            Email BUTTONS and printed neither value, so the one directory
+            in the app that lists people could not tell you any of their
+            details — you had to launch a dialler or a mail client to find
+            out what they were. Tyler asked for exactly this on 31 Aug.
+            select-text because reading is half of it and copying is the
+            other half. */}
+        {(contact.phone || contact.email) && (
+          <p className="select-text truncate text-[11.5px] font-semibold text-fg-muted">
+            {contact.phone && <span className="crm-num">{contact.phone}</span>}
+            {contact.phone && contact.email && " · "}
+            {contact.email}
+          </p>
+        )}
         <p className="truncate text-[11.5px] font-medium text-fg-muted">
           {last.text === "Never contacted" ? "Never contacted" : `Last: ${last.text}`}
         </p>

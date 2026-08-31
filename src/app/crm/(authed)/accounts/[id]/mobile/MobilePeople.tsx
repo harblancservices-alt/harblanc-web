@@ -68,7 +68,25 @@ export function MobilePeople({
       {people.map((p, i) => {
         const tel = p.phone ? digitsForTel(p.phone) : null;
         return (
-          <div key={p.id} className={`flex items-center gap-[11px] px-3 py-[11px] ${i === 0 ? "" : M_DIVIDE}`}>
+          /* THE ANCHOR THE CONTACT LINK LANDS ON.
+              /crm/contacts/<id> redirects to the company page at
+              #contact-<id> (Brent removed standalone contact profiles on
+              2026-08-26). Every anchor for it lived in a DESKTOP
+              component, so on a phone that redirect dropped you at the top
+              of the company page with nothing highlighted and no clue it
+              had taken you to anybody in particular.
+
+              That is Tyler's report of 31 Aug: "when I click his name it
+              takes me to the company page". On a phone it did exactly
+              that and stopped there.
+
+              scroll-mt clears the sticky header, or the row lands under
+              it and looks just as unfound. */
+          <div
+            key={p.id}
+            id={`contact-${p.id}`}
+            className={`flex scroll-mt-24 items-center gap-[11px] px-3 py-[11px] target:bg-accent-bg ${i === 0 ? "" : M_DIVIDE}`}
+          >
             <ContactAvatar className="h-[38px] w-[38px]" />
 
             <div className="min-w-0 flex-1">
