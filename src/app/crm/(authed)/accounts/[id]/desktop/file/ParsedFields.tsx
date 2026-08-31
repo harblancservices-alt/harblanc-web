@@ -84,10 +84,23 @@ function Field({
   isThisCompany = false,
   note,
   absent,
+  map = false,
 }: {
   label: string;
   value: string | null;
   isThisCompany?: boolean;
+  /**
+   * Render the value as a link to a map, opening in a new tab.
+   *
+   * For the three ADDRESS rows only. An address on a bill of lading is the
+   * one field on this panel you routinely want somewhere else — to see
+   * where the yard actually is, how far it is, whether the "Houston"
+   * address is in Houston. Copying it out by hand was the alternative.
+   *
+   * It looks like a link because it is one: underlined and in the accent.
+   * A clickable thing that looks like text is a thing nobody clicks.
+   */
+  map?: boolean;
   /** A caption under the value — used to say why a party is NOT a company. */
   note?: string;
   /** What to print when the document simply does not carry this field.
@@ -110,13 +123,27 @@ function Field({
           to the start of. The cap is on the VALUE, not the row, so the
           label column stays aligned. */}
       <span className="min-w-0 flex-1">
-        <span
-          className={`block whitespace-pre-wrap text-[12.5px] max-w-[80ch] ${
-            value ? "text-fg" : "italic text-fg-subtle"
-          } ${isThisCompany ? "font-bold" : ""}`}
-        >
-          {value ?? absent}
-        </span>
+        {map && value ? (
+          <a
+            href={`https://www.google.com/maps/search/${encodeURIComponent(value)}`}
+            target="_blank"
+            rel="noreferrer noopener"
+            title="Open this address in a map"
+            className={`block max-w-[80ch] whitespace-pre-wrap text-[12.5px] text-accent underline underline-offset-2 hover:text-accent-hover ${
+              isThisCompany ? "font-bold" : "font-semibold"
+            }`}
+          >
+            {value}
+          </a>
+        ) : (
+          <span
+            className={`block whitespace-pre-wrap text-[12.5px] max-w-[80ch] ${
+              value ? "text-fg" : "italic text-fg-subtle"
+            } ${isThisCompany ? "font-bold" : ""}`}
+          >
+            {value ?? absent}
+          </span>
+        )}
         {note && (
           <span className="mt-0.5 block text-[11px] text-fg-subtle">{note}</span>
         )}
@@ -146,7 +173,7 @@ export function ParsedFields({ doc, total }: { doc: BolDoc; total: number }) {
           value={doc.shipperName}
           isThisCompany={ROLE_FIELD[doc.role] === "Shipper"}
         />
-        <Field label="From" value={doc.shipperAddress} />
+        <Field label="From" value={doc.shipperAddress} map />
         <Field
           label="Receiver"
           value={doc.consigneeName}
@@ -159,12 +186,16 @@ export function ParsedFields({ doc, total }: { doc: BolDoc; total: number }) {
              out loud it is just what the paperwork was. */
           absent="Not named on this document"
         />
-        <Field label="To" value={doc.consigneeAddress} />
+        <Field label="To" value={doc.consigneeAddress} map />
         <Field
           label="Bill to"
           value={doc.billTo}
           isThisCompany={ROLE_FIELD[doc.role] === "Bill to"}
           note="Broker or payer on this document."
+          /* The bill-to is an address as often as it is a company name, so
+             it gets the same treatment; a search on a plain name is still
+             a useful thing for the map to answer. */
+          map
         />
         <Field
           label="Carrier"

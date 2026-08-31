@@ -125,6 +125,8 @@ export function WhatHappened({
   stage,
   quickTasks,
   taskOwnerLabel,
+  initialMode,
+  draftScope,
 }: {
   accountId: string;
   contacts: { id: string; name: string; phoneLabel: string | null }[];
@@ -147,19 +149,43 @@ export function WhatHappened({
   /** WHO A TASK MADE HERE WILL BELONG TO. Null when the viewer owns this
    * company — see the line's own note for why that case says nothing. */
   taskOwnerLabel: string | null;
+  /**
+   * Which tab to open on. Only the modal copy on the BOL panel passes it —
+   * pressing "Note" there should land on Note, not on Call and a second
+   * click. Inline on Overview this stays undefined and the restored
+   * draft's own mode wins, exactly as before.
+   */
+  initialMode?: Mode;
+  /**
+   * WHICH DRAFT THIS COPY OWNS. Defaults to the account, which is what the
+   * inline composer has always used and must keep using.
+   *
+   * The BOL panel's modal passes its own scope, because FileBody keeps
+   * every tab MOUNTED (hidden, not unmounted) — so while that dialog is
+   * open there are genuinely two composers alive on the page. Sharing one
+   * localStorage key between them means whichever is typed in last
+   * overwrites the other, and a rep who half-wrote a note on Overview
+   * would find it replaced by whatever they typed in the dialog. Separate
+   * scopes cost a key and remove the whole class of problem.
+   */
+  draftScope?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  /** See draftScope above. Falls back to the account, unchanged. */
+  const scope = draftScope ?? accountId;
   /* A DRAFT SURVIVING FROM LAST TIME. Read once, lazily, at mount: a
      session bounce, a closed tab or a crash all unmount this component, and
      without this whatever was typed is gone for good (see composerDraft.ts,
      and the note Tyler lost on 2026-08-28). */
   const restored = useState(() => {
-    const d = readDraft(accountId);
+    const d = readDraft(scope);
     return isRestorable(d, Date.now()) ? d : null;
   })[0];
 
-  const [mode, setMode] = useState<Mode>(restored?.mode ?? "call");
+  // An explicitly requested tab beats a restored draft's own: the rep
+  // pressed "Task", so they get Task even if they last typed a note.
+  const [mode, setMode] = useState<Mode>(initialMode ?? restored?.mode ?? "call");
   const [text, setText] = useState(restored?.text ?? "");
   const [restoredNotice, setRestoredNotice] = useState(restored !== null);
   const [contactId, setContactId] = useState<string>(contacts[0]?.id ?? "");
@@ -213,14 +239,14 @@ export function WhatHappened({
   function rememberText(next: string) {
     setText(next);
     setRestoredNotice(false);
-    if (next.trim()) writeDraft(accountId, { mode, text: next, savedAt: Date.now() });
-    else clearDraft(accountId);
+    if (next.trim()) writeDraft(scope, { mode, text: next, savedAt: Date.now() });
+    else clearDraft(scope);
   }
 
   /** Everything the composer was holding, back to empty. */
   function resetComposer() {
     // The work is on the server now, so the local copy has done its job.
-    clearDraft(accountId);
+    clearDraft(scope);
     setRestoredNotice(false);
     setText("");
     setGotThrough(null);

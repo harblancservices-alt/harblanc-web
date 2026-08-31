@@ -231,6 +231,12 @@ export function CompanyFile({
           bolRole,
           linkedPanel,
           gaps,
+          composer: {
+            contacts: composerContacts,
+            stage,
+            quickTasks,
+            taskOwnerLabel,
+          },
           allFieldsCount,
           companyDefaults,
           reps,

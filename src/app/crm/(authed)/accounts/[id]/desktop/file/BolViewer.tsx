@@ -77,6 +77,28 @@ export type BolDoc = {
   deliveryDate: string | null;
   reference: string | null;
   notes: string | null;
+  /**
+   * THE PEOPLE THE DOCUMENT NAMES, with their numbers — crm_bol_contacts.
+   *
+   * Brent, 2026-08-31: "i want the phone numbers pulled from the BOLs
+   * underneath in the GAPS area. that would make it easier for them to
+   * call the names." A bill of lading routinely carries a phone at each
+   * end, and until now the only way to reach them was to read the scan.
+   *
+   * `onFile` is the honesty flag. A BOL number that has already been
+   * matched to a crm_contacts row is the SAME number the record shows, so
+   * it is marked rather than offered again — otherwise the panel would
+   * state two different truths about one phone, which is exactly the
+   * nameless-contact trap completeness.ts already guards.
+   */
+  people: {
+    id: string;
+    role: string;
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    onFile: boolean;
+  }[];
   /** ── WHICH END OF THIS LOAD THIS COMPANY IS ON.
    * Derived in page.tsx from which matched_*_account_id equals the company
    * being viewed, so it is a fact about THIS page rather than about the

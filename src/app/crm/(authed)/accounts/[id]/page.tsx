@@ -915,6 +915,42 @@ export default async function AccountDetailPage({
     }[]).map((d) => [d.id, d]),
   );
 
+  /* THE PEOPLE THE DOCUMENTS NAME. One query for every BOL on this
+     company, grouped by entry — see BolDoc.people for why the panel needs
+     them and what `onFile` protects against. Skipped entirely when the
+     company has no bills of lading, which is 84 of 103. */
+  const bolEntryIds = bolRows.map((b) => b.id);
+  const { data: bolPeopleRows } = bolEntryIds.length
+    ? await supabase
+        .from("crm_bol_contacts")
+        .select("id, bol_id, role, name, phone, email, matched_contact_id")
+        .in("bol_id", bolEntryIds)
+    : { data: [] };
+
+  const peopleByEntry = new Map<string, BolDoc["people"]>();
+  for (const row of (bolPeopleRows ?? []) as {
+    id: string;
+    bol_id: string;
+    role: string | null;
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    matched_contact_id: string | null;
+  }[]) {
+    // Nothing to dial and nobody to name is not a row worth drawing.
+    if (!row.phone?.trim() && !row.email?.trim()) continue;
+    const list = peopleByEntry.get(row.bol_id) ?? [];
+    list.push({
+      id: row.id,
+      role: (row.role ?? "other").trim(),
+      name: (row.name ?? "").trim() || null,
+      phone: (row.phone ?? "").trim() || null,
+      email: (row.email ?? "").trim() || null,
+      onFile: row.matched_contact_id != null,
+    });
+    peopleByEntry.set(row.bol_id, list);
+  }
+
   /** Newest first, so the switcher opens on the most recent load. Same
    * tolerance for a TEXT pickup_date as bolFacts: unparseable sorts last
    * rather than throwing. */
@@ -944,6 +980,7 @@ export default async function AccountDetailPage({
         deliveryDate: t(b.delivery_date),
         reference: t(b.reference),
         notes: t(b.notes),
+        people: peopleByEntry.get(b.id) ?? [],
         // Which end of this load the company is on — see bolRole.ts for
         // the precedence and why it is a separate, tested module.
         role: bolRole(b, id),

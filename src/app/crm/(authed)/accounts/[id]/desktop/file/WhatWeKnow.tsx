@@ -10,11 +10,13 @@ import { EditCompany } from "../../EditCompany";
 import type { CompanyDefaults, RepOption } from "../../../CompanyDialog";
 import type { BolFacts } from "./bolFacts";
 import type { FileGap } from "./fileGaps";
+import type { QuickTask } from "../../../../admin/quick-task-actions";
 import { GapChip, GapChipInput, GapChipRow } from "../../../../_shell/gapChip";
 import { FileCard, SectionHead, Micro } from "./chrome";
 import { BolViewer, type BolDoc } from "./BolViewer";
 import { ParsedFields } from "./ParsedFields";
 import { ResearchColumn } from "./ResearchColumn";
+import { ComposerModal } from "./ComposerModal";
 import { RecordColumn, type RecordFacts } from "./RecordColumn";
 import type { ResearchGuess } from "./researchGuesses";
 import type { Lookup } from "./lookups";
@@ -74,6 +76,15 @@ function Row({
   );
 }
 
+/** The document's own vocabulary, in the words an agent uses. */
+const ROLE_WORD: Record<string, string> = {
+  shipper: "shipper",
+  consignee: "receiver",
+  bill_to: "bill to",
+  carrier: "carrier",
+  other: "also named",
+};
+
 export function WhatWeKnow({
   accountId,
   companyName,
@@ -83,6 +94,7 @@ export function WhatWeKnow({
   bolRole,
   linkedPanel,
   gaps,
+  composer,
   allFieldsCount,
   companyDefaults,
   reps,
@@ -105,6 +117,14 @@ export function WhatWeKnow({
    * produced no other live company, which is the common case. */
   linkedPanel: ReactNode;
   gaps: FileGap[];
+  /** What the Log call / Note / Task dialog needs. Same values the Overview
+   * composer is given — one composer, two places it can be opened. */
+  composer: {
+    contacts: { id: string; name: string; phoneLabel: string | null }[];
+    stage: string;
+    quickTasks: QuickTask[];
+    taskOwnerLabel: string | null;
+  };
   /** How many detail fields the record has in total — the footer's honest
    * "there is more than this" count. */
   allFieldsCount: number;
@@ -156,6 +176,10 @@ export function WhatWeKnow({
    * them side by side is lost. */
   const [bolIndex, setBolIndex] = useState(0);
   const openDoc = bolDocs[bolIndex] ?? null;
+  /* The open document's people only. Showing every BOL's numbers at once
+     would put a Kansas consignee from March beside today's Houston
+     shipper with nothing to say which was which. */
+  const docPeople = openDoc?.people ?? [];
 
   const visible = gaps.filter((g) => !filled.has(g.kind));
 
@@ -269,6 +293,18 @@ export function WhatWeKnow({
 
         {/* ══ RIGHT: parsed facts, then the company record ═════════ */}
         <div className="flex min-w-0 flex-col overflow-y-auto">
+        {/* LOG CALL · NOTE · TASK, above the parsed fields (Brent,
+            2026-08-31). A centred dialog rather than the inline expansion
+            the Overview composer uses — see ComposerModal for why, and
+            for what keeping two composers alive at once would have cost. */}
+        <ComposerModal
+          accountId={accountId}
+          contacts={composer.contacts}
+          stage={composer.stage}
+          quickTasks={composer.quickTasks}
+          taskOwnerLabel={composer.taskOwnerLabel}
+        />
+
         {/* ── The fields read off the open document ─────────────────── */}
         {openDoc && <ParsedFields doc={openDoc} total={bolDocs.length} />}
 
@@ -456,6 +492,66 @@ export function WhatWeKnow({
                 ),
               )}
             </GapChipRow>
+          )}
+
+          {/* ══ THE NUMBERS THE DOCUMENT CARRIES ═══════════════════
+              Brent, 2026-08-31: "i want the phone numbers pulled from the
+              BOLs underneath in the GAPS area. that would make it easier
+              for them to call the names."
+
+              Under the gaps and not among them, because these are not
+              gaps — they are the answer to one. tel: links, so a click
+              dials rather than selecting text to copy.
+
+              A number already matched to a contact says so instead of
+              being offered as new. The notes on Gates - Houston read
+              "Both Contact lines are blank — the document gives a phone
+              at each end and no person", which is precisely the case
+              completeness.ts's namedContactCount exists for: a nameless
+              number must not make the record look finished, and this
+              panel must not claim otherwise. */}
+          {docPeople.length > 0 && (
+            <div className="mt-3 border-t border-line pt-2.5">
+              <p className="mb-1.5">
+                <Micro className="text-fg-muted">On this document</Micro>
+                <span className="ml-2 text-[11.5px] text-fg-subtle">
+                  {docPeople.length} {docPeople.length === 1 ? "number" : "numbers"} to call
+                </span>
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {docPeople.map((p) => (
+                  <div key={p.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="text-[12.5px] font-bold text-fg">
+                      {p.name ?? "No name on the document"}
+                    </span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-fg-subtle">
+                      {ROLE_WORD[p.role] ?? p.role}
+                    </span>
+                    {p.phone && (
+                      <a
+                        href={`tel:${p.phone.replace(/[^\d+]/g, "")}`}
+                        className="crm-num text-[12.5px] font-bold text-accent underline underline-offset-2 hover:text-accent-hover"
+                      >
+                        {p.phone}
+                      </a>
+                    )}
+                    {p.email && (
+                      <a
+                        href={`mailto:${p.email}`}
+                        className="text-[12px] font-semibold text-accent underline underline-offset-2 hover:text-accent-hover"
+                      >
+                        {p.email}
+                      </a>
+                    )}
+                    {p.onFile && (
+                      <span className="rounded bg-ok-bg px-1.5 py-px text-[10.5px] font-bold text-ok">
+                        already on file
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
         </div>
