@@ -164,15 +164,30 @@ export function SalesDashboard({
           <FileCard className="flex flex-col">
             <SectionHead
               title="Gaps to fill"
-              count={gaps.length === 0 ? "nothing missing" : `${gaps.length} across your companies`}
+              count={
+                gaps.length > 0
+                  ? `${gaps.length} across your companies`
+                  : companies.length === 0
+                    ? "no companies yet"
+                    : "nothing missing"
+              }
             />
             <div className="flex-1">
               {gaps.length === 0 ? (
+                /* TWO DIFFERENT EMPTIES, and saying the wrong one to a new
+                   hire is a bad first day. "Every company you own is
+                   complete" is vacuously true when you own none, and reads
+                   as praise for a book you have not been given yet — the
+                   same trap accounts/page.tsx already fixed for its own
+                   list. Say what would fill it instead. */
                 <div className="py-10 text-center">
-                  <p className="text-[13px] font-bold text-fg">Nothing missing</p>
+                  <p className="text-[13px] font-bold text-fg">
+                    {companies.length === 0 ? "No companies yet" : "Nothing missing"}
+                  </p>
                   <p className="mx-auto mt-1 max-w-[38ch] text-[12px] text-fg-subtle">
-                    Every company you own has somebody to call, an address and a trade
-                    on file.
+                    {companies.length === 0
+                      ? "This fills up once companies are assigned to you — an admin hands them out from Admin → Companies."
+                      : "Every company you own has somebody to call, an address and a trade on file."}
                   </p>
                 </div>
               ) : (

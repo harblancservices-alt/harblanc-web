@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Card, CardHead, ZEBRA_ROWS, EmptyState, Badge } from "../../_shell/ui";
 import { firstName, formatDate } from "../../_shell/format";
 import { IconContacts } from "../../_shell/icons";
-import { listTeamMembers } from "../accounts-data";
+import { listTeamMembers, listOrphanLogins } from "../accounts-data";
+import { AddUserButton, OrphanLogins } from "./MemberTools";
 import { getBrokerProfile } from "../../_shell/brokerProfile";
 import { BrokerProfileEditButton } from "../../settings/BrokerProfileEditButton";
 
@@ -23,13 +24,27 @@ function initials(name: string | null, email: string | null): string {
  * is editable inline here.
  */
 export default async function AdminAccountsPage() {
-  const [members, profile] = await Promise.all([listTeamMembers(), getBrokerProfile()]);
+  const [members, profile, orphans] = await Promise.all([
+    listTeamMembers(),
+    getBrokerProfile(),
+    listOrphanLogins(),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
       <OrgInfoCard profile={profile} />
+
+      {/* THE REPAIR LIST SITS ABOVE THE ROSTER and renders nothing when
+          empty — it is the failure that actually happens, so when there is
+          one it should be the first thing on the page. */}
+      <OrphanLogins logins={orphans} />
+
       <Card>
-      <CardHead title="Team" hint={`${members.length} ${members.length === 1 ? "account" : "accounts"}`} />
+      <CardHead
+        title="Team"
+        hint={`${members.length} ${members.length === 1 ? "account" : "accounts"}`}
+        right={<AddUserButton />}
+      />
       {members.length === 0 ? (
         <EmptyState icon={<IconContacts />} title="No team accounts" body="Team members will show up here." />
       ) : (

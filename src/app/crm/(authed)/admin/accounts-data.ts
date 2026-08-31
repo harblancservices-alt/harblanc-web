@@ -61,3 +61,40 @@ export async function listTeamMembers(): Promise<AdminTeamMember[]> {
     return (a.fullName || a.email || "").localeCompare(b.fullName || b.email || "");
   });
 }
+
+/**
+ * LOGINS WITH NO CRM PROFILE — the repair list.
+ *
+ * Reads via the crm_orphan_logins() SECURITY DEFINER function, because
+ * auth.users lives outside the exposed schema and PostgREST cannot select it
+ * even with the service-role key. That function re-checks the caller is an
+ * active owner and raises otherwise, so the boundary is in the database
+ * rather than only in the page that calls this.
+ *
+ * Returns [] on any error INCLUDING "not authorised" — a member who somehow
+ * reaches this code sees an empty list, not a stack trace and not a roster
+ * of every login in the project.
+ */
+export type OrphanLogin = {
+  userId: string;
+  email: string | null;
+  createdAt: string;
+  lastSignInAt: string | null;
+};
+
+export async function listOrphanLogins(): Promise<OrphanLogin[]> {
+  const supabase = await createCrmServerClient();
+  const { data, error } = await supabase.rpc("crm_orphan_logins");
+  if (error) return [];
+  return ((data ?? []) as {
+    user_id: string;
+    email: string | null;
+    created_at: string;
+    last_sign_in_at: string | null;
+  }[]).map((r) => ({
+    userId: r.user_id,
+    email: r.email,
+    createdAt: r.created_at,
+    lastSignInAt: r.last_sign_in_at,
+  }));
+}
